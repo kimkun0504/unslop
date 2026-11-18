@@ -1,0 +1,100 @@
+[project]
+name = "app"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+app = "app.api.cli:run"
+
+[dependency-groups]
+dev = [
+  "basedpyright>=1.39",
+  "deptry>=0.25",
+  "hypothesis>=6.150",
+  "import-linter>=2.16",
+  "mutmut>=3.7",
+  "pip-audit>=2.10",
+  "pytest>=9.2",
+  "pytest-cov>=7.1",
+  "pytest-randomly>=5.0",
+  "ruff>=0.17,<0.18",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv]
+required-version = ">=0.13.4"
+exclude-newer = "7 days"
+index-strategy = "first-index"
+
+[tool.ruff]
+required-version = ">=0.17,<0.18"
+target-version = "py313"
+line-length = 100
+src = ["src", "tests", "tools"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = ["D", "CPY001", "COM812", "ISC001"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-branches = 10
+max-returns = 4
+max-statements = 40
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PLR2004"]
+
+[tool.basedpyright]
+typeCheckingMode = "all"
+pythonVersion = "3.13"
+include = ["src", "tests", "tools"]
+reportUnnecessaryTypeIgnoreComment = "error"
+
+[tool.pytest]
+minversion = "9.0"
+strict = true
+addopts = ["-ra", "--import-mode=importlib", "-p", "randomly"]
+filterwarnings = ["error"]
+testpaths = ["tests"]
+markers = ["integration: needs Docker and real Postgres"]
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+skip_covered = true
+
+[tool.importlinter]
+root_packages = ["app"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Layers: api calls service calls domain"
+type = "layers"
+layers = ["app.api", "app.service", "app.domain"]
+
+[[tool.importlinter.contracts]]
+name = "Domain is pure"
+type = "forbidden"
+source_modules = ["app.domain"]
+forbidden_modules = ["os", "subprocess", "socket", "pathlib", "sqlalchemy", "httpx", "fastapi"]
+
+[tool.deptry]
+known_first_party = ["app"]
+
+[tool.mutmut]
+source_paths = ["src/app"]

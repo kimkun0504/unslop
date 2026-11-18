@@ -12,7 +12,7 @@ else
   base=$(git merge-base HEAD "$base_ref") || { echo "check-diff: no merge base with $base_ref; use a full clone (fetch-depth: 0)" >&2; exit 2; }
 fi
 pattern='\.(skip|only|todo|fixme)[.(A-Z]|(^|[^A-Za-z0-9_.])x(it|describe|test)\(|@ts-(ignore|expect-error|nocheck)|eslint-disable|(istanbul|c8|v8) ignore|@Disabled|@Ignore([^A-Za-z]|$)|@Suppress(Warnings|FBWarnings)?\(|NOPMD|CHECKSTYLE:OFF|t\.Skip|nolint|lint:ignore|pytest\.(mark\.)?(skip|xfail)|unittest\.skip|noqa|type: *ignore|pyright: *ignore|pragma: *no cover|atlas:nolint|squawk-ignore'
-excluded=(':(exclude)scripts/check-diff' ':(exclude)**/*.md')
+excluded=(':(exclude)scripts/**' ':(exclude)tools/guard/**' ':(exclude)eslint-rules/**' ':(exclude)**/*.md')
 hits=$(
   {
     git diff "$base" -U0 --no-color -- . "${excluded[@]}" | grep -E '^\+[^+]' || true

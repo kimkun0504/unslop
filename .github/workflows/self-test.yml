@@ -15,3 +15,20 @@ jobs:
       - run: shellcheck global/hooks/*.sh tests/hooks/run.sh install/install.sh common/scripts/* bin/unslop
       - run: jq empty global/managed-settings.json common/.claude/settings.json common/.github/rulesets/main.json
       - run: tests/hooks/run.sh
+  python-template:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          bin/unslop new python "$RUNNER_TEMP/py"
+          cd "$RUNNER_TEMP/py"
+          scripts/setup
+          scripts/verify
+          scripts/mutation

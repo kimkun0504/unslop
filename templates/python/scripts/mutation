@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+uv run --locked mutmut run >/dev/null
+survivors=$(uv run --locked mutmut results | grep -cE ': (survived|no tests)' || true)
+uv run --locked mutmut results
+if [ "$survivors" -gt 0 ]; then
+  echo "mutation: $survivors mutants survived; strengthen the tests" >&2
+  exit 1
+fi
+echo "mutation: all mutants killed"

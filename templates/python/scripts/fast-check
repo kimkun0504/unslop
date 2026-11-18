@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+mapfile -t py < <(git ls-files -co --exclude-standard -- '*.py')
+uv run --locked ruff format --check
+uv run --locked ruff check --ignore-noqa --no-fix
+uv run --locked python tools/guard/no_comments.py "${py[@]}"
+uv run --locked basedpyright
+uv run --locked lint-imports
+scripts/check-diff
+uv run --locked pytest -q -x -p no:randomly --no-header

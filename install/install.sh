@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 repo=$(cd "$(dirname "$0")/.." && pwd)
-hook_dir=/usr/local/lib/claude-guard
+prefix="${UNSLOP_TEST_PREFIX:-}"
+hook_dir="$prefix/usr/local/lib/claude-guard"
 
 managed_dir() {
   case "$(uname -s)" in
-    Darwin) echo "/Library/Application Support/ClaudeCode" ;;
-    Linux) echo "/etc/claude-code" ;;
+    Darwin) echo "$prefix/Library/Application Support/ClaudeCode" ;;
+    Linux) echo "$prefix/etc/claude-code" ;;
     *) echo "unsupported OS: $(uname -s)" >&2; exit 1 ;;
   esac
 }
@@ -16,7 +17,7 @@ require() {
 }
 
 install_system() {
-  [ "$(id -u)" = 0 ] || { echo "system install needs root: sudo $0 system" >&2; exit 1; }
+  [ -n "$prefix" ] || [ "$(id -u)" = 0 ] || { echo "system install needs root: sudo $0 system" >&2; exit 1; }
   require jq "macOS 15+ ships /usr/bin/jq; otherwise: brew install jq"
   require git "xcode-select --install"
   command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1 || require perl "needed for the stop gate time limit"
@@ -35,7 +36,7 @@ install_system() {
 }
 
 install_user() {
-  [ "$(id -u)" != 0 ] || { echo "run the user install without sudo" >&2; exit 1; }
+  [ -n "$prefix" ] || [ "$(id -u)" != 0 ] || { echo "run the user install without sudo" >&2; exit 1; }
   local home_claude="$HOME/.claude"
   mkdir -p "$home_claude/agents" "$home_claude/skills"
   if [ -f "$home_claude/CLAUDE.md" ] && ! cmp -s "$home_claude/CLAUDE.md" "$repo/global/user/CLAUDE.md"; then
