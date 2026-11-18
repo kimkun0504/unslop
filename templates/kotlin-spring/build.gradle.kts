@@ -102,7 +102,7 @@ tasks.check {
 }
 
 pitest {
-    pitestVersion.set(libs.versions.pitest.get())
+    pitestVersion.set(libs.versions.pitest.core.get())
     junit5PluginVersion.set(libs.versions.pitest.junit5.get())
     targetClasses.set(listOf("com.example.app.quote.*"))
     excludedTestClasses.set(listOf("com.example.app.ModularityTest", "com.example.app.quote.QuoteApiTest"))
