@@ -1,7 +1,6 @@
 package com.example.app.quote
 
-@JvmInline
-value class Money private constructor(
+class Money private constructor(
     val cents: Long,
 ) {
     operator fun plus(other: Money): Money = Money(cents + other.cents)

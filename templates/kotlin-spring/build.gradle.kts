@@ -110,6 +110,7 @@ pitest {
     targetClasses.set(listOf("com.example.app.quote.*"))
     excludedTestClasses.set(listOf("com.example.app.ModularityTest"))
     mutators.set(listOf("STRONGER"))
+    avoidCallsTo.set(listOf("kotlin.jvm.internal"))
     mutationThreshold.set(100)
     timestampedReports.set(false)
     outputFormats.set(listOf("CSV", "HTML"))
