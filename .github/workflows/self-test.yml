@@ -97,6 +97,7 @@ jobs:
           env | grep -iE 'gradle|maven|proxy' | sort
           bin/unslop new kotlin-spring "$RUNNER_TEMP/kt"
           cd "$RUNNER_TEMP/kt"
+          gradle --info help 2>&1 | grep -iE "maven.apache|plugins.gradle|status|missing|resource|cache|offline|refresh" | head -40 || true
           scripts/setup
           scripts/verify
           scripts/mutation
