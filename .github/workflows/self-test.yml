@@ -93,12 +93,20 @@ jobs:
           git config --global user.email ci@example.com
           bin/unslop new kotlin-spring "$RUNNER_TEMP/kt"
           cd "$RUNNER_TEMP/kt"
-          gradle --continue spotlessApply detekt test jacocoTestCoverageVerification pitest > "$RUNNER_TEMP/diag.txt" 2>&1 || true
-          grep -E "^e: |^w: |detekt|\.kt:[0-9]+|FAILED|Rule violated|covered ratio|mutation score|Generated .* mutations|KILLED|SURVIVED|went wrong|> " "$RUNNER_TEMP/diag.txt" | head -150 || true
-          grep -vE ",KILLED," build/reports/pitest/mutations.csv | head -60 || true
-          git diff --stat
-          git diff | head -150
-          git checkout -- .
+          git remote remove origin 2>/dev/null || true
+          expect_fail() {
+            printf '%s\n' "$2" >> "$3"
+            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; exit 1; fi
+            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -20 "$RUNNER_TEMP/neg.txt"; exit 1; }
+            echo "caught: $1 by $4"
+            git checkout -- .
+          }
+          M=src/main/kotlin/com/example/app/quote/Pricing.kt
+          expect_fail "line comment" "// explains the hack" "$M" "comments are forbidden"
+          expect_fail "kdoc" "/** docs */" "$M" "comments are forbidden"
+          expect_fail "println" 'fun debug() = println("x")' "$M" "ForbiddenMethodCall"
+          expect_fail "suppress annotation" '@Suppress("MagicNumber") fun n() = 42' "$M" "check-diff"
+          expect_fail "unsafe call" 'fun unsafe(s: String?) = s!!.length' "$M" "UnsafeCallOnNullableType"
           scripts/setup
           scripts/verify
           scripts/mutation
