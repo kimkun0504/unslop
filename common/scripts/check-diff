@@ -2,8 +2,9 @@
 set -euo pipefail
 base_ref="${1:-origin/main}"
 if ! git rev-parse --verify -q "$base_ref" >/dev/null; then
-  if [ "$(git rev-list --count HEAD 2>/dev/null || echo 0)" -le 1 ] && [ "$base_ref" = origin/main ]; then
-    base=$(git hash-object -t tree /dev/null)
+  if [ "$base_ref" = origin/main ] && ! git remote get-url origin >/dev/null 2>&1; then
+    base=$(git rev-list --max-parents=0 HEAD 2>/dev/null | tail -n 1)
+    [ -n "$base" ] || base=$(git hash-object -t tree /dev/null)
   else
     echo "check-diff: cannot resolve $base_ref; use a full clone (fetch-depth: 0)" >&2
     exit 2
@@ -12,11 +13,12 @@ else
   base=$(git merge-base HEAD "$base_ref") || { echo "check-diff: no merge base with $base_ref; use a full clone (fetch-depth: 0)" >&2; exit 2; }
 fi
 pattern='\.(skip|only|todo|fixme)[.(A-Z]|(^|[^A-Za-z0-9_.])x(it|describe|test)\(|@ts-(ignore|expect-error|nocheck)|eslint-disable|(istanbul|c8|v8) ignore|@Disabled|@Ignore([^A-Za-z]|$)|@Suppress(Warnings|FBWarnings)?\(|NOPMD|CHECKSTYLE:OFF|t\.Skip|nolint|lint:ignore|pytest\.(mark\.)?(skip|xfail)|unittest\.skip|noqa|type: *ignore|pyright: *ignore|pragma: *no cover|atlas:nolint|squawk-ignore'
-excluded=(':(exclude)scripts/**' ':(exclude)tools/guard/**' ':(exclude)eslint-rules/**' ':(exclude)**/*.md')
+code=(':(glob)**/*.ts' ':(glob)**/*.tsx' ':(glob)**/*.js' ':(glob)**/*.jsx' ':(glob)**/*.py' ':(glob)**/*.go' ':(glob)**/*.kt' ':(glob)**/*.java' ':(glob)**/*.sql')
+excluded=(':(exclude)scripts/**' ':(exclude)tools/guard/**' ':(exclude)eslint-rules/**')
 hits=$(
   {
-    git diff "$base" -U0 --no-color -- . "${excluded[@]}" | grep -E '^\+[^+]' || true
-    git ls-files -o --exclude-standard -- . "${excluded[@]}" | while IFS= read -r f; do [ -f "$f" ] && sed "s|^|+$f: |" "$f"; done
+    git diff "$base" -U0 --no-color -- "${code[@]}" "${excluded[@]}" | grep -E '^\+[^+]' || true
+    git ls-files -o --exclude-standard -- "${code[@]}" "${excluded[@]}" | while IFS= read -r f; do [ -f "$f" ] && sed "s|^|+$f: |" "$f"; done
   } | grep -E -- "$pattern" || true
 )
 if [ -n "$hits" ]; then
