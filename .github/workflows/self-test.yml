@@ -91,13 +91,13 @@ jobs:
       - run: |
           git config --global user.name ci
           git config --global user.email ci@example.com
-          curl -sSI https://repo.maven.apache.org/maven2/org/apache/commons/commons-compress/1.27.1/commons-compress-1.27.1.pom | head -3
-          curl -sSI https://repo.maven.apache.org/maven2/org/springframework/spring-core/7.0.10/spring-core-7.0.10.pom | head -3
-          curl -sSI https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/2.4.21/kotlin-gradle-plugins-bom-2.4.21.pom | head -3
-          env | grep -iE 'gradle|maven|proxy' | sort
           bin/unslop new kotlin-spring "$RUNNER_TEMP/kt"
           cd "$RUNNER_TEMP/kt"
-          gradle --info help 2>&1 | grep -iE "maven.apache|plugins.gradle|status|missing|resource|cache|offline|refresh" | head -40 || true
+          gradle --continue spotlessApply detekt test jacocoTestCoverageVerification pitest > "$RUNNER_TEMP/diag.txt" 2>&1 || true
+          grep -E "^e: |^w: |detekt|\.kt:[0-9]+|FAILED|Rule violated|covered ratio|mutation score|Generated .* mutations|KILLED|SURVIVED|went wrong|> " "$RUNNER_TEMP/diag.txt" | head -150 || true
+          git diff --stat
+          git diff | head -150
+          git checkout -- .
           scripts/setup
           scripts/verify
           scripts/mutation

@@ -32,6 +32,9 @@ class MoneyTest {
     @Test
     fun `adds and discounts`() {
         val ten = Money.parse("10")
-        assertEquals(listOf("15.00", "9.50"), listOf((ten + Money.parse("5")).toString(), ten.lessPercent(5).toString()))
+        assertEquals(
+            listOf("15.00", "9.50"),
+            listOf((ten + Money.parse("5")).toString(), ten.lessPercent(5).toString()),
+        )
     }
 }

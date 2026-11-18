@@ -8,7 +8,8 @@ value class Money private constructor(
 
     fun lessPercent(percent: Long): Money = Money(cents * (WHOLE_PERCENT - percent) / WHOLE_PERCENT)
 
-    override fun toString(): String = "${cents / CENTS_PER_UNIT}.${(cents % CENTS_PER_UNIT).toString().padStart(2, '0')}"
+    override fun toString(): String =
+        "${cents / CENTS_PER_UNIT}.${(cents % CENTS_PER_UNIT).toString().padStart(2, '0')}"
 
     companion object {
         private const val CENTS_PER_UNIT = 100
