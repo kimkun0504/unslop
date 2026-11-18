@@ -95,7 +95,7 @@ jobs:
           cd "$RUNNER_TEMP/kt"
           git remote remove origin 2>/dev/null || true
           expect_fail() {
-            printf '%s\n' "$2" >> "$3"
+            printf '\n%s\n' "$2" >> "$3"
             if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; exit 1; fi
             grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -20 "$RUNNER_TEMP/neg.txt"; exit 1; }
             echo "caught: $1 by $4"
