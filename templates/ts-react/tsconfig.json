@@ -1,0 +1,14 @@
+{
+  "extends": "@tsconfig/strictest/tsconfig.json",
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "types": ["vite/client", "@testing-library/jest-dom/vitest"]
+  },
+  "include": ["src", "eslint-rules", "eslint.config.ts", "vite.config.ts"]
+}

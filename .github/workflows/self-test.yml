@@ -32,3 +32,23 @@ jobs:
           scripts/setup
           scripts/verify
           scripts/mutation
+  ts-react-template:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
+        with:
+          version: 12.21.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 22
+      - run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          bin/unslop new ts-react "$RUNNER_TEMP/ts"
+          cd "$RUNNER_TEMP/ts"
+          scripts/setup
+          scripts/verify
+          scripts/mutation

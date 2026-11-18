@@ -23,7 +23,15 @@
       "Edit(uv.lock)",
       "Edit(mise.toml)",
       "Edit(.squawk.toml)",
-      "Edit(**/Dockerfile)"
+      "Edit(**/Dockerfile)",
+      "Edit(vite.config.*)",
+      "Edit(knip.json)",
+      "Edit(stryker.config.*)",
+      "Edit(.prettierrc*)",
+      "Edit(.prettierignore)",
+      "Edit(pnpm-workspace.yaml)",
+      "Edit(.npmrc)",
+      "Edit(.python-version)"
     ]
   },
   "sandbox": {
@@ -51,7 +59,15 @@
         "./uv.lock",
         "./mise.toml",
         "./.squawk.toml",
-        "./tools/guard"
+        "./tools/guard",
+        "./vite.config.ts",
+        "./knip.json",
+        "./stryker.config.json",
+        "./.prettierrc.json",
+        "./.prettierignore",
+        "./pnpm-workspace.yaml",
+        "./.npmrc",
+        "./.python-version"
       ]
     }
   }

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+scripts/fast-check
+pnpm -s test:coverage
+pnpm -s build
