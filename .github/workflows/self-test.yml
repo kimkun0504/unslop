@@ -95,6 +95,7 @@ jobs:
           cd "$RUNNER_TEMP/kt"
           gradle --continue spotlessApply detekt test jacocoTestCoverageVerification pitest > "$RUNNER_TEMP/diag.txt" 2>&1 || true
           grep -E "^e: |^w: |detekt|\.kt:[0-9]+|FAILED|Rule violated|covered ratio|mutation score|Generated .* mutations|KILLED|SURVIVED|went wrong|> " "$RUNNER_TEMP/diag.txt" | head -150 || true
+          grep -vE ",KILLED," build/reports/pitest/mutations.csv | head -60 || true
           git diff --stat
           git diff | head -150
           git checkout -- .

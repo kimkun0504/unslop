@@ -108,9 +108,9 @@ pitest {
     pitestVersion.set(libs.versions.pitest.core)
     junit5PluginVersion.set(libs.versions.pitest.junit5)
     targetClasses.set(listOf("com.example.app.quote.*"))
-    excludedTestClasses.set(listOf("com.example.app.ModularityTest", "com.example.app.quote.QuoteApiTest"))
+    excludedTestClasses.set(listOf("com.example.app.ModularityTest"))
     mutators.set(listOf("STRONGER"))
     mutationThreshold.set(100)
     timestampedReports.set(false)
-    outputFormats.set(listOf("TEXT", "HTML"))
+    outputFormats.set(listOf("CSV", "HTML"))
 }
