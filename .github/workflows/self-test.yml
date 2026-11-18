@@ -108,7 +108,7 @@ jobs:
           expect_fail "println" 'fun debug() = println("x")' "$M" "println() is forbidden"
           expect_fail "suppress annotation" '@Suppress("MagicNumber") fun n() = 42' "$M" "check-diff"
           expect_fail "unsafe call" 'fun unsafe(s: String?) = s!!.length' "$M" "operator is forbidden"
-          expect_fail "long method" "$(printf 'fun long(): Int {\n'; for i in $(seq 1 45); do printf '    val v%s = %s\n' "$i" "$i"; done; printf '    return v1\n}')" "$M" "LongMethod"
+          expect_fail "long method" "$(printf 'fun long(): Int {\n    var total = 0\n'; for i in $(seq 1 45); do printf '    total += 1\n'; done; printf '    return total\n}')" "$M" "LongMethod"
           sed -i 's/SILVER(5)/SILVER(6)/' "$M"
           if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
           grep -q "FAILED" "$RUNNER_TEMP/neg.txt" && echo "caught: behaviour change by a failing test"
