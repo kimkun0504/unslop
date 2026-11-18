@@ -24,6 +24,8 @@ linters:
   settings:
     govet:
       enable-all: true
+    exhaustive:
+      default-signifies-exhaustive: true
     cyclop:
       max-complexity: 10
     gocognit:
