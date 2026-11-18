@@ -91,6 +91,10 @@ jobs:
       - run: |
           git config --global user.name ci
           git config --global user.email ci@example.com
+          curl -sSI https://repo.maven.apache.org/maven2/org/apache/commons/commons-compress/1.27.1/commons-compress-1.27.1.pom | head -3
+          curl -sSI https://repo.maven.apache.org/maven2/org/springframework/spring-core/7.0.10/spring-core-7.0.10.pom | head -3
+          curl -sSI https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugins-bom/2.4.21/kotlin-gradle-plugins-bom-2.4.21.pom | head -3
+          env | grep -iE 'gradle|maven|proxy' | sort
           bin/unslop new kotlin-spring "$RUNNER_TEMP/kt"
           cd "$RUNNER_TEMP/kt"
           scripts/setup
