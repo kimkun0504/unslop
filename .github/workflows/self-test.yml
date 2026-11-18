@@ -93,6 +93,7 @@ jobs:
           git config --global user.email ci@example.com
           bin/unslop new kotlin-spring "$RUNNER_TEMP/kt"
           cd "$RUNNER_TEMP/kt"
+          scripts/setup
           git remote remove origin 2>/dev/null || true
           expect_fail() {
             printf '\n%s\n' "$2" >> "$3"
@@ -112,6 +113,5 @@ jobs:
           if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
           grep -q "FAILED" "$RUNNER_TEMP/neg.txt" && echo "caught: behaviour change by a failing test"
           git checkout -- .
-          scripts/setup
           scripts/verify
           scripts/mutation

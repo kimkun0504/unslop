@@ -5,4 +5,13 @@ required=$(sed -n 's/^gradle = "\(.*\)"$/\1/p' mise.toml)
 actual=$(gradle --version 2>/dev/null | sed -n 's/^Gradle //p')
 [ "$actual" = "$required" ] || { echo "Gradle $required required (found ${actual:-none}); run: mise install" >&2; exit 1; }
 command -v uv >/dev/null || { echo "uv missing; run: mise install" >&2; exit 1; }
-gradle --quiet dependencies --configuration runtimeClasspath >/dev/null
+for attempt in 1 2 3; do
+  refresh=()
+  [ "$attempt" -gt 1 ] && refresh=(--refresh-dependencies)
+  if gradle --quiet "${refresh[@]}" dependencies >/dev/null; then
+    exit 0
+  fi
+  echo "dependency resolution failed (attempt $attempt); retrying" >&2
+  sleep $((attempt * 10))
+done
+exit 1
