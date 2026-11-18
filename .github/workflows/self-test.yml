@@ -72,3 +72,27 @@ jobs:
           cd "$RUNNER_TEMP/go"
           scripts/setup
           scripts/verify
+  kotlin-spring-template:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c
+        with:
+          gradle-version: "9.9.1"
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          bin/unslop new kotlin-spring "$RUNNER_TEMP/kt"
+          cd "$RUNNER_TEMP/kt"
+          scripts/setup
+          scripts/verify
+          scripts/mutation

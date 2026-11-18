@@ -1,0 +1,22 @@
+config:
+  validation: true
+build:
+  maxIssues: 0
+comments:
+  active: true
+complexity:
+  LongMethod:
+    threshold: 40
+  CyclomaticComplexMethod:
+    threshold: 10
+  LongParameterList:
+    functionThreshold: 4
+    constructorThreshold: 6
+style:
+  MaxLineLength:
+    maxLineLength: 120
+  ForbiddenComment:
+    active: true
+  MagicNumber:
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
