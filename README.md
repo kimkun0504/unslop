@@ -42,7 +42,7 @@ scripts/setup
 scripts/verify
 ```
 
-Templates: `python`, `ts-react`, `go`, `kotlin-spring`. Each has the same scripts:
+Templates: `python`, `ts-react`, `go`, `kotlin-spring`. The Go and Kotlin templates pin their toolchains in `mise.toml`; run `mise install` in the new project first. Each template has the same scripts:
 
 | Script | Runs | Used by |
 |---|---|---|
@@ -72,9 +72,16 @@ Comments fail the build in all four stacks: a custom ESLint rule for TypeScript,
 
 ## Tested
 
-`.github/workflows/self-test.yml` runs on every push: shellcheck, 112 hook test cases, and for each template it scaffolds a fresh project and runs `setup`, `verify` and `mutation`.
+`.github/workflows/self-test.yml` runs on every push: shellcheck, 112 hook test cases, and for each template it scaffolds a fresh project and runs `setup`, `verify` and `mutation`. The Kotlin job also plants seven violations (a comment, KDoc, `println`, `!!`, a `@Suppress`, a long method, a behaviour change) and fails unless the intended check catches each one. The Python, TypeScript and Go templates went through the same planted-violation pass by hand.
 
-Not covered by automated tests: the hooks on macOS bash 3.2 and BSD tools (they avoid GNU-only features, but have run only on Linux), the sandbox itself, and the GitHub ruleset.
+## Known limits
+
+- The hooks have run only on Linux. They avoid GNU-only features, but macOS bash 3.2 and BSD tools are untested. Run `tests/hooks/run.sh` on your Mac after cloning.
+- The Claude Code sandbox and the GitHub ruleset are configuration, not code, so nothing here tests them. Check with `/sandbox` and by trying a direct push to `main`.
+- detekt 1.23 bundles an older Kotlin compiler, so its type-aware rules do nothing on Kotlin 2.4 code. The Kotlin guard bans `println`, `print`, `TODO` and `!!` by parsing instead. Switch to detekt 2 once it is stable.
+- Kotlin mutation testing skips calls to `kotlin.jvm.internal` (compiler-inserted null checks no test can observe).
+- The Go template has no mutation testing: the Go mutation tools are unmaintained. It relies on fuzzing, the race detector and 100% coverage instead.
+- The guard on shell commands matches text. A determined agent can disguise a command, for example by storing `git` in a variable. The sandbox and the ruleset are the real boundary; the guard catches the ordinary cases.
 
 ## Changing the guardrails
 
