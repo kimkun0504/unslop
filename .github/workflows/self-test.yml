@@ -72,3 +72,46 @@ jobs:
           cd "$RUNNER_TEMP/go"
           scripts/setup
           scripts/verify
+  kotlin-spring-template:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c
+        with:
+          gradle-version: "9.9.1"
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          bin/unslop new kotlin-spring "$RUNNER_TEMP/kt"
+          cd "$RUNNER_TEMP/kt"
+          scripts/setup
+          git remote remove origin 2>/dev/null || true
+          expect_fail() {
+            printf '\n%s\n' "$2" >> "$3"
+            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; grep -iE "detekt|task|warning|error|kotlin" "$RUNNER_TEMP/neg.txt" | head -60; exit 1; fi
+            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -20 "$RUNNER_TEMP/neg.txt"; exit 1; }
+            echo "caught: $1 by $4"
+            git checkout -- .
+          }
+          M=src/main/kotlin/com/example/app/quote/Pricing.kt
+          expect_fail "line comment" "// explains the hack" "$M" "comments are forbidden"
+          expect_fail "kdoc" "/** docs */" "$M" "comments are forbidden"
+          expect_fail "println" 'fun debug() = println("x")' "$M" "println() is forbidden"
+          expect_fail "suppress annotation" '@Suppress("MagicNumber") fun n() = 42' "$M" "check-diff"
+          expect_fail "unsafe call" 'fun unsafe(s: String?) = s!!.length' "$M" "operator is forbidden"
+          expect_fail "long method" "$(printf 'fun long(): Int {\n    var total = 0\n'; for i in $(seq 1 45); do printf '    total += 1\n'; done; printf '    return total\n}')" "$M" "LongMethod"
+          sed -i 's/SILVER(5)/SILVER(6)/' "$M"
+          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
+          grep -q "FAILED" "$RUNNER_TEMP/neg.txt" && echo "caught: behaviour change by a failing test"
+          git checkout -- .
+          scripts/verify
+          scripts/mutation

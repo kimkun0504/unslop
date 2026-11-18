@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+mapfile -t kotlin < <(git ls-files -co --exclude-standard -- '*.kt' '*.kts')
+uv run --quiet --with tree-sitter==0.26.1 --with tree-sitter-kotlin==1.1.0 python tools/guard/kotlin_guard.py "${kotlin[@]}"
+scripts/check-diff
+gradle --continue --console=plain spotlessCheck detektMain detektTest test
