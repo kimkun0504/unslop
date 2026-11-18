@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "disableBypassPermissionsMode": "disable",
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.kube/**)",
+      "Read(~/.config/gcloud/**)",
+      "Read(~/.docker/config.json)",
+      "Read(~/.npmrc)",
+      "Read(~/.pypirc)",
+      "Read(~/.netrc)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Edit(~/.claude/**)",
+      "Edit(~/.claude.json)",
+      "Edit(.claude/**)",
+      "Edit(.mcp.json)",
+      "Edit(.git/hooks/**)",
+      "Edit(.git/config)",
+      "Bash(terraform apply *)",
+      "Bash(terraform destroy *)",
+      "Bash(kubectl apply *)",
+      "Bash(kubectl delete *)",
+      "Bash(helm upgrade *)",
+      "Bash(helm uninstall *)",
+      "Bash(argocd app sync *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)"
+    ]
+  },
+  "enableAllProjectMcpServers": false,
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "allowWrite": ["~/.gradle", "~/.m2", "~/.cache", "~/.local/share/pnpm", "~/Library/pnpm", "~/Library/Caches", "~/go/pkg/mod", "~/.npm"],
+      "denyWrite": ["~/.claude", "~/.claude.json", "./.claude", "./.mcp.json", "./.git/hooks", "./.git/config"],
+      "denyRead": ["~/.ssh", "~/.aws", "~/.kube", "~/.config/gcloud", "~/.docker/config.json", "~/.npmrc", "~/.pypirc", "~/.netrc"]
+    },
+    "network": {
+      "strictAllowlist": true,
+      "allowedDomains": [
+        "github.com",
+        "codeload.github.com",
+        "objects.githubusercontent.com",
+        "registry.npmjs.org",
+        "repo.maven.apache.org",
+        "repo1.maven.org",
+        "plugins.gradle.org",
+        "plugins-artifacts.gradle.org",
+        "services.gradle.org",
+        "downloads.gradle.org",
+        "proxy.golang.org",
+        "sum.golang.org",
+        "pypi.org",
+        "files.pythonhosted.org"
+      ]
+    },
+    "credentials": {
+      "envVars": [
+        { "name": "GITHUB_TOKEN", "mode": "deny" },
+        { "name": "GH_TOKEN", "mode": "deny" },
+        { "name": "NPM_TOKEN", "mode": "deny" },
+        { "name": "AWS_ACCESS_KEY_ID", "mode": "deny" },
+        { "name": "AWS_SECRET_ACCESS_KEY", "mode": "deny" },
+        { "name": "AWS_SESSION_TOKEN", "mode": "deny" },
+        { "name": "DATABASE_URL", "mode": "deny" },
+        { "name": "PGPASSWORD", "mode": "deny" }
+      ]
+    }
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Monitor|PowerShell",
+        "hooks": [{ "type": "command", "command": "/usr/local/lib/claude-guard/guard-bash.sh", "timeout": 10, "onFailure": "block" }]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [{ "type": "command", "command": "/usr/local/lib/claude-guard/protect-paths.sh", "timeout": 10, "onFailure": "block" }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "/usr/local/lib/claude-guard/stop-gate.sh", "timeout": 300 }]
+      }
+    ]
+  }
+}

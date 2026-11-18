@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+base_ref="${1:-origin/main}"
+if ! git rev-parse --verify -q "$base_ref" >/dev/null; then
+  if [ "$(git rev-list --count HEAD 2>/dev/null || echo 0)" -le 1 ] && [ "$base_ref" = origin/main ]; then
+    base=$(git hash-object -t tree /dev/null)
+  else
+    echo "check-diff: cannot resolve $base_ref; use a full clone (fetch-depth: 0)" >&2
+    exit 2
+  fi
+else
+  base=$(git merge-base HEAD "$base_ref") || { echo "check-diff: no merge base with $base_ref; use a full clone (fetch-depth: 0)" >&2; exit 2; }
+fi
+pattern='\.(skip|only|todo|fixme)[.(A-Z]|(^|[^A-Za-z0-9_.])x(it|describe|test)\(|@ts-(ignore|expect-error|nocheck)|eslint-disable|(istanbul|c8|v8) ignore|@Disabled|@Ignore([^A-Za-z]|$)|@Suppress(Warnings|FBWarnings)?\(|NOPMD|CHECKSTYLE:OFF|t\.Skip|nolint|lint:ignore|pytest\.(mark\.)?(skip|xfail)|unittest\.skip|noqa|type: *ignore|pyright: *ignore|pragma: *no cover|atlas:nolint|squawk-ignore'
+excluded=(':(exclude)scripts/check-diff' ':(exclude)**/*.md')
+hits=$(
+  {
+    git diff "$base" -U0 --no-color -- . "${excluded[@]}" | grep -E '^\+[^+]' || true
+    git ls-files -o --exclude-standard -- . "${excluded[@]}" | while IFS= read -r f; do [ -f "$f" ] && sed "s|^|+$f: |" "$f"; done
+  } | grep -E -- "$pattern" || true
+)
+if [ -n "$hits" ]; then
+  printf 'check-diff: new skip or suppression found:\n%s\n' "$hits" >&2
+  exit 1
+fi
+tampered=$(git diff --name-only --diff-filter=DM "$base" -- '*.test.*' '*.spec.*' '*_test.go' 'test_*.py' '**/test_*.py' '*_test.py' 'src/test/**' '**/src/test/**' '**/__snapshots__/**')
+if [ -n "$tampered" ]; then
+  printf 'check-diff: existing tests modified or deleted; a human must review:\n%s\n' "$tampered" >&2
+  [ "${CHECK_DIFF_ALLOW_TEST_CHANGES:-}" = 1 ] || exit 1
+fi
+exit 0

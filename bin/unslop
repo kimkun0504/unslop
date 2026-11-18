@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+repo=$(cd "$(dirname "$0")/.." && pwd)
+
+usage() {
+  echo "usage: unslop new <template> <directory>" >&2
+  echo "templates: $(find "$repo/templates" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort | tr '\n' ' ')" >&2
+  exit 1
+}
+
+new_project() {
+  local template=$1 target=$2
+  [ -d "$repo/templates/$template" ] || usage
+  [ ! -e "$target" ] || [ -z "$(ls -A "$target" 2>/dev/null)" ] || { echo "$target exists and is not empty" >&2; exit 1; }
+  mkdir -p "$target"
+  cp -R "$repo/common/." "$target/"
+  cp -R "$repo/templates/$template/." "$target/"
+  chmod +x "$target"/scripts/*
+  git -C "$target" init -q -b main
+  git -C "$target" add -A
+  git -C "$target" commit -q -m "Scaffold from unslop $template template"
+  echo "created $target from the $template template"
+  echo "next: cd $target && scripts/setup && scripts/verify"
+  echo "then push to GitHub and apply the ruleset: gh api -X POST repos/OWNER/REPO/rulesets --input .github/rulesets/main.json"
+}
+
+case "${1:-}" in
+  new) [ $# -eq 3 ] || usage; new_project "$2" "$3" ;;
+  *) usage ;;
+esac
