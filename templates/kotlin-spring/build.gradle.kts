@@ -44,7 +44,10 @@ dependencies {
 configurations.matching { it.name.startsWith("detekt") }.configureEach {
     resolutionStrategy.eachDependency {
         if (requested.group == "org.jetbrains.kotlin") {
-            useVersion(libs.versions.detekt.kotlin.get())
+            useVersion(
+                libs.versions.detekt.kotlin
+                    .get(),
+            )
         }
     }
 }
@@ -102,8 +105,8 @@ tasks.check {
 }
 
 pitest {
-    pitestVersion.set(libs.versions.pitest.core.get())
-    junit5PluginVersion.set(libs.versions.pitest.junit5.get())
+    pitestVersion.set(libs.versions.pitest.core)
+    junit5PluginVersion.set(libs.versions.pitest.junit5)
     targetClasses.set(listOf("com.example.app.quote.*"))
     excludedTestClasses.set(listOf("com.example.app.ModularityTest", "com.example.app.quote.QuoteApiTest"))
     mutators.set(listOf("STRONGER"))

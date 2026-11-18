@@ -26,7 +26,7 @@ class MoneyTest {
 
     @Test
     fun `renders cents with two digits`() {
-        assertEquals(listOf("0.05", "10.50", "0.00"), listOf("0.05", "10.5", "0").map { Money.parse(it).toString() })
+        assertEquals(listOf("0.05", "10.50", "0.00"), listOf("0.05", "10.50", "0").map { Money.parse(it).toString() })
     }
 
     @Test

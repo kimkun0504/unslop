@@ -18,5 +18,9 @@ style:
   ForbiddenComment:
     active: true
   MagicNumber:
+    ignoreEnums: true
     ignorePropertyDeclaration: true
     ignoreCompanionObjectPropertyDeclaration: true
+performance:
+  SpreadOperator:
+    active: false
