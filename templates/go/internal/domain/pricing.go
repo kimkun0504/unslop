@@ -35,14 +35,13 @@ func (t Tier) String() string {
 
 func (t Tier) percentOff() int64 {
 	switch t {
-	case Standard:
-		return 0
 	case Silver:
 		return silverPercentOff
 	case Gold:
 		return goldPercentOff
+	default:
+		return 0
 	}
-	return 0
 }
 
 func tierFor(subtotal Money) Tier {

@@ -33,10 +33,7 @@ func ParseMoney(raw string) (Money, error) {
 	if !canonicalAmount.MatchString(canonical) {
 		return Money{}, fmt.Errorf("%w, got %q", ErrInvalidAmount, raw)
 	}
-	cents, err := strconv.ParseInt(strings.Replace(canonical, ".", "", 1), parseBase, parseBitSize)
-	if err != nil {
-		return Money{}, fmt.Errorf("%w, got %q: %w", ErrInvalidAmount, raw, err)
-	}
+	cents, _ := strconv.ParseInt(strings.Replace(canonical, ".", "", 1), parseBase, parseBitSize)
 	return Money{cents: cents}, nil
 }
 
