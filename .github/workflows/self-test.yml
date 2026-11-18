@@ -52,3 +52,23 @@ jobs:
           scripts/setup
           scripts/verify
           scripts/mutation
+  go-template:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: templates/go/go.mod
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
+        with:
+          version: v2.15.0
+          install-only: true
+      - run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          bin/unslop new go "$RUNNER_TEMP/go"
+          cd "$RUNNER_TEMP/go"
+          scripts/setup
+          scripts/verify

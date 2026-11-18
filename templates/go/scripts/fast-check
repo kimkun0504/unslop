@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+go mod tidy -diff
+golangci-lint fmt --diff ./...
+golangci-lint run ./...
+git ls-files -co --exclude-standard -- '*.go' | go run ./tools/guard/nocomment
+scripts/check-diff
+go test -count=1 -shuffle=on ./...

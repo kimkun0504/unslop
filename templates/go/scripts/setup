@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+command -v go >/dev/null || { echo "go missing: install it with mise (mise install) or from go.dev" >&2; exit 1; }
+command -v golangci-lint >/dev/null || { echo "golangci-lint missing: mise install, or see golangci-lint.run" >&2; exit 1; }
+go mod download
+go mod verify
