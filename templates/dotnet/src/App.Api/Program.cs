@@ -32,5 +32,3 @@ internal static class QuoteEndpoint
 internal sealed record QuoteRequest(IReadOnlyList<string> Lines);
 
 internal sealed record QuoteResponse(string Subtotal, string Tier, string Total);
-
-public partial class Program;
