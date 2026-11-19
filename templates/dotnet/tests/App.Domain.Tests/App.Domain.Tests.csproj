@@ -12,4 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/App.Domain/App.Domain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
 </Project>
