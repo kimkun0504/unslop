@@ -1,0 +1,5 @@
+require_relative 'app/cli/application'
+require_relative 'app/domain/invalid_amount'
+require_relative 'app/domain/money'
+require_relative 'app/domain/quote'
+require_relative 'app/domain/tier'

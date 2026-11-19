@@ -63,7 +63,7 @@ The standards every unslop project follows, and how each one is held in place. T
 | Write the failing test first, then the code | Proves the test can fail | Reviewed; tests lockable with `.claude/tests.locked` |
 | Existing tests are never weakened, skipped or deleted to get green | The most common way agents fake success | Enforced: `check-diff` (P8, P9) |
 | 100% line and branch coverage of application code | A floor: untested code is unreviewed code | Enforced in all four templates |
-| Every mutant killed | Coverage shows code ran; mutation shows tests would notice a change | Enforced: mutmut, Stryker, PIT; Go relies on fuzzing |
+| Every mutant killed | Coverage shows code ran; mutation shows tests would notice a change | Enforced: mutmut, Stryker, PIT, cargo-mutants, Stryker.NET, Infection, mutant; Go relies on fuzzing |
 | Property-based or fuzz tests for parsers and arithmetic | Finds the inputs nobody thought of | Shown: hypothesis, fast-check, Go native fuzzing |
 | Test through public behaviour: roles and labels in UIs, HTTP in services | Tests survive refactoring | Shown |
 

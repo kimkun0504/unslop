@@ -1,0 +1,13 @@
+usage: opensource
+integration:
+  name: rspec
+includes:
+  - lib
+requires:
+  - app
+matcher:
+  subjects:
+    - App*
+fail_fast: false
+mutation:
+  timeout: 10.0

@@ -53,9 +53,10 @@ Every template ships a small working feature in the house style and passes the s
 | `rust` | rustfmt | clippy (all, pedantic, nursery, restriction), `#[allow]` denied | workspace crates, I/O banned in domain | cargo test, proptest | cargo-mutants |
 | `dotnet` | dotnet format | all analyzers as errors, nullable reference types | domain references only core framework | xUnit v3, WebApplicationFactory | Stryker.NET |
 | `php` | PHP-CS-Fixer | PHPStan max + strict rules, native types only | deptrac, I/O banned in domain | PHPUnit 13 | Infection |
+| `ruby` | RuboCop | RuboCop with every cop, Steep strict on RBS | RuboCop guards: pure domain, output through ports | RSpec | mutant |
 | `terraform` | terraform fmt | tflint (all rules, AWS), validate, checkov | single-purpose modules | `terraform test` with mocked providers | none available |
 
-The full gate list per template is in [`templates/catalog.json`](templates/catalog.json). Next stacks: Swift, Ruby, PHP and Elixir. To add one, follow [Adding a stack](docs/adding-a-stack.md).
+The full gate list per template is in [`templates/catalog.json`](templates/catalog.json). Next stacks: Elixir and Swift. To add one, follow [Adding a stack](docs/adding-a-stack.md).
 
 Every template has the same commands:
 
