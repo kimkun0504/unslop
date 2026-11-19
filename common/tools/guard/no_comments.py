@@ -108,7 +108,9 @@ def added_lines(base: str) -> dict[str, frozenset[int] | None]:
             start = int(hunk.group(1))
             length = 1 if hunk.group(2) is None else int(hunk.group(2))
             current.update(range(start, start + length))
-    changed: dict[str, frozenset[int] | None] = {path: frozenset(rows) for path, rows in added.items()}
+    changed: dict[str, frozenset[int] | None] = {
+        path: frozenset(rows) for path, rows in added.items()
+    }
     for path in git("ls-files", "--others", "--exclude-standard").splitlines():
         changed[path] = None
     return changed
@@ -146,7 +148,11 @@ def main(argv: list[str]) -> int:
     paths = [Path(name) for name in names if Path(name).is_file()]
     if changed is not None:
         paths = [path for path in paths if path.as_posix() in changed]
-    found = [v for path in paths for v in violations(path, None if changed is None else changed[path.as_posix()])]
+    found = [
+        v
+        for path in paths
+        for v in violations(path, None if changed is None else changed[path.as_posix()])
+    ]
     _ = sys.stdout.write("".join(f"{v.render()}\n" for v in found))
     return 1 if found else 0
 
