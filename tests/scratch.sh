@@ -2,30 +2,20 @@
 set -uo pipefail
 git config --global user.name ci
 git config --global user.email ci@example.com
-template=${1:?usage: tests/scratch.sh <template>}
-[ -d "templates/$template" ] || { echo "no template named $template; nothing to probe"; exit 0; }
-fix=$(jq -r --arg t "$template" '.templates[] | select(.name == $t) | .autofix // empty' templates/catalog.json)
 work="${RUNNER_TEMP:-/tmp}/scratch"
-UNSLOP_OWNER=ci bin/unslop new "$template" "$work"
+UNSLOP_OWNER=ci bin/unslop new swift "$work"
 cd "$work" || exit 0
-step() {
-  echo "::group::$1"
-  "${@:2}"
-  local status=$?
-  echo "::endgroup::"
-  echo "RESULT $1: $status"
-  return 0
-}
-step setup scripts/setup
-git add -A && git commit -qm lock
-if [ -n "$fix" ]; then
-  step autofix bash -c "$fix"
-  echo "PATCH-BEGIN"
-  git diff
-  echo "PATCH-END"
-  git add -A && git commit -qm autofix --allow-empty
-fi
-step fast-check scripts/fast-check
-step verify scripts/verify
-[ -x scripts/mutation ] && step mutation scripts/mutation
+scripts/setup > /dev/null 2>&1
+for i in 1 2 3 4 5 6; do
+  echo "=== run $i"
+  swift test --quiet --enable-code-coverage 2>&1 | grep -E 'Test run|Executed [1-9]'
+  report=$(swift test --show-codecov-path)
+  dir=$(dirname "$report")
+  ls -la "$dir"
+  uv run --quiet --no-project --python 3.13 python tools/guard/coverage.py "$report"
+  prof=$(find "$dir" -name '*.profdata' | head -1)
+  bins=$(find .build -name '*-test-runner' -o -name '*Tests.so' -o -name '*.xctest' | head -5)
+  echo "binaries: $bins"
+  for b in $bins; do llvm-cov show "$b" -instr-profile "$prof" Sources/CLI/Application.swift 2>&1 | grep -E '^ +[0-9]+\| +0\|'; done
+done
 exit 0
