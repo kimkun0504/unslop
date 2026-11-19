@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[ -f composer.json ] || { echo "detect: no composer.json in $(pwd)" >&2; exit 1; }
+paths=""
+filters=""
+for dir in src app lib; do
+  [ ! -d "$dir" ] || { paths="$paths    - ../../$dir"$'\n'; filters="$filters --coverage-filter $dir"; }
+done
+[ -n "$paths" ] || { echo "detect: no src, app or lib folder to analyse" >&2; exit 1; }
+mkdir -p .unslop/config
+{
+  echo "parameters:"
+  echo "  level: max"
+  echo "  tmpDir: ../out/phpstan"
+  echo "  paths:"
+  printf '%s' "$paths"
+  echo "  bootstrapFiles:"
+  echo "    - ../../vendor/autoload.php"
+} > .unslop/config/phpstan.neon
+tests='null'
+if [ -f phpunit.xml ] || [ -f phpunit.xml.dist ] || [ -x vendor/bin/phpunit ] || jq -e '."require-dev"."phpunit/phpunit"' composer.json >/dev/null; then
+  suite=""
+  if [ ! -f phpunit.xml ] && [ ! -f phpunit.xml.dist ]; then
+    for dir in tests test; do
+      [ -z "$suite" ] && [ -d "$dir" ] && suite=" $dir"
+    done
+  fi
+  tests=$(jq -n --arg run "vendor/bin/phpunit$filters --coverage-clover .unslop/out/clover.xml$suite" '{run: $run, coverage: ".unslop/out/clover.xml"}')
+fi
+jq -n --argjson tests "$tests" '{
+  stack: "php",
+  setup: "composer install --no-interaction --no-progress",
+  format: [],
+  checks: [{name: "phpstan", format: "phpstan", report: ".unslop/out/phpstan.json",
+    run: "php \"$(.unslop/guard/fetch phpstan)\" analyse -c .unslop/config/phpstan.neon --error-format=json --no-progress --memory-limit=1G > .unslop/out/phpstan.json"}]
+} + (if $tests == null then {} else {tests: $tests} end)'

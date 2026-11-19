@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[ -f mix.exs ] || { echo "detect: no mix.exs in $(pwd)" >&2; exit 1; }
+checks='[{"name": "compiler", "format": "elixir", "report": ".unslop/out/compile.txt", "run": "MIX_ENV=test mix compile --force --all-warnings > .unslop/out/compile.txt 2>&1"}]'
+if [ -f mix.lock ] && grep -q '"credo"' mix.lock; then
+  checks=$(jq '. + [{name: "credo", format: "credo", report: ".unslop/out/credo.json", run: "mix credo --strict --all --format json > .unslop/out/credo.json"}]' <<<"$checks")
+else
+  echo "detect: credo is not in mix.lock; only compiler warnings are ratcheted" >&2
+fi
+jq -n --argjson checks "$checks" '{
+  stack: "elixir",
+  setup: "mix local.hex --force --if-missing && mix local.rebar --force --if-missing && mix deps.get && MIX_ENV=test mix deps.compile",
+  format: [{name: "mix format", glob: ["*.ex", "*.exs"], run: "mix format --stdin-filename {path} -"}],
+  checks: $checks,
+  tests: {run: ".unslop/guard/elixir_test", coverage: ".unslop/out/coverage.xml"}
+}'

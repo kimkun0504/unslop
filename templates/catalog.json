@@ -200,7 +200,7 @@
         "tests": "cargo test, proptest",
         "mutation": "cargo-mutants"
       },
-      "adopt": null
+      "adopt": "rust"
     },
     {
       "name": "dotnet",
@@ -228,7 +228,7 @@
         "tests": "xUnit v3, WebApplicationFactory",
         "mutation": "Stryker.NET"
       },
-      "adopt": null
+      "adopt": "dotnet"
     },
     {
       "name": "php",
@@ -256,7 +256,7 @@
         "tests": "PHPUnit 13",
         "mutation": "Infection"
       },
-      "adopt": null
+      "adopt": "php"
     },
     {
       "name": "ruby",
@@ -284,7 +284,7 @@
         "tests": "RSpec",
         "mutation": "mutant"
       },
-      "adopt": null
+      "adopt": "ruby"
     },
     {
       "name": "elixir",
@@ -311,7 +311,7 @@
         "tests": "ExUnit + StreamData",
         "mutation": "none yet"
       },
-      "adopt": null,
+      "adopt": "elixir",
       "autofix": "mix format"
     },
     {
@@ -338,7 +338,7 @@
         "tests": "Swift Testing",
         "mutation": "none yet"
       },
-      "adopt": null,
+      "adopt": "swift",
       "autofix": "swift format --in-place --recursive Sources Tests Package.swift"
     }
   ],
@@ -382,6 +382,54 @@
       "format": "terraform fmt",
       "checks": "tflint (all rules, AWS), checkov",
       "tests": "terraform test, when the repository has tests"
+    },
+    {
+      "name": "rust",
+      "title": "Rust",
+      "detects": "a Cargo.toml at the root",
+      "format": "rustfmt",
+      "checks": "clippy pedantic and nursery, no unwrap, expect, panic or print outside tests",
+      "tests": "cargo llvm-cov"
+    },
+    {
+      "name": "dotnet",
+      "title": "C# and .NET",
+      "detects": "a solution or project file at the root",
+      "format": "none; the project's own formatter",
+      "checks": "all .NET analyzers, code style and nullable warnings from the build",
+      "tests": "dotnet test with Coverlet"
+    },
+    {
+      "name": "php",
+      "title": "PHP",
+      "detects": "composer.json",
+      "format": "none; the project's own formatter",
+      "checks": "PHPStan at max level",
+      "tests": "PHPUnit with clover coverage of src, app and lib"
+    },
+    {
+      "name": "ruby",
+      "title": "Ruby",
+      "detects": "a Gemfile",
+      "format": "RuboCop layout cops, in the project's style",
+      "checks": "RuboCop with the project's config plus new cops and the performance and RSpec plugins",
+      "tests": "RSpec or rake test, with coverage through Ruby's Coverage module"
+    },
+    {
+      "name": "elixir",
+      "title": "Elixir",
+      "detects": "mix.exs",
+      "format": "mix format",
+      "checks": "compiler warnings, Credo strict when the project uses Credo",
+      "tests": "mix test with cover, converted for diff coverage"
+    },
+    {
+      "name": "swift",
+      "title": "Swift",
+      "detects": "Package.swift",
+      "format": "swift format, when the project has a .swift-format",
+      "checks": "SwiftLint defect rules on top of the project's config, compiler warnings with complete strict concurrency",
+      "tests": "swift test with llvm-cov"
     }
   ]
 }

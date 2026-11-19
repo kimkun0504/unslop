@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+swift test --enable-code-coverage
+codecov=$(swift test --show-codecov-path)
+profdata="$(dirname "$codecov")/default.profdata"
+bin=$(swift build --build-tests --show-bin-path)
+objects=()
+while IFS= read -r bundle; do
+  if [ -d "$bundle" ]; then
+    bundle="$bundle/Contents/MacOS/$(basename "$bundle" .xctest)"
+  fi
+  [ ${#objects[@]} -eq 0 ] && objects+=("$bundle") || objects+=(-object "$bundle")
+done < <(find "$bin" -maxdepth 1 \( -name '*.xctest' -o -name '*-test-runner' -o -name '*Tests.so' -o -name '*Tests.dylib' \) | sort -r)
+[ ${#objects[@]} -gt 0 ] || { echo "swift_coverage: no test bundle in $bin" >&2; ls "$bin" >&2; exit 1; }
+cov=(llvm-cov)
+command -v llvm-cov >/dev/null 2>&1 || cov=(xcrun llvm-cov)
+"${cov[@]}" export -format=lcov -instr-profile "$profdata" "${objects[@]}" -ignore-filename-regex='(\.build|Tests)/' > .unslop/out/coverage.lcov
