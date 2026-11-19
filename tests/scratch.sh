@@ -23,6 +23,7 @@ if [ -n "$fix" ]; then
   echo "PATCH-BEGIN"
   git diff
   echo "PATCH-END"
+  git add -A && git commit -qm autofix --allow-empty
 fi
 step fast-check scripts/fast-check
 step verify scripts/verify

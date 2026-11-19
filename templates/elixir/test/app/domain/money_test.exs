@@ -9,7 +9,13 @@ defmodule App.Domain.MoneyTest do
     assert Money.zero() == %Money{cents: 0}
   end
 
-  for {raw, cents} <- [{"0", 0}, {"7", 700}, {"0.09", 9}, {" 12.50 ", 1250}, {"999999999999.99", 99_999_999_999_999}] do
+  for {raw, cents} <- [
+        {"0", 0},
+        {"7", 700},
+        {"0.09", 9},
+        {" 12.50 ", 1250},
+        {"999999999999.99", 99_999_999_999_999}
+      ] do
     test "reads #{inspect(raw)} as #{cents} cents" do
       assert Money.parse(unquote(raw)) == {:ok, %Money{cents: unquote(cents)}}
     end

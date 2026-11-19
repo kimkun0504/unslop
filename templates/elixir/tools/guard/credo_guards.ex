@@ -21,7 +21,19 @@ defmodule App.Guard.DomainPurity do
     :NaiveDateTime,
     :Code
   ]
-  @forbidden_erlang [:os, :file, :io, :rand, :crypto, :timer, :net, :gen_tcp, :httpc, :persistent_term, :ets]
+  @forbidden_erlang [
+    :os,
+    :file,
+    :io,
+    :rand,
+    :crypto,
+    :timer,
+    :net,
+    :gen_tcp,
+    :httpc,
+    :persistent_term,
+    :ets
+  ]
 
   @impl Credo.Check
   def run(%SourceFile{} = source_file, params) do

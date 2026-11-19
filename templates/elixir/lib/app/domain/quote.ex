@@ -12,7 +12,13 @@ defmodule App.Domain.Quote do
   def of(lines) when is_list(lines) do
     with {:ok, subtotal} <- sum(lines, Money.zero()) do
       tier = Tier.for_subtotal(subtotal)
-      {:ok, %__MODULE__{subtotal: subtotal, tier: tier, total: Money.less_percent(subtotal, tier.percent_off)}}
+
+      {:ok,
+       %__MODULE__{
+         subtotal: subtotal,
+         tier: tier,
+         total: Money.less_percent(subtotal, tier.percent_off)
+       }}
     end
   end
 
