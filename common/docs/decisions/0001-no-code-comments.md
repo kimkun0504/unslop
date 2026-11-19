@@ -17,11 +17,13 @@ Source files contain no comments. Meaning lives in names, types, small functions
 Allowed exceptions, each enforced by the checker's allowlist rather than by judgment:
 
 - A shebang line.
-- Tool directives that change behavior and have no other syntax: Go `//go:` directives, `/// <reference>` in TypeScript declaration files, Python encoding declarations.
-- Generated files carrying the standard generated-code marker.
+- Tool directives that change behaviour and have no other syntax: Go `//go:`, `//line` and `//export`, TypeScript `/// <reference>`, `// swift-tools-version`, Dockerfile `# syntax=`, and a Python encoding declaration on the first two lines.
+- Generated files whose first five lines contain `Code generated … DO NOT EDIT` or `@generated`.
+
+Configuration and documentation files (YAML, TOML, JSON, Markdown, HTML) are not source and may contain comments.
 
 Suppression directives (`eslint-disable`, `@ts-expect-error`, `//nolint`, `# noqa`, `# type: ignore`, `@Suppress`) are not exceptions. They are banned separately.
 
 ### Confirmation
 
-The language's no-comments checker runs in `scripts/fast-check`, in the Stop gate and in CI. A comment fails the build.
+`scripts/check-comments` parses every source file and runs in `scripts/fast-check`, in the end-of-session check and in CI. A comment fails the build.

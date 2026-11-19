@@ -1,88 +1,88 @@
 # unslop
 
-Guardrails that make Claude Code produce code you would have written yourself. Standards live in tools that fail the build, not in prose the model may skip.
+**Make AI slop fail the build. Any stack.**
 
-| Layer | What it enforces | Where |
-|---|---|---|
-| Machine-wide | Secret files and credentials unreadable, dangerous commands blocked, sandboxed shell with a network allowlist, end-of-session check | `global/managed-settings.json`, `global/hooks/` |
-| Your Claude profile | A short `CLAUDE.md`, a read-only reviewer agent, skills for specs, migrations and long runs | `global/user/` |
-| Each project | Lint, types, comment ban, architecture rules, suppression and test-tampering checks, coverage and mutation gates | `templates/<stack>/`, `common/` |
-| GitHub | Pull requests and passing checks required on `main`, no force pushes | `.github/rulesets/main.json` in each project |
+[![self-test](https://github.com/kimkun0504/unslop/actions/workflows/self-test.yml/badge.svg)](https://github.com/kimkun0504/unslop/actions/workflows/self-test.yml)
 
-The local hooks give fast feedback and stop accidents. CI plus the branch ruleset is the gate the agent cannot get around.
+AI coding agents copy what they see and stop when they think they are done. Instructions in a `CLAUDE.md` are followed most of the time; checks that fail the build are followed every time. unslop turns engineering standards into those checks, for Claude Code and for every pull request.
 
-## Install on macOS
+## What you get
 
-Requirements: `git`, `jq` (included in macOS 15 and later, otherwise `brew install jq`) and `perl` (included).
+| Layer | Applies to | What it does | Details |
+|---|---|---|---|
+| **Machine** | Every repository on your computer | Hides secrets and credentials, sandboxes shell commands behind a network allowlist, blocks history rewrites, hook bypasses and infrastructure or database mutations | [Guardrails §1](docs/guardrails.md#1-machine-layer) |
+| **Project** | Projects created from a template | Makes build and lint configs read-only for the agent, bans comments and suppressions, protects existing tests, and refuses to let the agent stop while checks fail | [Guardrails §2](docs/guardrails.md#2-project-layer) |
+| **CI and GitHub** | Every pull request | Runs the same checks plus mutation testing and audits; the ruleset blocks merging until they pass | [Guardrails §3](docs/guardrails.md#3-ci-and-github-layer) |
+| **Claude profile** | Your Claude Code sessions | A ten-line `CLAUDE.md`, a read-only reviewer agent, and skills for specs, migrations and long runs | [Guardrails §4](docs/guardrails.md#4-claude-profile-layer) |
+
+## Quick start
+
+Requirements: `git`, `jq` (included in macOS 15 and later), `perl` and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
 git clone https://github.com/kimkun0504/unslop ~/Desktop/unslop
 cd ~/Desktop/unslop
+bash tests/hooks/run.sh
 sudo ./install/install.sh system
 ./install/install.sh user
-./install/install.sh check
 ```
 
-`system` copies the hooks to `/usr/local/lib/claude-guard/` and the policy to `/Library/Application Support/ClaudeCode/managed-settings.json`. Both are owned by root, so Claude cannot change them. `user` installs `~/.claude/CLAUDE.md` (backing up any existing one), the `reviewer` agent and the `unslop-*` skills.
-
-After installing, open Claude Code and run `/sandbox` and `/permissions` to confirm the policy loaded.
-
-## What applies where
-
-Every repository on the machine gets the universal layer: no reading `.env`, SSH, AWS or kube credentials; no editing `.claude/`, `.mcp.json` or git hooks; no force pushes, hook bypasses, `terraform apply`, `kubectl apply`, `helm upgrade` or destructive SQL; shell commands run in the sandbox with a network allowlist.
-
-Projects created from a template also contain `.claude/unslop.json`. Its presence switches on the strict layer: guardrail files (build files, lint and type configs, lockfiles, `scripts/`, CI, decision records) become read-only for Claude, and the end-of-session check runs `scripts/fast-check` before Claude may stop.
-
-## Start a project
+Then start a project:
 
 ```bash
 ~/Desktop/unslop/bin/unslop new python ~/code/my-app
 cd ~/code/my-app
 scripts/setup
 scripts/verify
-```
-
-Templates: `python`, `ts-react`, `go`, `kotlin-spring`. The Go and Kotlin templates pin their toolchains in `mise.toml`; run `mise install` in the new project first. Each template has the same scripts:
-
-| Script | Runs | Used by |
-|---|---|---|
-| `scripts/setup` | Install the locked dependencies and check the toolchain | You, CI |
-| `scripts/fast-check` | Format, lint, types, comment ban, architecture, suppression scan, tests | End-of-session check |
-| `scripts/verify` | fast-check plus 100% coverage and the build | CI |
-| `scripts/mutation` | Mutation testing that must kill every mutant (not in Go) | CI |
-
-Then push to GitHub and apply the ruleset once:
-
-```bash
 gh api -X POST repos/OWNER/REPO/rulesets --input .github/rulesets/main.json
 ```
 
-## Working with Claude in a project
+In Claude Code, run `/unslop-spec` to write the spec, then `/unslop-long-run` for an unattended build. See [the workflow guide](docs/workflow.md).
 
-1. Run `/unslop-spec` to turn the idea into `SPEC.md` with numbered acceptance criteria. Nothing gets built until you approve it.
-2. For a long unattended build, run `/unslop-long-run`. It sets up `feature_list.json` and `progress.md` and gives you the `/goal` condition to paste. The run ends when every criterion has a passing, reviewed test, not when a clock runs out.
-3. To stop Claude editing tests while it implements, run `touch .claude/tests.locked` yourself. Delete the file when you want new tests written.
-4. When a check blocks Claude, it explains the change it needs in its final message. You make that change in a reviewed pull request.
+## Stacks
 
-If a pull request intentionally changes existing tests, add the `tests-reviewed` label so CI accepts it.
+Every template ships a small working feature in the house style and passes the same contract: strict formatting, linting and types, enforced architecture boundaries, no comments, 100% coverage and, where a maintained tool exists, every mutant killed. Each is proven in CI by scaffolding a fresh project and planting violations that must be caught.
 
-## No comments
+| Template | Format | Lint and types | Architecture | Tests | Mutation |
+|---|---|---|---|---|---|
+| `python` | ruff format | ruff (all rules), basedpyright (all) | import-linter | pytest, hypothesis | mutmut |
+| `ts-react` | prettier | typescript-eslint strict, tsc strictest, jsx-a11y | eslint-plugin-boundaries | vitest, testing-library, fast-check | Stryker |
+| `go` | gofumpt | golangci-lint (all linters) | depguard | race detector, native fuzzing | none maintained |
+| `kotlin-spring` | ktlint | detekt (all rules), warnings as errors | Spring Modulith | JUnit 5, Spring Boot | PIT |
 
-Comments fail the build in all four stacks: a custom ESLint rule for TypeScript, a tokenizer check for Python, a `go/parser` check for Go and a tree-sitter check for Kotlin. Suppression comments (`eslint-disable`, `@ts-expect-error`, `# noqa`, `# type: ignore`, `//nolint`, `@Suppress`) are banned by the linters and by `scripts/check-diff`. The only exceptions are toolchain directives such as `//go:build` and `/// <reference>` and generated-code headers. See `common/docs/decisions/0001-no-code-comments.md`.
+The full gate list per template is in [`templates/catalog.json`](templates/catalog.json). Next stacks: Terraform, Java with Spring, Rust and C# with .NET. To add one, follow [Adding a stack](docs/adding-a-stack.md).
 
-## Tested
+Every template has the same commands:
 
-`.github/workflows/self-test.yml` runs on every push: shellcheck, 112 hook test cases, and for each template it scaffolds a fresh project and runs `setup`, `verify` and `mutation`. The Kotlin job also plants seven violations (a comment, KDoc, `println`, `!!`, a `@Suppress`, a long method, a behaviour change) and fails unless the intended check catches each one. The Python, TypeScript and Go templates went through the same planted-violation pass by hand.
+| Command | Runs | Used by |
+|---|---|---|
+| `scripts/setup` | Installs locked dependencies, checks the pinned toolchain | You, CI |
+| `scripts/fast-check` | Format, lint, types, comments, architecture, suppressions, tests | The end-of-session check |
+| `scripts/verify` | `fast-check` plus coverage and the build | CI |
+| `scripts/mutation` | Mutation testing; every mutant must be killed | CI |
 
-## Known limits
+## Documentation
 
-- The hooks have run only on Linux. They avoid GNU-only features, but macOS bash 3.2 and BSD tools are untested. Run `tests/hooks/run.sh` on your Mac after cloning.
-- The Claude Code sandbox and the GitHub ruleset are configuration, not code, so nothing here tests them. Check with `/sandbox` and by trying a direct push to `main`.
-- detekt 1.23 bundles an older Kotlin compiler, so its type-aware rules do nothing on Kotlin 2.4 code. The Kotlin guard bans `println`, `print`, `TODO` and `!!` by parsing instead. Switch to detekt 2 once it is stable.
-- Kotlin mutation testing skips calls to `kotlin.jvm.internal` (compiler-inserted null checks no test can observe).
-- The Go template has no mutation testing: the Go mutation tools are unmaintained. It relies on fuzzing, the race detector and 100% coverage instead.
-- The guard on shell commands matches text. A determined agent can disguise a command, for example by storing `git` in a variable. The sandbox and the ruleset are the real boundary; the guard catches the ordinary cases.
+| Read | To learn |
+|---|---|
+| [Guardrail catalog](docs/guardrails.md) | Every guardrail, its mechanism, and how hard it is to get around |
+| [Engineering standards](docs/standards.md) | The architecture, domain, API, data, testing, security and delivery standards, and which ones a tool enforces today |
+| [Workflow](docs/workflow.md) | Spec first, test first, long unattended runs, what to do when a guardrail blocks Claude |
+| [Adding a stack](docs/adding-a-stack.md) | The template contract and how a new stack is proven |
+| [Known limits](docs/limits.md) | What is not yet guaranteed |
+
+## Repository layout
+
+```text
+global/            machine and profile layer: managed settings, hooks, CLAUDE.md, reviewer agent, skills
+install/           installer for the machine and profile layers
+common/            files every project gets: decision records, check scripts, comment checker, settings
+templates/         one folder per stack, plus catalog.json
+bin/unslop         scaffolds a project from a template
+tests/             hook tests, comment checker tests, the stack contract check
+docs/              the documentation above
+```
 
 ## Changing the guardrails
 
-Edit this repository, open a pull request, let `self-test` pass, then rerun `sudo ./install/install.sh system` and `./install/install.sh user`. To allow another network host for sandboxed commands, add it to `sandbox.network.allowedDomains` in `global/managed-settings.json`.
+Edit this repository in a pull request and let `self-test` pass. Then rerun `sudo ./install/install.sh system` and `./install/install.sh user`. To allow another network host for sandboxed commands, add it to `sandbox.network.allowedDomains` in `global/managed-settings.json`.
