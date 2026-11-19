@@ -27,6 +27,7 @@ ELIXIR_LOCATION = re.compile(r"^\s*(?:└─ )?(?P<path>[^\s:]+\.exs?):(?P<line>
 TERMINAL_CODES = re.compile(r"\x1b\]8;;[^\x1b]*\x1b\\|\x1b\[[0-9;?]*[A-Za-z]")
 QUOTED = re.compile(r"\"[^\"]*\"|'[^']*'|`[^`]*`|\d+")
 SWIFT_GROUP = re.compile(r"\[#(?P<group>[A-Za-z]+)\]")
+HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 TSC_LINE = re.compile(r"^(?P<path>.+?)\((?P<line>\d+),\d+\): error (?P<rule>TS\d+): (?P<message>.*)$")
 
 type Json = dict[str, object]
@@ -249,6 +250,32 @@ def changed_files(since: str) -> list[str]:
     return sorted({path for path in tracked + untracked if Path(path).is_file() and not matches(path, list(GUARD_PATHS))})
 
 
+def touched_lines(since: str) -> dict[str, frozenset[int] | None]:
+    added: dict[str, set[int]] = {}
+    current: set[int] | None = None
+    for line in git("diff", "-U0", "-M", "--no-color", "--no-ext-diff", since, "--").splitlines():
+        if line.startswith("+++ "):
+            target = line[4:]
+            current = added.setdefault(target[2:], set()) if target.startswith("b/") else None
+            continue
+        hunk = HUNK.match(line)
+        if hunk is not None and current is not None:
+            start = int(hunk.group(1))
+            length = 1 if hunk.group(2) is None else int(hunk.group(2))
+            current.update(range(start, start + length))
+    touched: dict[str, frozenset[int] | None] = {path: frozenset(rows) for path, rows in added.items()}
+    for path in git("ls-files", "--others", "--exclude-standard").splitlines():
+        touched[path] = None
+    return touched
+
+
+def on_touched_line(finding: Finding, touched: dict[str, frozenset[int] | None]) -> bool:
+    if finding.path not in touched:
+        return False
+    rows = touched[finding.path]
+    return rows is None or finding.line in rows
+
+
 def shell(command: str) -> subprocess.CompletedProcess[str]:
     print(f"$ {command}", flush=True)
     return subprocess.run(["bash", "-c", command], capture_output=True, text=True, check=False)
@@ -282,7 +309,7 @@ def baseline_path(check: Json) -> Path:
     return BASELINES / f"{text(check.get('name'))}.json"
 
 
-def ratchet(check: Json, findings: list[Finding]) -> bool:
+def ratchet(check: Json, findings: list[Finding], touched: dict[str, frozenset[int] | None] | None = None) -> bool:
     name = text(check.get("name"))
     recorded = cast("dict[str, int]", json.loads(baseline_path(check).read_text())) if baseline_path(check).is_file() else {}
     current = counts(findings)
@@ -291,7 +318,17 @@ def ratchet(check: Json, findings: list[Finding]) -> bool:
     for key in grown:
         path, rule = key.split("::", 1)
         print(f"{name}: {path} has {current[key]} [{rule}] findings; the baseline allows {recorded.get(key, 0)}")
-        print("\n".join(f.render() for f in findings if f.path == path and f.rule == rule))
+        matching = [f for f in findings if f.path == path and f.rule == rule]
+        fresh = [f for f in matching if touched is not None and on_touched_line(f, touched)]
+        if fresh:
+            print("  on lines this change touches:")
+            print("\n".join("  " + f.render() for f in fresh))
+            rest = [f for f in matching if f not in fresh]
+            if rest:
+                print("  elsewhere in the file:")
+                print("\n".join("  " + f.render() for f in rest))
+        else:
+            print("\n".join(f.render() for f in matching))
     if shrunk:
         print(f"{name}: {shrunk} recorded findings are fixed; a human can lock that in with scripts/rebaseline")
     if not grown:
@@ -374,7 +411,8 @@ def check() -> int:
     config = configuration()
     since = base()
     results = [formatted(rule, since) for rule in objects(config.get("format"))]
-    results += [ratchet(item, collect(item)) for item in objects(config.get("checks"))]
+    touched = touched_lines(since)
+    results += [ratchet(item, collect(item), touched) for item in objects(config.get("checks"))]
     tests = config.get("tests")
     if isinstance(tests, dict):
         results.append(tested(cast("Json", tests), since))

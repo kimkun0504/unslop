@@ -10,8 +10,13 @@ elif [ -f poetry.lock ]; then
   tests="poetry run pytest -q $coverage"
   setup="poetry install --no-interaction"
 else
-  tests="python -m pytest -q $coverage"
-  setup="python -m pip install -e . pytest pytest-cov"
+  target=.
+  if grep -Eq '^dev *= *\[' pyproject.toml 2>/dev/null; then
+    target=".[dev]"
+  fi
+  tests=".venv/bin/python -m pytest -q $coverage"
+  setup="uv venv --allow-existing .venv && uv pip install --python .venv -e \"$target\" pytest pytest-cov"
+  echo "detect: no uv or Poetry lockfile, so setup installs into a project .venv with uv" >&2
 fi
 jq -n --arg tests "$tests" --arg setup "$setup" '{
   stack: "python",

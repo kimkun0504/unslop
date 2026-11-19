@@ -1,9 +1,21 @@
 {
-  "typeCheckingMode": "all",
-  "include": ["../.."],
-  "exclude": ["../../.venv", "../../.unslop", "../../tools/guard", "../../**/node_modules", "../../**/__pycache__", "../../build", "../../dist"],
+  "typeCheckingMode": "strict",
+  "include": [
+    "../.."
+  ],
+  "exclude": [
+    "../../.venv",
+    "../../.unslop",
+    "../../tools/guard",
+    "../../**/node_modules",
+    "../../**/__pycache__",
+    "../../build",
+    "../../dist"
+  ],
   "venvPath": "../..",
   "venv": ".venv",
-  "extraPaths": ["../../src"],
+  "extraPaths": [
+    "../../src"
+  ],
   "reportUnnecessaryTypeIgnoreComment": "error"
 }

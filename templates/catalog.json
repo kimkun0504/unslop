@@ -33,7 +33,7 @@
       "title": "TypeScript + React",
       "kind": "web",
       "toolchain": {
-        "node": "22",
+        "node": "24.22.3",
         "pnpm": "12.21.0"
       },
       "gates": {
@@ -348,7 +348,7 @@
       "title": "Python",
       "detects": "uv, Poetry or pip projects",
       "format": "ruff format",
-      "checks": "ruff (all rules), basedpyright (all)",
+      "checks": "ruff (all rules), basedpyright strict",
       "tests": "pytest with branch coverage"
     },
     {

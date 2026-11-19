@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+want=$(cat .node-version)
+have=$(node --version 2>/dev/null | sed 's/^v//' || true)
+if [ "${have%%.*}" != "${want%%.*}" ]; then
+  echo "Node ${want%%.*} LTS required (found ${have:-none}); fnm, nvm and mise read .node-version, or: brew install node@${want%%.*}" >&2
+  exit 1
+fi
 pnpm install --frozen-lockfile
