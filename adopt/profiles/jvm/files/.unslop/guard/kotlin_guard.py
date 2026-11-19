@@ -1,0 +1,1 @@
+../../../../../../templates/kotlin-spring/tools/guard/kotlin_guard.py

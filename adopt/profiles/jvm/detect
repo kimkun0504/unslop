@@ -19,9 +19,13 @@ if git ls-files '*.kt' | grep -q .; then
   checks=$(jq '. + [{name: "detekt", format: "sarif", report: ".unslop/out/detekt.sarif",
     run: "java -jar \"$(.unslop/guard/fetch detekt)\" --input . --excludes \"**/build/**,**/.unslop/**\" --build-upon-default-config --all-rules --report sarif:.unslop/out/detekt.sarif > /dev/null || true"}]' <<<"$checks")
 fi
+if git ls-files '*.kt' '*.kts' | grep -q .; then
+  checks=$(jq '. + [{name: "kotlin-guard", format: "lines", report: ".unslop/out/kotlin-guard.txt",
+    run: "git ls-files -co --exclude-standard -z \"*.kt\" \"*.kts\" | xargs -0 -r uv run --quiet --no-project --with tree-sitter==0.26.1 --with tree-sitter-kotlin==1.1.0 python .unslop/guard/kotlin_guard.py > .unslop/out/kotlin-guard.txt || true"}]' <<<"$checks")
+fi
 if git ls-files '*.java' | grep -q .; then
   checks=$(jq '. + [{name: "pmd", format: "sarif", report: ".unslop/out/pmd.sarif",
-    run: "\"$(.unslop/guard/fetch pmd)\" check --dir . --rulesets rulesets/java/quickstart.xml --format sarif --report-file .unslop/out/pmd.sarif --no-fail-on-violation --no-fail-on-error --no-progress"}]' <<<"$checks")
+    run: "\"$(.unslop/guard/fetch pmd)\" check --dir . --rulesets .unslop/config/pmd.xml --format sarif --report-file .unslop/out/pmd.sarif --no-fail-on-violation --no-fail-on-error --no-progress"}]' <<<"$checks")
 fi
 jq -n --arg tests "$tests" --arg coverage "$coverage" --argjson checks "$checks" '{
   stack: "jvm",

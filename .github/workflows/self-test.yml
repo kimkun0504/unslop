@@ -12,7 +12,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - run: shellcheck global/hooks/*.sh tests/hooks/run.sh tests/contract/check.sh install/install.sh common/scripts/* bin/unslop templates/*/scripts/*
+      - run: shellcheck global/hooks/*.sh tests/hooks/run.sh tests/contract/*.sh tests/adopt/run.sh install/install.sh common/scripts/* bin/unslop templates/*/scripts/* adopt/shared/scripts/* adopt/shared/.unslop/guard/fetch adopt/profiles/*/detect
+      - run: shellcheck -s bash tests/adopt/[!r]*.sh
       - run: jq empty global/managed-settings.json common/.claude/settings.json common/.github/rulesets/main.json
       - run: tests/hooks/run.sh
       - run: tests/contract/check.sh

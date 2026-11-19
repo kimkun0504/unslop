@@ -31,7 +31,10 @@ cases() {
   expect_fail "comment" "comments are forbidden"
   printf 'package legacy\n\nfun shout(word: String) {\n    println(word)\n}\n' > src/main/kotlin/legacy/Shout.kt
   printf 'package legacy\n\nimport kotlin.test.Test\n\nclass ShoutTest {\n    @Test\n    fun shouts() {\n        shout("a")\n    }\n}\n' > src/test/kotlin/legacy/ShoutTest.kt
-  expect_fail "new detekt finding" "ForbiddenMethodCall"
+  expect_fail "println in new code" "println() is forbidden"
+  printf 'package legacy\n\nfun area(): Int = 42 * 7\n' > src/main/kotlin/legacy/Area.kt
+  printf 'package legacy\n\nimport kotlin.test.Test\nimport kotlin.test.assertEquals\n\nclass AreaTest {\n    @Test\n    fun area() {\n        assertEquals(294, area())\n    }\n}\n' > src/test/kotlin/legacy/AreaTest.kt
+  expect_fail "new detekt finding" "MagicNumber"
   printf 'package legacy\n\nfun triple(value: Int): Int = value * 3\n' > src/main/kotlin/legacy/Triple.kt
   expect_fail "untested new code" "every changed line must be covered"
   printf 'package legacy\n\nimport kotlin.test.Ignore\nimport kotlin.test.Test\n\nclass LaterTest {\n    @Ignore\n    @Test\n    fun later() {\n    }\n}\n' > src/test/kotlin/legacy/LaterTest.kt

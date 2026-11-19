@@ -18,6 +18,7 @@ CONFIG = Path(".unslop/adopt.json")
 BASELINES = Path(".unslop/baseline")
 DIFF_COVER = "diff-cover==11.0.1"
 GUARD_PATHS = (".unslop/*", "tools/guard/*", "scripts/*")
+LINE = re.compile(r"^(?P<path>[^:\n]+):(?P<line>\d+):\d+: (?P<message>.*)$")
 TSC_LINE = re.compile(r"^(?P<path>.+?)\((?P<line>\d+),\d+\): error (?P<rule>TS\d+): (?P<message>.*)$")
 
 type Json = dict[str, object]
@@ -115,7 +116,15 @@ def tsc(report: str) -> Iterator[Finding]:
             yield Finding(relative(match["path"]), match["rule"], int(match["line"]), match["message"])
 
 
-PARSERS: dict[str, Callable[[str], Iterator[Finding]]] = {"sarif": sarif, "pyright": pyright, "eslint": eslint, "tsc": tsc}
+def lines(report: str) -> Iterator[Finding]:
+    for line in report.splitlines():
+        match = LINE.match(line)
+        if match is not None:
+            message = match["message"]
+            yield Finding(relative(match["path"]), message.split(";")[0].split(" (")[0], int(match["line"]), message)
+
+
+PARSERS: dict[str, Callable[[str], Iterator[Finding]]] = {"sarif": sarif, "pyright": pyright, "eslint": eslint, "tsc": tsc, "lines": lines}
 
 
 def git(*arguments: str) -> str:
@@ -220,7 +229,9 @@ def tested(tests: Json, since: str) -> bool:
     if not reports:
         print(f"coverage: the tests wrote no report matching {pattern}")
         return False
-    roots = sorted({root for item in cast("list[object]", tests.get("src_roots", [])) for root in glob.glob(text(item)) if Path(root).is_dir()})
+    roots = sorted(
+        {root for item in cast("list[object]", tests.get("src_roots", [])) for root in glob.glob(text(item)) if Path(root).is_dir()}
+    )
     command = ["uv", "run", "--quiet", "--no-project", "--with", DIFF_COVER, "diff-cover", *reports]
     command += ["--compare-branch", since, "--fail-under", "100", "--include-untracked"]
     command += ["--exclude", *GUARD_PATHS]

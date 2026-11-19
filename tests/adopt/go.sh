@@ -18,6 +18,6 @@ cases() {
   printf 'package legacy\n\nimport "testing"\n\nfunc TestLater(t *testing.T) {\n\tt.Skip("later")\n}\n' > later_test.go
   expect_fail "skipped test" "check-diff"
   printf 'package legacy\n\nfunc Mul(a, b int) int {\n\treturn a * b\n}\n' > mul.go
-  printf 'package legacy\n\nimport "testing"\n\nfunc TestMul(t *testing.T) {\n\tt.Parallel()\n\tif Mul(2, 3) != 6 {\n\t\tt.Fatal("product")\n\t}\n}\n' > mul_test.go
+  printf 'package legacy_test\n\nimport (\n\t"testing"\n\n\t"example.com/legacy"\n)\n\nfunc TestMul(t *testing.T) {\n\tt.Parallel()\n\n\tif legacy.Mul(2, 3) != 6 {\n\t\tt.Fatal("product")\n\t}\n}\n' > mul_test.go
   expect_pass "clean, tested new code"
 }

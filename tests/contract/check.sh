@@ -17,13 +17,28 @@ while IFS= read -r dir; do
   printf '%s\n' "${names[@]}" | grep -qx -- "$name" || fail "templates/$name is not listed in $catalog"
 done < <(find templates -mindepth 1 -maxdepth 1 -type d | sort)
 
-for workflow in .github/workflows/*.yml templates/*/.github/workflows/*.yml; do
+for workflow in .github/workflows/*.yml templates/*/.github/workflows/*.yml adopt/profiles/*/files/.github/workflows/*.yml; do
   while IFS= read -r ref; do
     [[ "$ref" =~ @[0-9a-f]{40}$ ]] || fail "$workflow uses an action not pinned to a commit SHA: $ref"
   done < <(sed -n 's/^ *- *uses: *\([^ ]*\).*/\1/p; s/^ *uses: *\([^ ]*\).*/\1/p' "$workflow")
   grep -q 'persist-credentials: false' "$workflow" || fail "$workflow must check out with persist-credentials: false"
   grep -Eq '^permissions:' "$workflow" || fail "$workflow must declare top-level permissions"
 done
+
+expected=$(tests/contract/stacks-table.sh)
+actual=$(sed -n '/<!-- stacks:start -->/,/<!-- stacks:end -->/p' README.md | sed '1d;$d')
+[ "$expected" = "$actual" ] || fail "README.md stacks tables are out of date; regenerate them with tests/contract/stacks-table.sh"
+
+while IFS= read -r profile; do
+  [ -d "adopt/profiles/$profile" ] || fail "catalog names adopt profile $profile but adopt/profiles/$profile does not exist"
+done < <(jq -r '(.adopt[].name), (.templates[].adopt // empty)' "$catalog" | sort -u)
+while IFS= read -r dir; do
+  profile=$(basename "$dir")
+  jq -e --arg p "$profile" 'any(.adopt[]; .name == $p)' "$catalog" >/dev/null || fail "adopt/profiles/$profile is not listed in the catalog adopt section"
+  [ -x "$dir/detect" ] || fail "adopt profile $profile has no executable detect"
+  [ -f "$dir/files/.github/workflows/unslop.yml" ] || fail "adopt profile $profile has no workflow"
+  [ -f "tests/adopt/$profile.sh" ] || compgen -G "tests/adopt/$profile-*.sh" >/dev/null || fail "adopt profile $profile has no fixture in tests/adopt"
+done < <(find adopt/profiles -mindepth 1 -maxdepth 1 -type d | sort)
 
 for name in "${names[@]}"; do
   t="templates/$name"

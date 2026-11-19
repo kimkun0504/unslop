@@ -27,6 +27,6 @@ cases() {
   expect_fail "unformatted new file" "new file is not formatted"
   printf 'resource "aws_s3_bucket" "data" {\n  bucket = "legacy-data"\n}\n' > data.tf
   expect_fail "new insecure bucket" "CKV"
-  printf 'variable "owner" {\n  type        = string\n  description = "Team that owns the bucket."\n}\n' > owner.tf
-  expect_pass "clean new variable"
+  printf 'output "bucket_name" {\n  description = "Name of the log bucket."\n  value       = aws_s3_bucket.logs.bucket\n}\n' > outputs.tf
+  expect_pass "clean new output"
 }

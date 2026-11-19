@@ -18,7 +18,15 @@
         "mutation": "mutmut, 100% killed",
         "dead-code": "deptry",
         "supply-chain": "uv lock, 7-day release age, pip-audit"
-      }
+      },
+      "summary": {
+        "format": "ruff format",
+        "lint": "ruff (all rules), basedpyright (all)",
+        "architecture": "import-linter",
+        "tests": "pytest, hypothesis",
+        "mutation": "mutmut"
+      },
+      "adopt": "python"
     },
     {
       "name": "ts-react",
@@ -39,7 +47,15 @@
         "dead-code": "knip",
         "supply-chain": "pnpm lockfile, 1-day release age, pnpm audit",
         "design-system": "tailwind tokens only, no arbitrary values or inline styles"
-      }
+      },
+      "summary": {
+        "format": "prettier",
+        "lint": "typescript-eslint strict, tsc strictest, jsx-a11y",
+        "architecture": "eslint-plugin-boundaries",
+        "tests": "vitest, testing-library, fast-check",
+        "mutation": "Stryker"
+      },
+      "adopt": "typescript"
     },
     {
       "name": "go",
@@ -59,7 +75,15 @@
         "mutation": null,
         "dead-code": "unused, unparam",
         "supply-chain": "go mod verify, go mod tidy -diff, govulncheck"
-      }
+      },
+      "summary": {
+        "format": "gofumpt",
+        "lint": "golangci-lint (all linters)",
+        "architecture": "depguard",
+        "tests": "race detector, native fuzzing",
+        "mutation": "none maintained"
+      },
+      "adopt": "go"
     },
     {
       "name": "kotlin-spring",
@@ -81,7 +105,15 @@
         "mutation": "PIT STRONGER, 100% killed",
         "dead-code": "detekt unused rules",
         "supply-chain": "Gradle version catalog"
-      }
+      },
+      "summary": {
+        "format": "ktlint",
+        "lint": "detekt (all rules), warnings as errors",
+        "architecture": "Spring Modulith",
+        "tests": "JUnit 5, Spring Boot",
+        "mutation": "PIT"
+      },
+      "adopt": "jvm"
     },
     {
       "name": "java-spring",
@@ -102,7 +134,15 @@
         "mutation": "PIT STRONGER, 100% killed",
         "dead-code": "javac and Error Prone unused checks",
         "supply-chain": "Gradle version catalog"
-      }
+      },
+      "summary": {
+        "format": "google-java-format",
+        "lint": "Error Prone, NullAway (JSpecify), `-Xlint:all -Werror`",
+        "architecture": "Spring Modulith",
+        "tests": "JUnit 5, AssertJ, Spring Boot",
+        "mutation": "PIT"
+      },
+      "adopt": "jvm"
     },
     {
       "name": "terraform",
@@ -124,7 +164,15 @@
         "dead-code": "tflint terraform_unused_declarations",
         "supply-chain": "provider lockfile, pinned provider and plugin versions",
         "security": "checkov"
-      }
+      },
+      "summary": {
+        "format": "terraform fmt",
+        "lint": "tflint (all rules, AWS), validate, checkov",
+        "architecture": "single-purpose modules",
+        "tests": "`terraform test` with mocked providers",
+        "mutation": "none available"
+      },
+      "adopt": "terraform"
     },
     {
       "name": "rust",
@@ -144,7 +192,15 @@
         "mutation": "cargo-mutants, none missed",
         "dead-code": "rustc unused lints denied",
         "supply-chain": "Cargo.lock --locked, cargo-deny advisories, licenses, bans, sources"
-      }
+      },
+      "summary": {
+        "format": "rustfmt",
+        "lint": "clippy (all, pedantic, nursery, restriction), `#[allow]` denied",
+        "architecture": "workspace crates, I/O banned in domain",
+        "tests": "cargo test, proptest",
+        "mutation": "cargo-mutants"
+      },
+      "adopt": null
     },
     {
       "name": "dotnet",
@@ -164,7 +220,15 @@
         "mutation": "Stryker.NET, 100% score",
         "dead-code": "IDE and CA unused-code analyzers",
         "supply-chain": "central package versions, lockfiles in locked mode, NuGet audit of transitive packages"
-      }
+      },
+      "summary": {
+        "format": "dotnet format",
+        "lint": "all analyzers as errors, nullable reference types",
+        "architecture": "domain references only core framework",
+        "tests": "xUnit v3, WebApplicationFactory",
+        "mutation": "Stryker.NET"
+      },
+      "adopt": null
     },
     {
       "name": "php",
@@ -184,7 +248,15 @@
         "mutation": "Infection, 100% MSI",
         "dead-code": "PHPStan unused and dead-code rules",
         "supply-chain": "composer.lock, composer validate --strict, composer audit"
-      }
+      },
+      "summary": {
+        "format": "PHP-CS-Fixer",
+        "lint": "PHPStan max + strict rules, native types only",
+        "architecture": "deptrac, I/O banned in domain",
+        "tests": "PHPUnit 13",
+        "mutation": "Infection"
+      },
+      "adopt": null
     },
     {
       "name": "ruby",
@@ -204,7 +276,57 @@
         "mutation": "mutant, no surviving mutations",
         "dead-code": "RuboCop Lint unused and unreachable cops",
         "supply-chain": "Gemfile.lock in frozen mode, bundle-audit"
-      }
+      },
+      "summary": {
+        "format": "RuboCop",
+        "lint": "RuboCop with every cop, Steep strict on RBS",
+        "architecture": "RuboCop guards: pure domain, output through ports",
+        "tests": "RSpec",
+        "mutation": "mutant"
+      },
+      "adopt": null
+    }
+  ],
+  "adopt": [
+    {
+      "name": "python",
+      "title": "Python",
+      "detects": "uv, Poetry or pip projects",
+      "format": "ruff format",
+      "checks": "ruff (all rules), basedpyright (all)",
+      "tests": "pytest with branch coverage"
+    },
+    {
+      "name": "typescript",
+      "title": "TypeScript and JavaScript",
+      "detects": "npm, pnpm or Yarn projects",
+      "format": "prettier, when the project uses it",
+      "checks": "tsc with strictest flags, the project's ESLint config",
+      "tests": "vitest or jest with coverage"
+    },
+    {
+      "name": "go",
+      "title": "Go",
+      "detects": "a go.mod at the root",
+      "format": "gofmt",
+      "checks": "golangci-lint (all linters)",
+      "tests": "go test -race with coverage"
+    },
+    {
+      "name": "jvm",
+      "title": "Java and Kotlin",
+      "detects": "Gradle or Maven builds",
+      "format": "none; the project's own formatter",
+      "checks": "PMD for Java, detekt (all rules) for Kotlin",
+      "tests": "JaCoCo added without editing the build"
+    },
+    {
+      "name": "terraform",
+      "title": "Terraform",
+      "detects": ".tf files",
+      "format": "terraform fmt",
+      "checks": "tflint (all rules, AWS), checkov",
+      "tests": "terraform test, when the repository has tests"
     }
   ]
 }

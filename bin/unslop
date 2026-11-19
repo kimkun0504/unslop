@@ -69,7 +69,7 @@ adopt_project() {
 
   mkdir -p "$target/scripts" "$target/tools/guard" "$target/.claude" "$target/.unslop/decisions"
   cp -R "$repo/adopt/shared/." "$target/"
-  cp -R "$repo/adopt/profiles/$profile/files/." "$target/"
+  cp -RL "$repo/adopt/profiles/$profile/files/." "$target/"
   cp "$repo/common/scripts/check-comments" "$repo/common/scripts/check-diff" "$repo/common/scripts/diff-base" "$target/scripts/"
   cp "$repo/common/tools/guard/no_comments.py" "$target/tools/guard/"
   cp "$repo"/common/docs/decisions/000[123]-*.md "$target/.unslop/decisions/"

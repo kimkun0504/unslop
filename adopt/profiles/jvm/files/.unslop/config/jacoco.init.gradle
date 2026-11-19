@@ -1,8 +1,10 @@
 allprojects {
-    plugins.withType(JavaPlugin).configureEach {
-        project.apply plugin: 'jacoco'
-        project.jacoco.toolVersion = '0.8.14'
-        project.tasks.withType(Test).configureEach { finalizedBy project.tasks.named('jacocoTestReport') }
-        project.tasks.named('jacocoTestReport') { reports { xml.required = true } }
+    afterEvaluate { project ->
+        if (project.plugins.hasPlugin('java')) {
+            project.apply plugin: 'jacoco'
+            project.jacoco.toolVersion = '0.8.14'
+            project.tasks.named('jacocoTestReport') { reports { xml.required = true } }
+            project.tasks.withType(Test).configureEach { finalizedBy project.tasks.named('jacocoTestReport') }
+        }
     }
 }

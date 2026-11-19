@@ -75,3 +75,26 @@ def test_main_reports_and_exits_nonzero(tmp_path: Path, capsys: pytest.CaptureFi
     assert no_comments.main([str(dirty), str(clean)]) == 1
     assert capsys.readouterr().out == f"{dirty}:1:1: comments are forbidden (ADR-0001)\n"
     assert no_comments.main([str(clean)]) == 0
+
+
+def test_since_reports_only_comments_on_added_lines(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    import subprocess
+
+    def git(*arguments: str) -> str:
+        return subprocess.run(["git", *arguments], cwd=tmp_path, capture_output=True, text=True, check=True).stdout
+
+    monkeypatch.chdir(tmp_path)
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "a@b")
+    git("config", "user.name", "a")
+    (tmp_path / "a.py").write_text("x = 1  # old\ny = 2\n")
+    git("add", "-A")
+    git("commit", "-qm", "base")
+    base = git("rev-parse", "HEAD").strip()
+    (tmp_path / "a.py").write_text("x = 1  # old\ny = 2  # new\n")
+    (tmp_path / "b.py").write_text("z = 3  # untracked\n")
+    assert no_comments.main(["--since", base, "a.py", "b.py"]) == 1
+    output = capsys.readouterr().out
+    assert "a.py:2:" in output
+    assert "b.py:1:" in output
+    assert "a.py:1:" not in output

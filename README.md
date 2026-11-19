@@ -43,20 +43,30 @@ In Claude Code, run `/unslop-spec` to write the spec, then `/unslop-long-run` fo
 
 Every template ships a small working feature in the house style and passes the same contract: strict formatting, linting and types, enforced architecture boundaries, no comments, 100% coverage and, where a maintained tool exists, every mutant killed. Each is proven in CI by scaffolding a fresh project and planting violations that must be caught.
 
-| Template | Format | Lint and types | Architecture | Tests | Mutation |
-|---|---|---|---|---|---|
-| `python` | ruff format | ruff (all rules), basedpyright (all) | import-linter | pytest, hypothesis | mutmut |
-| `ts-react` | prettier | typescript-eslint strict, tsc strictest, jsx-a11y | eslint-plugin-boundaries | vitest, testing-library, fast-check | Stryker |
-| `go` | gofumpt | golangci-lint (all linters) | depguard | race detector, native fuzzing | none maintained |
-| `kotlin-spring` | ktlint | detekt (all rules), warnings as errors | Spring Modulith | JUnit 5, Spring Boot | PIT |
-| `java-spring` | google-java-format | Error Prone, NullAway (JSpecify), `-Xlint:all -Werror` | Spring Modulith | JUnit 5, AssertJ, Spring Boot | PIT |
-| `rust` | rustfmt | clippy (all, pedantic, nursery, restriction), `#[allow]` denied | workspace crates, I/O banned in domain | cargo test, proptest | cargo-mutants |
-| `dotnet` | dotnet format | all analyzers as errors, nullable reference types | domain references only core framework | xUnit v3, WebApplicationFactory | Stryker.NET |
-| `php` | PHP-CS-Fixer | PHPStan max + strict rules, native types only | deptrac, I/O banned in domain | PHPUnit 13 | Infection |
-| `ruby` | RuboCop | RuboCop with every cop, Steep strict on RBS | RuboCop guards: pure domain, output through ports | RSpec | mutant |
-| `terraform` | terraform fmt | tflint (all rules, AWS), validate, checkov | single-purpose modules | `terraform test` with mocked providers | none available |
+<!-- stacks:start -->
+| Template | Format | Lint and types | Architecture | Tests | Mutation | Adopt profile |
+|---|---|---|---|---|---|---|
+| `python` | ruff format | ruff (all rules), basedpyright (all) | import-linter | pytest, hypothesis | mutmut | `python` |
+| `ts-react` | prettier | typescript-eslint strict, tsc strictest, jsx-a11y | eslint-plugin-boundaries | vitest, testing-library, fast-check | Stryker | `typescript` |
+| `go` | gofumpt | golangci-lint (all linters) | depguard | race detector, native fuzzing | none maintained | `go` |
+| `kotlin-spring` | ktlint | detekt (all rules), warnings as errors | Spring Modulith | JUnit 5, Spring Boot | PIT | `jvm` |
+| `java-spring` | google-java-format | Error Prone, NullAway (JSpecify), `-Xlint:all -Werror` | Spring Modulith | JUnit 5, AssertJ, Spring Boot | PIT | `jvm` |
+| `terraform` | terraform fmt | tflint (all rules, AWS), validate, checkov | single-purpose modules | `terraform test` with mocked providers | none available | `terraform` |
+| `rust` | rustfmt | clippy (all, pedantic, nursery, restriction), `#[allow]` denied | workspace crates, I/O banned in domain | cargo test, proptest | cargo-mutants | not yet |
+| `dotnet` | dotnet format | all analyzers as errors, nullable reference types | domain references only core framework | xUnit v3, WebApplicationFactory | Stryker.NET | not yet |
+| `php` | PHP-CS-Fixer | PHPStan max + strict rules, native types only | deptrac, I/O banned in domain | PHPUnit 13 | Infection | not yet |
+| `ruby` | RuboCop | RuboCop with every cop, Steep strict on RBS | RuboCop guards: pure domain, output through ports | RSpec | mutant | not yet |
 
-The full gate list per template is in [`templates/catalog.json`](templates/catalog.json). Next stacks: Elixir and Swift. To add one, follow [Adding a stack](docs/adding-a-stack.md).
+| Adopt profile | For | Format, on changed files | Lint and types, ratcheted | Tests and changed-line coverage |
+|---|---|---|---|---|
+| `python` | Python: uv, Poetry or pip projects | ruff format | ruff (all rules), basedpyright (all) | pytest with branch coverage |
+| `typescript` | TypeScript and JavaScript: npm, pnpm or Yarn projects | prettier, when the project uses it | tsc with strictest flags, the project's ESLint config | vitest or jest with coverage |
+| `go` | Go: a go.mod at the root | gofmt | golangci-lint (all linters) | go test -race with coverage |
+| `jvm` | Java and Kotlin: Gradle or Maven builds | none; the project's own formatter | PMD for Java, detekt (all rules) for Kotlin | JaCoCo added without editing the build |
+| `terraform` | Terraform: .tf files | terraform fmt | tflint (all rules, AWS), checkov | terraform test, when the repository has tests |
+<!-- stacks:end -->
+
+The tables are generated from [`templates/catalog.json`](templates/catalog.json), which also lists every gate per template; run `bin/unslop list` to see it in the terminal. Adopt profiles bring the same checks to an existing repository; see [Adopting an existing repository](docs/adopting.md). Next stacks: Elixir and Swift. To add one, follow [Adding a stack](docs/adding-a-stack.md).
 
 Every template has the same commands:
 
