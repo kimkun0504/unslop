@@ -271,7 +271,7 @@ jobs:
           bin/unslop new dotnet "$RUNNER_TEMP/net"
           cd "$RUNNER_TEMP/net"
           scripts/setup
-          git add -A && git commit -qm lock
+          git add -A && git commit -qm lock --allow-empty
           scripts/fast-check
           expect_fail() {
             printf '%s\n' "$2" > "$3"
@@ -312,7 +312,7 @@ jobs:
           bin/unslop new php "$RUNNER_TEMP/php"
           cd "$RUNNER_TEMP/php"
           scripts/setup
-          git add -A && git commit -qm lock
+          git add -A && git commit -qm lock --allow-empty
           scripts/fast-check
           expect_fail() {
             printf '%s\n' "$2" > "$3"
@@ -352,7 +352,7 @@ jobs:
           bin/unslop new ruby "$RUNNER_TEMP/ruby"
           cd "$RUNNER_TEMP/ruby"
           scripts/setup
-          git add -A && git commit -qm lock
+          git add -A && git commit -qm lock --allow-empty
           scripts/fast-check
           expect_fail() {
             printf '%s\n' "$2" > "$3"
@@ -394,7 +394,7 @@ jobs:
           UNSLOP_OWNER=ci bin/unslop new elixir "$RUNNER_TEMP/elixir"
           cd "$RUNNER_TEMP/elixir"
           scripts/setup
-          git add -A && git commit -qm lock
+          git add -A && git commit -qm lock --allow-empty
           scripts/fast-check
           expect_fail() {
             mkdir -p "$(dirname "$3")"
@@ -495,7 +495,7 @@ jobs:
           UNSLOP_OWNER=ci bin/unslop new python "$RUNNER_TEMP/py"
           cd "$RUNNER_TEMP/py"
           scripts/setup
-          git add -A && git commit -qm lock
+          git add -A && git commit -qm lock --allow-empty
           scripts/fast-check
           printf 'x = 1  # note\n' > src/app/note.py
           if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: comment"; exit 1; fi
