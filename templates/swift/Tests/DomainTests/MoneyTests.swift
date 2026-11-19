@@ -3,7 +3,7 @@ import Testing
 
 struct MoneyTests {
     @Test(arguments: [
-        ("0", 0), ("7", 700), ("0.09", 9), (" 12.50 ", 1250), ("999999999999.99", 99_999_999_999_999),
+        ("0", 0), ("7", 700), ("0.09", 9), (" 12.50 ", 1_250), ("999999999999.99", 99_999_999_999_999),
     ])
     func reads(raw: String, cents: Int) throws {
         #expect(try Money.parse(raw).cents == cents)
@@ -18,12 +18,14 @@ struct MoneyTests {
         )
     }
 
-    @Test func refusesNegativeCents() {
+    @Test
+    func refusesNegativeCents() {
         #expect(Money(cents: -1) == nil)
         #expect(Money(cents: 0) == Money.zero)
     }
 
-    @Test func adds() throws {
+    @Test
+    func adds() throws {
         let sum = try #require(Money(cents: 125)).plus(try #require(Money(cents: 280)))
         #expect(sum.cents == 405)
     }

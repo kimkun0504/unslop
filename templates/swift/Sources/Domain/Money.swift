@@ -6,6 +6,11 @@ public struct Money: Equatable, Sendable {
 
     public let cents: Int
 
+    public var rendered: String {
+        let digits = String(cents % Self.centsPerUnit)
+        return "\(cents / Self.centsPerUnit).\(digits.count == 1 ? "0" : "")\(digits)"
+    }
+
     private init(validCents: Int) {
         cents = validCents
     }
@@ -18,14 +23,14 @@ public struct Money: Equatable, Sendable {
     }
 
     public static func parse(_ raw: String) throws(InvalidAmount) -> Self {
-        let trimmed = String(raw.drop { $0.isWhitespace }.reversed().drop { $0.isWhitespace }.reversed())
+        let trimmed = String(raw.drop(while: \.isWhitespace).reversed().drop(while: \.isWhitespace).reversed())
         let canonical = trimmed.contains(".") ? trimmed : trimmed + ".00"
         guard canonical.wholeMatch(of: /(?:0|[1-9][0-9]{0,11})\.[0-9]{2}/) != nil,
-            let cents = Int(canonical.filter { $0 != "." })
+            let value = Int(canonical.filter { $0 != "." })
         else {
             throw InvalidAmount(raw: raw)
         }
-        return Self(validCents: cents)
+        return Self(validCents: value)
     }
 
     public func plus(_ other: Self) -> Self {
@@ -35,10 +40,5 @@ public struct Money: Equatable, Sendable {
     public func lessPercent(_ percent: Int) -> Self {
         precondition((0...Self.wholePercent).contains(percent), "percent must be between 0 and 100")
         return Self(validCents: cents * (Self.wholePercent - percent) / Self.wholePercent)
-    }
-
-    public var rendered: String {
-        let rest = cents % Self.centsPerUnit
-        return "\(cents / Self.centsPerUnit).\(rest < 10 ? "0" : "")\(rest)"
     }
 }

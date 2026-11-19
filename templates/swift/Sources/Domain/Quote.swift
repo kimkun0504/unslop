@@ -4,11 +4,11 @@ public struct Quote: Equatable, Sendable {
     public let total: Money
 
     public static func of(_ lines: [String]) throws(InvalidAmount) -> Self {
-        var subtotal = Money.zero
+        var sum = Money.zero
         for line in lines {
-            subtotal = subtotal.plus(try Money.parse(line))
+            sum = sum.plus(try Money.parse(line))
         }
-        let tier = Tier.forSubtotal(subtotal)
-        return Self(subtotal: subtotal, tier: tier, total: subtotal.lessPercent(tier.percentOff))
+        let level = Tier.forSubtotal(sum)
+        return Self(subtotal: sum, tier: level, total: sum.lessPercent(level.percentOff))
     }
 }

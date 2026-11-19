@@ -13,4 +13,5 @@ let application = Application(
     out: StreamOutput(handle: .standardOutput),
     err: StreamOutput(handle: .standardError)
 )
+
 exit(application.run(Array(CommandLine.arguments.dropFirst())))

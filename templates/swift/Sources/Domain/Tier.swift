@@ -5,12 +5,20 @@ public enum Tier: String, Sendable, CaseIterable {
 
     private static let silverFromCents = 10_000
     private static let goldFromCents = 50_000
+    private static let standardPercentOff = 0
+    private static let silverPercentOff = 5
+    private static let goldPercentOff = 10
 
     public var percentOff: Int {
         switch self {
-        case .standard: 0
-        case .silver: 5
-        case .gold: 10
+        case .standard:
+            Self.standardPercentOff
+
+        case .silver:
+            Self.silverPercentOff
+
+        case .gold:
+            Self.goldPercentOff
         }
     }
 

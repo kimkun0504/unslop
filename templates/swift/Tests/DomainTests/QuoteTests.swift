@@ -14,7 +14,8 @@ struct QuoteTests {
         #expect("\(quote.subtotal.rendered) \(quote.tier.rawValue) \(quote.total.rendered)" == expected)
     }
 
-    @Test func reportsTheFirstMalformedLine() {
+    @Test
+    func reportsTheFirstMalformedLine() {
         #expect(throws: InvalidAmount(raw: "x")) { try Quote.of(["1", "x", "y"]) }
     }
 }
