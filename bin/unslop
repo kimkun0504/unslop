@@ -1,11 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 repo=$(cd "$(dirname "$0")/.." && pwd)
+adopted_scripts=(setup fast-check verify rebaseline check-comments check-diff diff-base)
+
+names() {
+  find "$1" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort | tr '\n' ' '
+}
 
 usage() {
-  echo "usage: unslop new <template> <directory>" >&2
-  echo "templates: $(find "$repo/templates" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort | tr '\n' ' ')" >&2
+  {
+    echo "usage: unslop new <template> <directory>    start a project from a template"
+    echo "       unslop adopt <profile> <directory>   add unslop to an existing git repository"
+    echo "       unslop list                          show templates, their gates and adopt profiles"
+    echo "templates: $(names "$repo/templates")"
+    echo "adopt profiles: $(names "$repo/adopt/profiles")"
+  } >&2
   exit 1
+}
+
+list() {
+  jq -r '.templates[] | "\(.name)\t\(.title)\tadopt: \(.adopt // "none")", (.gates | to_entries[] | "    \(.key): \(.value)"), ""' "$repo/templates/catalog.json"
+  echo "adopt profiles for existing repositories: $(names "$repo/adopt/profiles")"
 }
 
 new_project() {
@@ -25,7 +40,70 @@ new_project() {
   echo "then push to GitHub and apply the ruleset: gh api -X POST repos/OWNER/REPO/rulesets --input .github/rulesets/main.json"
 }
 
+merge_settings() {
+  local target=$1 extra
+  extra=$(jq -n '{permissions: {deny: ["Edit(.unslop/**)"]}, sandbox: {filesystem: {denyWrite: ["./.unslop"]}}}')
+  if [ -f "$target/.claude/settings.json" ]; then
+    jq --slurpfile shared "$repo/common/.claude/settings.json" --argjson extra "$extra" '
+      .permissions.deny = ((.permissions.deny // []) + $shared[0].permissions.deny + $extra.permissions.deny | unique)
+      | .sandbox.filesystem.denyWrite = ((.sandbox.filesystem.denyWrite // []) + $shared[0].sandbox.filesystem.denyWrite + $extra.sandbox.filesystem.denyWrite | unique)
+    ' "$target/.claude/settings.json" > "$target/.claude/settings.json.new"
+    mv "$target/.claude/settings.json.new" "$target/.claude/settings.json"
+  else
+    jq --argjson extra "$extra" '
+      .permissions.deny += $extra.permissions.deny | .sandbox.filesystem.denyWrite += $extra.sandbox.filesystem.denyWrite
+    ' "$repo/common/.claude/settings.json" > "$target/.claude/settings.json"
+  fi
+}
+
+adopt_project() {
+  local profile=$1 target=$2 conflicts=() path
+  [ -d "$repo/adopt/profiles/$profile" ] || usage
+  git -C "$target" rev-parse --show-toplevel >/dev/null 2>&1 || { echo "$target is not a git repository" >&2; exit 1; }
+  target=$(git -C "$target" rev-parse --show-toplevel)
+  [ -z "$(git -C "$target" status --porcelain)" ] || { echo "$target has uncommitted changes; commit or stash them first" >&2; exit 1; }
+  for path in .unslop tools/guard/no_comments.py .github/workflows/unslop.yml "${adopted_scripts[@]/#/scripts/}"; do
+    [ ! -e "$target/$path" ] || conflicts+=("$path")
+  done
+  [ ${#conflicts[@]} -eq 0 ] || { printf 'already present, remove or rename first: %s\n' "${conflicts[@]}" >&2; exit 1; }
+
+  mkdir -p "$target/scripts" "$target/tools/guard" "$target/.claude" "$target/.unslop/decisions"
+  cp -R "$repo/adopt/shared/." "$target/"
+  cp -R "$repo/adopt/profiles/$profile/files/." "$target/"
+  cp "$repo/common/scripts/check-comments" "$repo/common/scripts/check-diff" "$repo/common/scripts/diff-base" "$target/scripts/"
+  cp "$repo/common/tools/guard/no_comments.py" "$target/tools/guard/"
+  cp "$repo"/common/docs/decisions/000[123]-*.md "$target/.unslop/decisions/"
+  chmod +x "$target"/scripts/*
+  (cd "$target" && "$repo/adopt/profiles/$profile/detect") > "$target/.unslop/adopt.json"
+  jq '(.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks) = [{context: "unslop"}]' \
+    "$repo/common/.github/rulesets/main.json" > "$target/.unslop/ruleset.json"
+  [ -f "$target/.claude/unslop.json" ] || cp "$repo/common/.claude/unslop.json" "$target/.claude/unslop.json"
+  merge_settings "$target"
+  if [ ! -f "$target/CLAUDE.md" ]; then
+    printf '@.unslop/CLAUDE.md\n' > "$target/CLAUDE.md"
+  elif ! grep -qx '@.unslop/CLAUDE.md' "$target/CLAUDE.md"; then
+    printf '\n@.unslop/CLAUDE.md\n' >> "$target/CLAUDE.md"
+  fi
+
+  echo "added unslop to $target with the $profile profile"
+  echo "recording the baseline of existing findings..."
+  if ! (cd "$target" && scripts/setup && scripts/rebaseline); then
+    echo "baseline failed: fix the commands in .unslop/adopt.json, then run scripts/setup and scripts/rebaseline" >&2
+    exit 1
+  fi
+  if (cd "$target" && scripts/fast-check); then
+    echo "scripts/fast-check passes against the new baseline"
+  else
+    echo "scripts/fast-check fails; usually the test command in .unslop/adopt.json needs adjusting for this repository" >&2
+    exit 1
+  fi
+  echo "next: review 'git status', commit on a branch and open a pull request"
+  echo "then apply the ruleset: gh api -X POST repos/OWNER/REPO/rulesets --input .unslop/ruleset.json"
+}
+
 case "${1:-}" in
   new) [ $# -eq 3 ] || usage; new_project "$2" "$3" ;;
+  adopt) [ $# -eq 3 ] || usage; adopt_project "$2" "$3" ;;
+  list) [ $# -eq 1 ] || usage; list ;;
   *) usage ;;
 esac

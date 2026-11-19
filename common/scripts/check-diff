@@ -1,20 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-base_ref="${1:-origin/main}"
-if ! git rev-parse --verify -q "$base_ref" >/dev/null; then
-  if [ "$base_ref" = origin/main ] && ! git remote get-url origin >/dev/null 2>&1; then
-    base=$(git rev-list --max-parents=0 HEAD 2>/dev/null | tail -n 1)
-    [ -n "$base" ] || base=$(git hash-object -t tree /dev/null)
-  else
-    echo "check-diff: cannot resolve $base_ref; use a full clone (fetch-depth: 0)" >&2
-    exit 2
-  fi
-else
-  base=$(git merge-base HEAD "$base_ref") || { echo "check-diff: no merge base with $base_ref; use a full clone (fetch-depth: 0)" >&2; exit 2; }
-fi
+base=$("$(dirname "$0")/diff-base" "${1:-origin/main}")
 pattern='\.(skip|only|todo|fixme)[.(A-Z]|(^|[^A-Za-z0-9_.])x(it|describe|test)\(|@ts-(ignore|expect-error|nocheck)|eslint-disable|(istanbul|c8|v8) ignore|@Disabled|@Ignore([^A-Za-z]|$)|@Suppress(Warnings|FBWarnings)?\(|NOPMD|CHECKSTYLE:OFF|t\.Skip|nolint|lint:ignore|pytest\.(mark\.)?(skip|xfail)|unittest\.skip|noqa|type: *ignore|pyright: *ignore|pragma: *no cover|atlas:nolint|squawk-ignore|#!?\[(allow|expect|ignore)([]( ]|$)|#!?\[cfg_attr\([^)]*(allow|expect)|#pragma +warning +disable|SuppressMessage(Attribute)?\(|Skip *= *"|markTest(Skipped|Incomplete)|CodeCoverageIgnore|phpstan-ignore|psalm-suppress|infection-ignore|rubocop: *(disable|todo)|steep: *ignore|:nocov:|mutant: *disable|(^|[^A-Za-z0-9_.])[xf](it|describe|context|specify|example)[ (]|(^|[^A-Za-z0-9_.:])(skip|pending)( +["'\'':]|\(|$)|(skip|pending|focus): *true'
 code=(':(glob)**/*.ts' ':(glob)**/*.tsx' ':(glob)**/*.js' ':(glob)**/*.jsx' ':(glob)**/*.py' ':(glob)**/*.go' ':(glob)**/*.kt' ':(glob)**/*.java' ':(glob)**/*.sql' ':(glob)**/*.rs' ':(glob)**/*.cs' ':(glob)**/*.tf' ':(glob)**/*.php' ':(glob)**/*.rb' ':(glob)**/*.ex' ':(glob)**/*.exs' ':(glob)**/*.swift')
-excluded=(':(exclude)scripts/**' ':(exclude)tools/guard/**' ':(exclude)eslint-rules/**')
+excluded=(':(exclude)scripts/**' ':(exclude)tools/guard/**' ':(exclude).unslop/**' ':(exclude)eslint-rules/**')
 hits=$(
   {
     git diff "$base" -U0 --no-color -- "${code[@]}" "${excluded[@]}" | grep -E '^\+[^+]' || true
