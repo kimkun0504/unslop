@@ -10,7 +10,10 @@ fail() {
 
 catalog=templates/catalog.json
 jq -e '.templates | length > 0' "$catalog" >/dev/null || { echo "contract: $catalog missing or empty" >&2; exit 2; }
-mapfile -t names < <(jq -r '.templates[].name' "$catalog")
+names=()
+while IFS= read -r name; do
+  names+=("$name")
+done < <(jq -r '.templates[].name' "$catalog")
 
 while IFS= read -r dir; do
   name=$(basename "$dir")

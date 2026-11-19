@@ -8,7 +8,7 @@ Every guardrail in unslop, grouped by where it runs. Each one is enforced by a t
 
 ## 1. Machine layer
 
-Installed by `sudo ./install/install.sh system`. Applies to every repository on the machine. Files: `global/managed-settings.json` and `global/hooks/`, installed root-owned so Claude cannot edit them.
+Installed by `sudo ./install/install.sh system`. Applies to every repository on the machine. Files: `global/managed-settings.json` and `global/hooks/`, installed root-owned so Claude cannot edit them. `sudo ./install/install.sh uninstall-system` removes them and restores the managed settings file they replaced.
 
 | ID | Guardrail | Mechanism | Strength |
 |---|---|---|---|
@@ -73,7 +73,7 @@ Files: `.github/workflows/ci.yml` and `.github/rulesets/main.json` in each templ
 
 ## 4. Claude profile layer
 
-Installed by `./install/install.sh user`. These guide rather than enforce; everything that matters is enforced by the layers above.
+Installed by `./install/install.sh user` and removed by `./install/install.sh uninstall-user`. These guide rather than enforce; everything that matters is enforced by the layers above.
 
 | ID | Item | Purpose |
 |---|---|---|

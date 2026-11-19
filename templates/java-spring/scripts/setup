@@ -8,7 +8,7 @@ command -v uv >/dev/null || { echo "uv missing; run: mise install" >&2; exit 1; 
 for attempt in 1 2 3; do
   refresh=()
   [ "$attempt" -gt 1 ] && refresh=(--refresh-dependencies)
-  if gradle --quiet "${refresh[@]}" dependencies >/dev/null; then
+  if gradle --quiet ${refresh[@]+"${refresh[@]}"} dependencies >/dev/null; then
     exit 0
   fi
   echo "dependency resolution failed (attempt $attempt); retrying" >&2

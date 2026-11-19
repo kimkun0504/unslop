@@ -28,7 +28,12 @@ dir="${XDG_CACHE_HOME:-$HOME/.cache}/unslop/$sum"
 if [ ! -f "$dir/$name" ]; then
   mkdir -p "$dir"
   curl -fsSL --retry 3 -o "$dir/$name.part" "$url"
-  echo "$sum  $dir/$name.part" | sha256sum -c --quiet - >&2 || { rm -f "$dir/$name.part"; echo "fetch: checksum mismatch for $url" >&2; exit 1; }
+  if command -v sha256sum >/dev/null 2>&1; then
+    actual=$(sha256sum "$dir/$name.part" | cut -d' ' -f1)
+  else
+    actual=$(shasum -a 256 "$dir/$name.part" | cut -d' ' -f1)
+  fi
+  [ "$actual" = "$sum" ] || { rm -f "$dir/$name.part"; echo "fetch: checksum mismatch for $url" >&2; exit 1; }
   mv "$dir/$name.part" "$dir/$name"
 fi
 unpack() {

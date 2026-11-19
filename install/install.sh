@@ -53,6 +53,61 @@ install_user() {
   echo "installed ~/.claude/CLAUDE.md, the reviewer agent and unslop skills"
 }
 
+latest_backup() {
+  find "$(dirname "$1")" -maxdepth 1 -name "$(basename "$1").bak.*" 2>/dev/null | sort | tail -n 1
+}
+
+restore_or_remove() {
+  local target=$1 ours=$2 backup
+  [ -e "$target" ] || return 0
+  if ! cmp -s "$target" "$ours"; then
+    echo "kept $target: it differs from what unslop installed, so it was changed by someone else"
+    return 0
+  fi
+  backup=$(latest_backup "$target")
+  if [ -n "$backup" ]; then
+    mv "$backup" "$target"
+    echo "restored $target from $backup"
+  else
+    rm -f "$target"
+    echo "removed $target"
+  fi
+}
+
+uninstall_system() {
+  [ -n "$prefix" ] || [ "$(id -u)" = 0 ] || { echo "system uninstall needs root: sudo $0 uninstall-system" >&2; exit 1; }
+  local dir h
+  dir=$(managed_dir)
+  for h in guard-bash.sh protect-paths.sh stop-gate.sh; do
+    if [ -f "$hook_dir/$h" ]; then
+      rm -f "$hook_dir/$h"
+      echo "removed $hook_dir/$h"
+    fi
+  done
+  rmdir "$hook_dir" 2>/dev/null || true
+  restore_or_remove "$dir/managed-settings.json" "$repo/global/managed-settings.json"
+  echo "machine layer removed; Claude Code picks this up in new sessions"
+}
+
+uninstall_user() {
+  [ -n "$prefix" ] || [ "$(id -u)" != 0 ] || { echo "run the user uninstall without sudo" >&2; exit 1; }
+  local home_claude="$HOME/.claude" s name
+  restore_or_remove "$home_claude/CLAUDE.md" "$repo/global/user/CLAUDE.md"
+  if [ -f "$home_claude/agents/reviewer.md" ] && cmp -s "$home_claude/agents/reviewer.md" "$repo/global/user/agents/reviewer.md"; then
+    rm -f "$home_claude/agents/reviewer.md"
+    echo "removed the reviewer agent"
+  fi
+  for s in "$repo"/global/user/skills/*/; do
+    name=$(basename "$s")
+    if [ -f "$home_claude/skills/$name/SKILL.md" ] && cmp -s "$home_claude/skills/$name/SKILL.md" "$s"SKILL.md; then
+      rm -f "$home_claude/skills/$name/SKILL.md"
+      rmdir "$home_claude/skills/$name" 2>/dev/null || true
+      echo "removed the $name skill"
+    fi
+  done
+  echo "profile layer removed"
+}
+
 check() {
   local dir ok=0
   dir=$(managed_dir)
@@ -69,5 +124,7 @@ case "${1:-}" in
   system) install_system ;;
   user) install_user ;;
   check) check ;;
-  *) echo "usage: sudo $0 system | $0 user | $0 check" >&2; exit 1 ;;
+  uninstall-system) uninstall_system ;;
+  uninstall-user) uninstall_user ;;
+  *) echo "usage: sudo $0 system | $0 user | $0 check | sudo $0 uninstall-system | $0 uninstall-user" >&2; exit 1 ;;
 esac
