@@ -6,12 +6,11 @@ work="${RUNNER_TEMP:-/tmp}/scratch"
 UNSLOP_OWNER=ci bin/unslop new swift "$work"
 cd "$work" || exit 0
 scripts/setup > /dev/null 2>&1
-for i in 1 2 3 4 5 6; do
+for i in 1 2 3 4 5 6 7 8 9 10; do
   echo "=== run $i"
-  swift test --quiet --enable-code-coverage 2>&1 | grep -E 'Test run|Executed [1-9]'
+  swift test --quiet --no-parallel --enable-code-coverage 2>&1 | grep -E 'Test run|Executed [1-9]'
   report=$(swift test --show-codecov-path)
   dir=$(dirname "$report")
-  ls -la "$dir"
   uv run --quiet --no-project --python 3.13 python tools/guard/coverage.py "$report"
   prof=$(find "$dir" -name '*.profdata' | head -1)
   bins=$(find .build -name '*-test-runner' -o -name '*Tests.so' -o -name '*.xctest' | head -5)
