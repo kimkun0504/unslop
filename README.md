@@ -37,6 +37,8 @@ scripts/verify
 gh api -X POST repos/OWNER/REPO/rulesets --input .github/rulesets/main.json
 ```
 
+`unslop new` and `unslop adopt` put your GitHub handle in `CODEOWNERS` and your name in the decision records. They read `UNSLOP_OWNER` and `UNSLOP_OWNER_NAME`, falling back to `gh` and your git config.
+
 Or bring an existing repository under the same guardrails, with its current findings recorded as a baseline so only new code has to meet the bar:
 
 ```bash

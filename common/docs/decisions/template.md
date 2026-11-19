@@ -1,7 +1,7 @@
 ---
 status: proposed
 date: YYYY-MM-DD
-decision-makers: Kun Kim
+decision-makers: UNSLOP_OWNER_NAME
 ---
 
 # Short title of the decision

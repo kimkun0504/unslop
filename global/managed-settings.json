@@ -180,7 +180,7 @@
           {
             "type": "command",
             "command": "/usr/local/lib/claude-guard/stop-gate.sh",
-            "timeout": 300
+            "timeout": 1800
           }
         ]
       }

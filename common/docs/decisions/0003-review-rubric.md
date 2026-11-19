@@ -1,7 +1,7 @@
 ---
 status: accepted
-date: 2026-11-18
-decision-makers: Kun Kim
+date: UNSLOP_DATE
+decision-makers: UNSLOP_OWNER_NAME
 ---
 
 # Review rubric

@@ -41,7 +41,7 @@ When Claude fixes a recorded finding, the check says so; a human locks the impro
    ~/Desktop/unslop/bin/unslop adopt python ~/code/my-service
    ```
 
-   Adoption copies the files, detects your package manager, test runner and coverage tool, records the baseline and runs `fast-check` once. If detection guessed wrong, it stops with the reason: edit the commands in `.unslop/adopt.json`, then run `scripts/setup` and `scripts/rebaseline`.
+   Adoption copies the files, fills your GitHub handle and name into the decision records (from `UNSLOP_OWNER` and `UNSLOP_OWNER_NAME`, else `gh` and git config), detects your package manager, test runner and coverage tool, records the baseline and runs `fast-check` once. It times that run and sets the end-of-session budget in `.claude/unslop.json` to twice the time plus a minute, between 240 and 1700 seconds. If detection guessed wrong, it stops with the reason: edit the commands in `.unslop/adopt.json`, then run `scripts/setup` and `scripts/rebaseline`.
 3. Review `git status`, commit, push and open a pull request. Check the toolchain versions in `.github/workflows/unslop.yml`.
 4. After it merges, apply the ruleset so `unslop` is a required check:
 
