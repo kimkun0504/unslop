@@ -36,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        fixture: [python, typescript, go, jvm-maven, jvm-gradle, terraform, rust, dotnet, php, ruby, elixir, swift]
+        fixture: [python, python-pip, typescript, go, jvm-maven, jvm-gradle, terraform, rust, dotnet, php, ruby, elixir, swift]
     container: ${{ matrix.fixture == 'swift' && 'swift:6.4.2-noble' || '' }}
     steps:
       - if: matrix.fixture == 'swift'

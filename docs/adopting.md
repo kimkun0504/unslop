@@ -24,9 +24,9 @@ Nothing existing is overwritten. If one of these paths is already taken, adoptio
 |---|---|---|
 | Comments | Untouched | Forbidden on every added line |
 | Suppressions and skipped tests | Untouched | Forbidden on every added line |
-| Existing tests | Cannot be edited or deleted without the `tests-reviewed` label | Same |
+| Existing tests | Cannot be edited or deleted without the `tests-reviewed` label; new tests can be appended to an existing file, with their imports | Same |
 | Formatting | Never forced | New files must be formatted; a file that was formatted must stay formatted |
-| Lint and types | Recorded in the baseline | No count of findings per file and rule may grow |
+| Lint and types | Recorded in the baseline | No count of findings per file and rule may grow; a failure shows which findings sit on the lines you touched |
 | Tests | Must pass | Must pass |
 | Coverage | Not measured | Every changed line must be covered |
 

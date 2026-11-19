@@ -71,7 +71,7 @@ Every template ships a small working feature in the house style and passes the s
 
 | Adopt profile | For | Format, on changed files | Lint and types, ratcheted | Tests and changed-line coverage |
 |---|---|---|---|---|
-| `python` | Python: uv, Poetry or pip projects | ruff format | ruff (all rules), basedpyright (all) | pytest with branch coverage |
+| `python` | Python: uv, Poetry or pip projects | ruff format | ruff (all rules), basedpyright strict | pytest with branch coverage |
 | `typescript` | TypeScript and JavaScript: npm, pnpm or Yarn projects | prettier, when the project uses it | tsc with strictest flags, the project's ESLint config | vitest or jest with coverage |
 | `go` | Go: a go.mod at the root | gofmt | golangci-lint (all linters) | go test -race with coverage |
 | `jvm` | Java and Kotlin: Gradle or Maven builds | none; the project's own formatter | PMD for Java, detekt (all rules) for Kotlin | JaCoCo added without editing the build |

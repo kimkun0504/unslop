@@ -198,3 +198,15 @@ def test_terminal_colour_codes_are_stripped_before_parsing(tmp_path: Path, monke
     (tmp_path / "sample.txt").write_text(line + "\n")
     check = {"name": "compiler", "format": "compiler", "report": report, "run": f"cp sample.txt {report}"}
     assert [(f.path, f.rule, f.line) for f in adopted.collect(check)] == [("Sources/A.swift", "NoUsage", 3)]
+
+
+def test_ratchet_separates_findings_on_touched_lines(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".unslop" / "baseline").mkdir(parents=True)
+    (tmp_path / ".unslop" / "baseline" / "types.json").write_text(json.dumps({"a.py::reportAny": 1}))
+    touched = {"a.py": frozenset({9})}
+    assert not adopted.ratchet({"name": "types"}, [finding("a.py", "reportAny", 2), finding("a.py", "reportAny", 9)], touched)
+    output = capsys.readouterr().out
+    assert output.index("on lines this change touches:") < output.index("a.py:9:") < output.index("elsewhere in the file:") < output.index("a.py:2:")

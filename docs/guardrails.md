@@ -42,7 +42,7 @@ Switched on by `.claude/unslop.json`, which every template project contains. Fil
 | P6 | Committed work is still checked; only an exact state that already passed is skipped | `stop-gate.sh` fingerprint of HEAD, diff and untracked files | Gate |
 | P7 | No code comments in any language | `scripts/check-comments` (tree-sitter parsers for 300+ languages) | Gate |
 | P8 | No new suppressions or skipped tests: `eslint-disable`, `@ts-expect-error`, `# noqa`, `# type: ignore`, `//nolint`, `@Suppress`, `.skip`, `.only`, `@Disabled`, `t.Skip` and more | `scripts/check-diff` | Gate |
-| P9 | Existing tests cannot be changed, deleted or renamed without the `tests-reviewed` label, in every template's test layout | `scripts/check-diff` | Gate |
+| P9 | Existing tests cannot be changed, deleted or renamed without the `tests-reviewed` label, in every template's test layout. New tests may be appended to the end of an existing test file, with any imports they need | `scripts/check-diff` | Gate |
 | P10 | Per-stack quality gates: format, lint, types, architecture, tests, coverage, mutation, dead code, supply chain | `scripts/fast-check`, `scripts/verify`, `scripts/mutation`; see the [stack matrix](../README.md#stacks) | Gate |
 
 ## 2a. Adopted repositories
@@ -52,7 +52,7 @@ Switched on by `.claude/unslop.json`, which every template project contains. Fil
 | ID | Guardrail | Mechanism | Strength |
 |---|---|---|---|
 | A1 | No comments on lines a change adds | `scripts/check-comments` with `--since`, base from `scripts/diff-base` | Gate |
-| A2 | No lint or type finding beyond the recorded baseline, counted per file and rule so moved code does not count as new | `.unslop/guard/adopted.py` ratchet over SARIF, pyright, ESLint, tsc and line reports | Gate |
+| A2 | No lint or type finding beyond the recorded baseline, counted per file and rule so moved code does not count as new; a failure lists the findings on lines the change touches first | `.unslop/guard/adopted.py` ratchet over SARIF, pyright, ESLint, tsc and line reports | Gate |
 | A3 | A file that was formatted stays formatted, and new files must be formatted; legacy files are never forced into a reformat | Format ratchet comparing each changed file before and after | Gate |
 | A4 | Every changed line is covered by a test | `diff-cover --fail-under 100` on the project's own coverage report | Gate |
 | A5 | The baseline and the adopt configuration are read-only for Claude; only a human shrinks the baseline, with `scripts/rebaseline` | `.unslop/*` in `protect-paths.sh`, deny rules, sandbox `denyWrite` | Boundary |

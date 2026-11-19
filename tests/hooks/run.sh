@@ -109,7 +109,7 @@ expect 2 "plain: git hooks" protect-paths.sh "$(edit_in "$plain/.git/hooks/pre-c
 expect 2 "plain: malformed" protect-paths.sh "garbage"
 export CLAUDE_PROJECT_DIR="$marked"
 expect 0 "marked: src edit" protect-paths.sh "$(edit_in "$marked/src/a.ts")"
-for p in CLAUDE.md package.json web/package.json tsconfig.json eslint.config.ts scripts/fast-check .github/workflows/ci.yml build.gradle.kts gradle/libs.versions.toml go.mod .golangci.yml pyproject.toml uv.lock Dockerfile vite.config.ts knip.json stryker.config.json .prettierrc.json pnpm-workspace.yaml versions.tf modules/bucket/versions.tf .tflint.hcl .checkov.yaml .terraform.lock.hcl Cargo.toml crates/domain/Cargo.toml Cargo.lock crates/domain/clippy.toml deny.toml rust-toolchain.toml src/App.Api/App.Api.csproj Directory.Build.props Directory.Packages.props global.json .editorconfig src/App.Api/packages.lock.json .config/dotnet-tools.json composer.json composer.lock phpstan.neon deptrac.yaml phpunit.xml.dist infection.json5 .php-cs-fixer.dist.php Gemfile Gemfile.lock .ruby-version .rubocop.yml Steepfile .mutant.yml .rspec spec/spec_helper.rb Package.swift Package.resolved .swift-version .swiftlint.yml .swift-format mix.exs mix.lock .credo.exs .formatter.exs .tool-versions .unslop/adopt.json .unslop/baseline/ruff.json .unslop/config/ruff.toml; do
+for p in CLAUDE.md package.json web/package.json tsconfig.json eslint.config.ts scripts/fast-check .github/workflows/ci.yml build.gradle.kts gradle/libs.versions.toml go.mod .golangci.yml pyproject.toml uv.lock Dockerfile vite.config.ts knip.json stryker.config.json .prettierrc.json pnpm-workspace.yaml versions.tf modules/bucket/versions.tf .tflint.hcl .checkov.yaml .terraform.lock.hcl Cargo.toml crates/domain/Cargo.toml Cargo.lock crates/domain/clippy.toml deny.toml rust-toolchain.toml src/App.Api/App.Api.csproj Directory.Build.props Directory.Packages.props global.json .editorconfig src/App.Api/packages.lock.json .config/dotnet-tools.json composer.json composer.lock phpstan.neon deptrac.yaml phpunit.xml.dist infection.json5 .php-cs-fixer.dist.php Gemfile Gemfile.lock .ruby-version .rubocop.yml Steepfile .mutant.yml .rspec spec/spec_helper.rb .node-version Package.swift Package.resolved .swift-version .swiftlint.yml .swift-format mix.exs mix.lock .credo.exs .formatter.exs .tool-versions .unslop/adopt.json .unslop/baseline/ruff.json .unslop/config/ruff.toml; do
   expect 2 "marked: $p" protect-paths.sh "$(edit_in "$marked/$p")"
 done
 expect 2 "marked: dot-dot traversal into scripts" protect-paths.sh "$(edit_in "$marked/src/../scripts/fast-check")"
@@ -149,6 +149,20 @@ if check_diff; then tally ok; else tally no "check-diff: clean tree should pass"
 printf 'it changed\n' > "$diffrepo/spec/money_spec.rb"
 if check_diff; then tally no "check-diff: edited Ruby spec should fail"; else tally ok; fi
 git -C "$diffrepo" checkout -q -- .
+printf 'it also works\n' >> "$diffrepo/spec/money_spec.rb"
+if check_diff; then tally ok; else tally no "check-diff: appending to an existing test file should pass"; fi
+git -C "$diffrepo" checkout -q -- .
+printf 'require "bigdecimal"\nit works\nit also works\n' > "$diffrepo/spec/money_spec.rb"
+if check_diff; then tally ok; else tally no "check-diff: adding an import and appending a test should pass"; fi
+git -C "$diffrepo" checkout -q -- .
+printf 'it first\nit works\n' > "$diffrepo/spec/money_spec.rb"
+if check_diff; then tally no "check-diff: inserting above existing test lines should fail"; else tally ok; fi
+git -C "$diffrepo" checkout -q -- .
+printf 'it works\nit also\n' > "$diffrepo/spec/money_spec.rb"
+git -C "$diffrepo" add -A && git -C "$diffrepo" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m appended
+printf 'it works\nit changed\n' > "$diffrepo/spec/money_spec.rb"
+if check_diff; then tally ok; else tally no "check-diff: editing a line this branch appended should pass"; fi
+git -C "$diffrepo" reset -q --hard HEAD~1
 git -C "$diffrepo" mv tests/Domain/MoneyTest.php tests/Domain/PriceTest.php
 printf '<?php\nchanged\n' > "$diffrepo/tests/Domain/PriceTest.php"
 if check_diff; then tally no "check-diff: renamed and edited PHP test should fail"; else tally ok; fi

@@ -73,7 +73,9 @@
       "Edit(Package.resolved)",
       "Edit(.swift-version)",
       "Edit(.swiftlint.yml)",
-      "Edit(.swift-format)"
+      "Edit(.swift-format)",
+      "Edit(.node-version)",
+      "Edit(.nvmrc)"
     ]
   },
   "sandbox": {
@@ -150,7 +152,9 @@
         "./Package.resolved",
         "./.swift-version",
         "./.swiftlint.yml",
-        "./.swift-format"
+        "./.swift-format",
+        "./.node-version",
+        "./.nvmrc"
       ]
     }
   }
