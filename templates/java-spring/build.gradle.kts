@@ -53,7 +53,10 @@ tasks.named<JavaCompile>("compileTestJava") {
 
 spotless {
     java {
-        googleJavaFormat(libs.versions.google.java.format.get())
+        googleJavaFormat(
+            libs.versions.google.java.format
+                .get(),
+        )
         removeUnusedImports()
         forbidWildcardImports()
     }
