@@ -1,58 +1,79 @@
 # Adopting an existing repository
 
-Templates start clean. An existing repository has years of findings, so turning on every rule at once would fail on the first run, and Claude could not fix the configuration because it is protected. `unslop adopt` applies the same guardrails as a ratchet: legacy code is recorded as it is, and every new or changed line meets the full bar.
+Templates start clean. An existing repository has years of findings, so turning on every rule at once would fail on the first run, and Claude could not fix the configuration because it is protected. `unslop init` applies the same guardrails as a ratchet: legacy code is recorded as it is, and every new or changed line meets the full bar.
+
+## Steps
+
+1. On a clean branch of your repository:
+
+   ```bash
+   uvx --from git+https://github.com/kimkun0504/unslop@v0.1.0 unslop init
+   ```
+
+   `init` picks the profile from the files it finds; pass `--profile NAME` when a repository has more than one stack. It installs dependencies with `unslop setup`, records the baseline, runs `unslop check` once, and sets the end-of-turn time budget to twice that run plus a minute, between 240 and 1700 seconds.
+2. Review `git status`: four new or changed files, listed below. Commit, push and open a pull request.
+3. Open Claude Code in the repository and accept the folder trust prompt. The unslop plugin installs from the marketplace named in `.claude/settings.json`; `/plugin` lists it.
+4. After the pull request merges, require the check:
+
+   ```bash
+   unslop ruleset --apply
+   ```
+
+If detection guessed wrong, `init` stops and says why. Override the command in `unslop.toml` (see below), then run `unslop setup` and `unslop baseline`.
 
 ## What changes in the repository
 
 | Path | What it is | Who can change it |
 |---|---|---|
-| `.unslop/adopt.json` | The commands for formatting, lint and type checks, tests and coverage, written by the profile's detection | A human |
-| `.unslop/baseline/*.json` | Findings that existed at adoption, counted per file and rule | A human, with `scripts/rebaseline` |
-| `.unslop/config/` | The strict lint and type configuration new code must meet | A human |
-| `.unslop/guard/` | The runner, the checksum-pinned tool fetcher and stack guards | A human |
-| `.unslop/decisions/` | Decision records 0001 to 0003: no comments, guardrails change only by humans, the review rubric | A human |
-| `.unslop/CLAUDE.md` | Rules for Claude, imported from your `CLAUDE.md` with one `@.unslop/CLAUDE.md` line | A human |
-| `scripts/fast-check`, `scripts/verify`, `scripts/setup`, `scripts/rebaseline` | The same entry points templates have; the end-of-session check runs `fast-check` | A human |
-| `.claude/unslop.json`, `.claude/settings.json` | The marker that switches the project layer on, and deny rules merged into any settings you already have | A human |
-| `.github/workflows/unslop.yml`, `.unslop/ruleset.json` | CI job `unslop` and a ruleset that requires it | A human |
+| `unslop.toml` | The profile, the pinned unslop version, the time budget, and any command overrides | A human, with the `unslop-reviewed` label |
+| `.unslop/baseline.json` | Findings that existed at adoption, counted per file and rule | A human, with `unslop baseline`; growth needs the `unslop-reviewed` label |
+| `.claude/settings.json` | Turns the plugin on and denies Claude edits to the files below. Merged into any settings you already have | A human |
+| `.github/workflows/unslop.yml` | The `unslop` CI job | A human |
 
-Nothing existing is overwritten. If one of these paths is already taken, adoption stops and names it.
+Reports, generated tool configs and helper scripts go in `.unslop/out/`, which ignores itself in git. Nothing existing is overwritten; `init` stops if `unslop.toml` or the workflow already exists.
 
-## What `fast-check` enforces
+`.claude/settings.json` denies Claude edits to `unslop.toml`, `.unslop/`, `.claude/`, `.github/`, `CLAUDE.md`, `AGENTS.md`, and the build files and lockfiles your repository actually has, such as `pyproject.toml`, `package.json` or `go.mod`.
+
+## What `unslop check` enforces
 
 | Check | Legacy code | New and changed code |
 |---|---|---|
 | Comments | Untouched | Forbidden on every added line |
 | Suppressions and skipped tests | Untouched | Forbidden on every added line |
 | Existing tests | Cannot be edited or deleted without the `tests-reviewed` label; new tests can be appended to an existing file, with their imports | Same |
+| Guardrail configuration | `unslop.toml` changes and baseline growth need the `unslop-reviewed` label | Same |
 | Formatting | Never forced | New files must be formatted; a file that was formatted must stay formatted |
 | Lint and types | Recorded in the baseline | No count of findings per file and rule may grow; a failure shows which findings sit on the lines you touched |
 | Tests | Must pass | Must pass |
 | Coverage | Not measured | Every changed line must be covered |
 
-When Claude fixes a recorded finding, the check says so; a human locks the improvement in with `scripts/rebaseline` so the finding cannot come back.
+When Claude fixes a recorded finding, the check says so. A human locks the improvement in with `unslop baseline` so the finding cannot come back. The plugin blocks Claude from running `unslop baseline` itself.
 
-## Steps
+## Tuning the commands
 
-1. Install the machine layer if you have not: `sudo ./install/install.sh system` and `./install/install.sh user` from the unslop clone.
-2. Pick the profile with `bin/unslop list`, then, on a clean branch of your repository:
+`unslop plan` prints the exact commands each gate runs. To change one, add a `[commands]` table to `unslop.toml`:
 
-   ```bash
-   ~/Desktop/unslop/bin/unslop adopt python ~/code/my-service
-   ```
+```toml
+version = "0.1.0"
+profile = "python"
+fast_check_seconds = 300
 
-   Adoption copies the files, fills your GitHub handle and name into the decision records (from `UNSLOP_OWNER` and `UNSLOP_OWNER_NAME`, else `gh` and git config), detects your package manager, test runner and coverage tool, records the baseline and runs `fast-check` once. It times that run and sets the end-of-session budget in `.claude/unslop.json` to twice the time plus a minute, between 240 and 1700 seconds. If detection guessed wrong, it stops with the reason: edit the commands in `.unslop/adopt.json`, then run `scripts/setup` and `scripts/rebaseline`.
-3. Review `git status`, commit, push and open a pull request. Check the toolchain versions in `.github/workflows/unslop.yml`.
-4. After it merges, apply the ruleset so `unslop` is a required check:
+[commands]
+setup = "uv sync --locked --all-extras"
+tests = "uv run pytest -q tests/unit --cov=src --cov-report=xml:.unslop/out/coverage.xml"
+coverage = ".unslop/out/coverage.xml"
+```
 
-   ```bash
-   gh api -X POST repos/OWNER/REPO/rulesets --input .unslop/ruleset.json
-   ```
+`setup`, `tests` and `coverage` can be overridden. An empty `coverage` turns changed-line coverage off. Changes to `unslop.toml` need the `unslop-reviewed` label on the pull request.
+
+## Upgrading
+
+The version is pinned in three places: `unslop.toml`, the marketplace `ref` in `.claude/settings.json`, and the action in `.github/workflows/unslop.yml`. Change all three in one pull request. `unslop check` refuses to run when `unslop.toml` and the installed version disagree.
 
 ## Profiles
 
-The table of profiles, what each detects and which tools it runs is generated from the catalog in the [README](../README.md#stacks). A repository with several stacks can be adopted with one profile; to add a second, append its checks to `.unslop/adopt.json` by hand and run `scripts/rebaseline`.
+The table of profiles, what each detects and which tools it runs is generated from the catalog in the [README](../README.md#stacks).
 
 ## Limits
 
-Architecture rules and mutation testing are not adopted, because they depend on a layout the repository may not have. See [Known limits](limits.md) for this and the other gaps.
+Architecture rules and mutation testing are not adopted, because they depend on a layout the repository may not have. One profile per repository. See [Known limits](limits.md) for these and the other gaps.

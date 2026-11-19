@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root=${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}
+version=$(sed -n 's/^version *= *"\([^"]*\)".*/\1/p' "$root/unslop.toml" 2>/dev/null | head -n 1)
+[ -n "$version" ] || { echo "unslop: no version in $root/unslop.toml; run unslop init first" >&2; exit 2; }
+command -v uvx >/dev/null 2>&1 || { echo "unslop: uv is required; see https://docs.astral.sh/uv" >&2; exit 2; }
+source=${UNSLOP_SOURCE:-git+https://github.com/kimkun0504/unslop@v$version}
+mode=()
+if uvx --offline --quiet --python 3.13 --from "$source" unslop --version >/dev/null 2>&1; then
+  mode=(--offline)
+fi
+cd "$root"
+exec uvx ${mode[@]+"${mode[@]}"} --quiet --python 3.13 --from "$source" unslop "$@"

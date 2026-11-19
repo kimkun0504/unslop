@@ -49,8 +49,8 @@ The standards every unslop project follows, and how each one is held in place. T
 | Standard | Why | Status |
 |---|---|---|
 | Versioned migrations, immutable once applied | History is reproducible | Enforced: `protect-paths.sh` blocks edits to existing migrations |
-| Migrations are linted: Squawk for Postgres, Atlas analyzers for destructive and incompatible changes | Locks and rewrites are caught before production | Planned for a database template; procedure in `/unslop-migration` |
-| Expand, migrate, contract: add, backfill in batches, switch code, drop later | Zero-downtime deploys | Procedure in `/unslop-migration` |
+| Migrations are linted: Squawk for Postgres, Atlas analyzers for destructive and incompatible changes | Locks and rewrites are caught before production | Planned for a database template; procedure in `/unslop:migration` |
+| Expand, migrate, contract: add, backfill in batches, switch code, drop later | Zero-downtime deploys | Procedure in `/unslop:migration` |
 | Every migration sets `lock_timeout` and `statement_timeout`; indexes use `CONCURRENTLY`; constraints are added `NOT VALID` and validated later | Avoids table-wide locks | Procedure; enforced by Squawk when added |
 | Keys are `bigint GENERATED ALWAYS AS IDENTITY` or `uuidv7()`; times are `timestamptz`; integrity lives in database constraints | The database guards its own invariants | Procedure |
 | Tests run against real Postgres (Testcontainers), not mocks or SQLite | Behaviour matches production | Planned |

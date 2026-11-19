@@ -22,7 +22,7 @@ cases() {
   printf 'use legacy::quad::quad;\n\n#[test]\nfn quads() {\n    assert_eq!(quad(1), 4);\n}\n' > tests/quad.rs
   expect_fail "unformatted new file" "new file is not formatted"
   printf '#[test]\n#[ignore = "later"]\nfn later() {}\n' > tests/later.rs
-  expect_fail "ignored test" "check-diff"
+  expect_fail "ignored test" "new skip or suppression"
   printf '\npub mod double;\n' >> src/lib.rs
   printf '#[must_use]\npub const fn double(value: i32) -> i32 {\n    value * 2\n}\n' > src/double.rs
   printf 'use legacy::double::double;\n\n#[test]\nfn doubles() {\n    assert_eq!(double(2), 4);\n}\n' > tests/double.rs

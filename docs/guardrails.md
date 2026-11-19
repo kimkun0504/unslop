@@ -8,7 +8,7 @@ Every guardrail in unslop, grouped by where it runs. Each one is enforced by a t
 
 ## 1. Machine layer
 
-Installed by `sudo ./install/install.sh system`. Applies to every repository on the machine. Files: `global/managed-settings.json` and `global/hooks/`, installed root-owned so Claude cannot edit them. `sudo ./install/install.sh uninstall-system` removes them and restores the managed settings file they replaced.
+Optional. Installed by `sudo ./install/install.sh system`. Applies to every repository on the machine. Files: `global/managed-settings.json` and the hooks from `plugin/hooks/`, installed root-owned so Claude cannot edit them. With it installed, the project layer's hooks also run from managed settings, so nobody can switch them off from inside a session. `sudo ./install/install.sh uninstall-system` removes them and restores the managed settings file they replaced.
 
 | ID | Guardrail | Mechanism | Strength |
 |---|---|---|---|
@@ -29,38 +29,40 @@ Installed by `sudo ./install/install.sh system`. Applies to every repository on 
 
 ## 2. Project layer
 
-Switched on by `.claude/unslop.json`, which every template project contains. Files: `common/` and `templates/<stack>/`.
+Switched on by `unslop.toml` in a repository set up with `unslop init`, or by `.claude/unslop.json`, which every template project contains. The hooks come from the unslop Claude Code plugin, which the repository's `.claude/settings.json` turns on, and from the machine layer when it is installed. Files: `plugin/`, `common/` and `templates/<stack>/`.
 
 | ID | Guardrail | Mechanism | Strength |
 |---|---|---|---|
 | P1 | Guardrail files are read-only for Claude: build files, lockfiles, lint and type configs, `scripts/`, CI, `CLAUDE.md`, Dockerfiles | Project deny rules, sandbox `denyWrite`, `protect-paths.sh` | Boundary |
 | P2 | Applied migrations and existing decision records cannot be edited; new ones can be added | `protect-paths.sh` | Gate |
 | P3 | Tests can be locked for an implementation phase: `touch .claude/tests.locked` | `protect-paths.sh` | Gate |
-| P4 | Claude cannot stop while `scripts/fast-check` fails | Stop hook `stop-gate.sh` | Gate |
+| P4 | Claude cannot stop while `unslop check`, or `scripts/fast-check` in a template project, fails | Stop hook `stop-gate.sh` | Gate |
 | P5 | The stop check never fails silently: three identical failures, twenty in a session, or running past the project's time budget end the session with a visible reason | `stop-gate.sh` | Gate |
-| P5a | The time budget is per project: `fast_check_seconds` in `.claude/unslop.json`, 240 by default, at most 1700; `unslop adopt` sets it to twice the measured run plus a minute. The file is read-only for Claude | `stop-gate.sh`, `protect-paths.sh` | Boundary |
+| P5a | The time budget is per project: `fast_check_seconds` in `unslop.toml` or `.claude/unslop.json`, 240 by default, at most 1700; `unslop init` sets it to twice the measured run plus a minute. The file is read-only for Claude | `stop-gate.sh`, `protect-paths.sh` | Boundary |
 | P6 | Committed work is still checked; only an exact state that already passed is skipped | `stop-gate.sh` fingerprint of HEAD, diff and untracked files | Gate |
 | P7 | No code comments in any language | `scripts/check-comments` (tree-sitter parsers for 300+ languages) | Gate |
 | P8 | No new suppressions or skipped tests: `eslint-disable`, `@ts-expect-error`, `# noqa`, `# type: ignore`, `//nolint`, `@Suppress`, `.skip`, `.only`, `@Disabled`, `t.Skip` and more | `scripts/check-diff` | Gate |
 | P9 | Existing tests cannot be changed, deleted or renamed without the `tests-reviewed` label, in every template's test layout. New tests may be appended to the end of an existing test file, with any imports they need | `scripts/check-diff` | Gate |
 | P10 | Per-stack quality gates: format, lint, types, architecture, tests, coverage, mutation, dead code, supply chain | `scripts/fast-check`, `scripts/verify`, `scripts/mutation`; see the [stack matrix](../README.md#stacks) | Gate |
+| P11 | Claude cannot record a new baseline or switch the plugin off in an unslop repository | `guard-bash.sh` | Tripwire, backed by A5 and the `unslop-reviewed` label |
 
 ## 2a. Adopted repositories
 
-`bin/unslop adopt <profile> <repo>` switches the project layer on in an existing repository. P1 to P6 and P9 apply unchanged. The rest are rewritten as ratchets, so legacy code keeps working and new work meets the full bar. Files: `adopt/shared/` and `adopt/profiles/<profile>/`, installed into `.unslop/` and `scripts/`.
+`unslop init` switches the project layer on in an existing repository by adding `unslop.toml`, `.unslop/baseline.json`, `.claude/settings.json` and `.github/workflows/unslop.yml`. P1 to P6, P9 and P11 apply unchanged. The rest are rewritten as ratchets inside `unslop check`, so legacy code keeps working and new work meets the full bar. Code: `src/unslop/`.
 
 | ID | Guardrail | Mechanism | Strength |
 |---|---|---|---|
-| A1 | No comments on lines a change adds | `scripts/check-comments` with `--since`, base from `scripts/diff-base` | Gate |
-| A2 | No lint or type finding beyond the recorded baseline, counted per file and rule so moved code does not count as new; a failure lists the findings on lines the change touches first | `.unslop/guard/adopted.py` ratchet over SARIF, pyright, ESLint, tsc and line reports | Gate |
+| A1 | No comments on lines a change adds | `comments.py`, tree-sitter over the lines added since the base | Gate |
+| A2 | No lint or type finding beyond the recorded baseline, counted per file and rule so moved code does not count as new; a failure lists the findings on lines the change touches first | `ratchet.py` over SARIF, pyright, ESLint, tsc, Cargo, MSBuild, compiler, PHPStan, RuboCop, Credo and line reports | Gate |
 | A3 | A file that was formatted stays formatted, and new files must be formatted; legacy files are never forced into a reformat | Format ratchet comparing each changed file before and after | Gate |
 | A4 | Every changed line is covered by a test | `diff-cover --fail-under 100` on the project's own coverage report | Gate |
-| A5 | The baseline and the adopt configuration are read-only for Claude; only a human shrinks the baseline, with `scripts/rebaseline` | `.unslop/*` in `protect-paths.sh`, deny rules, sandbox `denyWrite` | Boundary |
-| A6 | Downloaded tools are pinned by checksum | `.unslop/guard/fetch` | Gate |
+| A5 | `unslop.toml` and the baseline are read-only for Claude. Changing the configuration or growing the baseline fails the check unless the pull request has the `unslop-reviewed` label | Deny rules, sandbox `denyWrite`, `protect-paths.sh`, and the configuration gate in `unslop check` | Boundary, backed by a gate |
+| A6 | Downloaded tools are pinned by checksum | `unslop fetch` | Gate |
+| A7 | The unslop version is pinned, and the check refuses to run against a different version | `unslop.toml`, the marketplace `ref`, the action SHA | Gate |
 
 ## 3. CI and GitHub layer
 
-Files: `.github/workflows/ci.yml` and `.github/rulesets/main.json` in each template project; `.github/workflows/unslop.yml` and `.unslop/ruleset.json` (required check `unslop`) in an adopted repository.
+Files: `.github/workflows/ci.yml` and `.github/rulesets/main.json` in each template project; `.github/workflows/unslop.yml`, which runs the unslop action, in an adopted repository. `unslop ruleset --apply` applies the ruleset, requiring `verify` in a template project and `unslop` in an adopted one.
 
 | ID | Guardrail | Mechanism | Strength |
 |---|---|---|---|
@@ -71,17 +73,17 @@ Files: `.github/workflows/ci.yml` and `.github/rulesets/main.json` in each templ
 | G5 | Actions pinned to commit SHAs, read-only token, credentials not persisted | `ci.yml`, enforced in this repo by the contract check | Gate |
 | G6 | Guardrail paths have an owner | `CODEOWNERS` | Boundary when reviews are required |
 
-## 4. Claude profile layer
+## 4. Claude profile and plugin extras
 
-Installed by `./install/install.sh user` and removed by `./install/install.sh uninstall-user`. These guide rather than enforce; everything that matters is enforced by the layers above.
+These guide rather than enforce; everything that matters is enforced by the layers above. C1 is optional, installed by `./install/install.sh user` and removed by `./install/install.sh uninstall-user`. C2 to C5 come with the plugin.
 
 | ID | Item | Purpose |
 |---|---|---|
 | C1 | `~/.claude/CLAUDE.md` | Ten lines on what tools cannot check: ask before guessing, copy the nearest pattern, test first, never weaken a check, what "done" means |
 | C2 | `reviewer` agent | Fresh-context, read-only review against the spec and the decision records, using the rubric in decision record 0003 ([standards §10](standards.md#10-review-rubric)). Ends with `VERDICT: PASS` or `VERDICT: BLOCK`. |
-| C3 | `/unslop-spec` | Interviews you into `SPEC.md` with numbered, testable acceptance criteria before code |
-| C4 | `/unslop-long-run` | Sets up `feature_list.json`, `progress.md` and a `/goal` exit condition for multi-hour runs |
-| C5 | `/unslop-migration` | Safe Postgres migration procedure |
+| C3 | `/unslop:spec` | Interviews you into `SPEC.md` with numbered, testable acceptance criteria before code |
+| C4 | `/unslop:long-run` | Sets up `feature_list.json`, `progress.md` and a `/goal` exit condition for multi-hour runs |
+| C5 | `/unslop:migration` | Safe Postgres migration procedure |
 
 ## How the layers back each other up
 
@@ -90,6 +92,7 @@ Installed by `./install/install.sh user` and removed by `./install/install.sh un
 | Edit the lint config to make an error go away | P1 deny rule and hook | G1 and G3: the change needs a reviewed PR and passing CI |
 | Replace `scripts/fast-check` with `exit 0` | P1 sandbox `denyWrite` | G4: CI runs its own checkout |
 | Weaken an assertion | P9 `check-diff` | G3 |
+| Grow the baseline to hide a new finding | A5 deny rules, P11 tripwire | A5 configuration gate, then G3 |
 | Write a comment, then stop | P7 in `fast-check` | P4 stop check, then G3 |
 | Push straight to `main` | M8 tripwire | G1 and G2 |
 | Read a token and call an API with it | M1 and M2 | M3 network allowlist |

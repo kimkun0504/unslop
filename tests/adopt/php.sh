@@ -22,7 +22,7 @@ cases() {
   printf '<?php\n\ndeclare(strict_types=1);\n\nnamespace Legacy;\n\nfinal class Triple\n{\n    public static function of(int $value): int\n    {\n        return $value * 3;\n    }\n}\n' > src/Triple.php
   expect_fail "untested new code" "every changed line must be covered"
   printf '<?php\n\ndeclare(strict_types=1);\n\nnamespace Legacy\\Tests;\n\nuse PHPUnit\\Framework\\TestCase;\n\nfinal class LaterTest extends TestCase\n{\n    public function testLater(): void\n    {\n        self::markTestSkipped("later");\n    }\n}\n' > tests/LaterTest.php
-  expect_fail "skipped test" "check-diff"
+  expect_fail "skipped test" "new skip or suppression"
   printf '<?php\n\ndeclare(strict_types=1);\n\nnamespace Legacy;\n\nfinal class Twice\n{\n    public static function of(int $value): int\n    {\n        return $value * 2;\n    }\n}\n' > src/Twice.php
   printf '<?php\n\ndeclare(strict_types=1);\n\nnamespace Legacy\\Tests;\n\nuse Legacy\\Twice;\nuse PHPUnit\\Framework\\TestCase;\n\nfinal class TwiceTest extends TestCase\n{\n    public function testDoubles(): void\n    {\n        self::assertSame(4, Twice::of(2));\n    }\n}\n' > tests/TwiceTest.php
   expect_pass "clean, tested new code"

@@ -39,7 +39,7 @@ cases() {
   printf 'package legacy\n\nfun twice(value: Int): Int = value * 2\n' > src/main/kotlin/legacy/Twice.kt
   expect_fail "untested new code" "every changed line must be covered"
   printf 'package legacy\n\nimport kotlin.test.Ignore\nimport kotlin.test.Test\n\nclass LaterTest {\n    @Ignore\n    @Test\n    fun later() {\n    }\n}\n' > src/test/kotlin/legacy/LaterTest.kt
-  expect_fail "ignored test" "check-diff"
+  expect_fail "ignored test" "new skip or suppression"
   printf 'package legacy\n\nfun twice(value: Int): Int = value * 2\n' > src/main/kotlin/legacy/Twice.kt
   printf 'package legacy\n\nimport kotlin.test.Test\nimport kotlin.test.assertEquals\n\nclass TwiceTest {\n    @Test\n    fun doubles() {\n        assertEquals(4, twice(2))\n    }\n}\n' > src/test/kotlin/legacy/TwiceTest.kt
   expect_pass "clean, tested new code"

@@ -40,7 +40,7 @@ for h in guard-bash.sh protect-paths.sh stop-gate.sh; do assert "hook $h install
 assert "managed settings installed" same "$managed/managed-settings.json" "$repo/global/managed-settings.json"
 assert "existing managed settings backed up" contains '"it"' "$managed"/managed-settings.json.bak.*
 assert "existing CLAUDE.md backed up" contains "my own rules" "$HOME"/.claude/CLAUDE.md.bak.*
-assert "skills installed" test -f "$HOME/.claude/skills/unslop-spec/SKILL.md"
+assert "launcher installed" test -x "$hooks/unslop"
 assert "check passes after install" quiet "$installer" check
 
 "$installer" uninstall-system > /dev/null
@@ -48,8 +48,6 @@ assert "check passes after install" quiet "$installer" check
 refute "hooks removed" test -e "$hooks"
 assert "managed settings restored from backup" contains '"it"' "$managed/managed-settings.json"
 assert "CLAUDE.md restored from backup" contains "my own rules" "$HOME/.claude/CLAUDE.md"
-refute "skills removed" test -e "$HOME/.claude/skills/unslop-spec"
-refute "reviewer removed" test -e "$HOME/.claude/agents/reviewer.md"
 refute "check fails after uninstall" quiet "$installer" check
 
 "$installer" system > /dev/null

@@ -18,7 +18,7 @@ cases() {
   printf 'namespace Legacy;\n\npublic static class Triple\n{\n    public static int Of(int value) => value * 3;\n}\n' > src/Legacy/Triple.cs
   expect_fail "untested new code" "every changed line must be covered"
   printf 'namespace Legacy.Tests;\n\npublic class LaterTests\n{\n    [Fact(Skip = "later")]\n    public void Later() { }\n}\n' > tests/Legacy.Tests/LaterTests.cs
-  expect_fail "skipped test" "check-diff"
+  expect_fail "skipped test" "new skip or suppression"
   printf 'namespace Legacy;\n\npublic static class Twice\n{\n    public static int Of(int value) => value * 2;\n}\n' > src/Legacy/Twice.cs
   printf 'namespace Legacy.Tests;\n\npublic class TwiceTests\n{\n    [Fact]\n    public void Doubles() => Assert.Equal(4, Twice.Of(2));\n}\n' > tests/Legacy.Tests/TwiceTests.cs
   expect_pass "clean, tested new code"

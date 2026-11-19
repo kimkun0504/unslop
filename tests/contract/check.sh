@@ -20,15 +20,15 @@ while IFS= read -r dir; do
   printf '%s\n' "${names[@]}" | grep -qx -- "$name" || fail "templates/$name is not listed in $catalog"
 done < <(find templates -mindepth 1 -maxdepth 1 -type d | sort)
 
-for workflow in .github/workflows/*.yml templates/*/.github/workflows/*.yml adopt/profiles/*/files/.github/workflows/*.yml; do
+for workflow in .github/workflows/*.yml templates/*/.github/workflows/*.yml; do
   while IFS= read -r ref; do
-    [[ "$ref" =~ @[0-9a-f]{40}$ ]] || fail "$workflow uses an action not pinned to a commit SHA: $ref"
+    [[ "$ref" =~ @[0-9a-f]{40}$ || "$ref" == ./* ]] || fail "$workflow uses an action not pinned to a commit SHA: $ref"
   done < <(sed -n 's/^ *- *uses: *\([^ ]*\).*/\1/p; s/^ *uses: *\([^ ]*\).*/\1/p' "$workflow")
   grep -q 'persist-credentials: false' "$workflow" || fail "$workflow must check out with persist-credentials: false"
   grep -Eq '^permissions:' "$workflow" || fail "$workflow must declare top-level permissions"
 done
 
-if grep -rIl -e 'kimkun0504' -e 'Kun Kim' common adopt templates >/dev/null 2>&1; then
+if grep -rIl -e 'kimkun0504' -e 'Kun Kim' common templates src/unslop/data >/dev/null 2>&1; then
   fail "shared files name a specific owner; use UNSLOP_OWNER_HANDLE and UNSLOP_OWNER_NAME placeholders"
 fi
 scaffold=$(mktemp -d)
@@ -42,16 +42,27 @@ expected=$(tests/contract/stacks-table.sh)
 actual=$(sed -n '/<!-- stacks:start -->/,/<!-- stacks:end -->/p' README.md | sed '1d;$d')
 [ "$expected" = "$actual" ] || fail "README.md stacks tables are out of date; regenerate them with tests/contract/stacks-table.sh"
 
+while IFS= read -r ref; do
+  [[ "$ref" =~ @[0-9a-f]{40}$ ]] || fail "action.yml uses an action not pinned to a commit SHA: $ref"
+done < <(sed -n 's/^ *- *uses: *\([^ ]*\).*/\1/p; s/^ *uses: *\([^ ]*\).*/\1/p' action.yml)
+
+profiles=$(python3 -c 'import ast, pathlib
+tree = ast.parse(pathlib.Path("src/unslop/profiles.py").read_text())
+found = [n for n in tree.body if isinstance(n, ast.AnnAssign) and getattr(n.target, "id", "") == "PROFILES"]
+print("\n".join(sorted(key.value for key in found[0].value.keys)))')
+[ -n "$profiles" ] || fail "could not read PROFILES from src/unslop/profiles.py"
 while IFS= read -r profile; do
-  [ -d "adopt/profiles/$profile" ] || fail "catalog names adopt profile $profile but adopt/profiles/$profile does not exist"
+  printf '%s\n' "$profiles" | grep -qx -- "$profile" || fail "catalog names profile $profile but src/unslop/profiles.py has no such profile"
 done < <(jq -r '(.adopt[].name), (.templates[].adopt // empty)' "$catalog" | sort -u)
-while IFS= read -r dir; do
-  profile=$(basename "$dir")
-  jq -e --arg p "$profile" 'any(.adopt[]; .name == $p)' "$catalog" >/dev/null || fail "adopt/profiles/$profile is not listed in the catalog adopt section"
-  [ -x "$dir/detect" ] || fail "adopt profile $profile has no executable detect"
-  [ -f "$dir/files/.github/workflows/unslop.yml" ] || fail "adopt profile $profile has no workflow"
-  [ -f "tests/adopt/$profile.sh" ] || compgen -G "tests/adopt/$profile-*.sh" >/dev/null || fail "adopt profile $profile has no fixture in tests/adopt"
-done < <(find adopt/profiles -mindepth 1 -maxdepth 1 -type d | sort)
+while IFS= read -r profile; do
+  jq -e --arg p "$profile" 'any(.adopt[]; .name == $p)' "$catalog" >/dev/null || fail "profile $profile is not listed in the catalog adopt section"
+  [ -f "tests/adopt/$profile.sh" ] || compgen -G "tests/adopt/$profile-*.sh" >/dev/null || fail "profile $profile has no fixture in tests/adopt"
+done <<<"$profiles"
+
+cmp -s templates/kotlin-spring/tools/guard/kotlin_guard.py src/unslop/data/jvm/guard/kotlin_guard.py || fail "src/unslop/data/jvm/guard/kotlin_guard.py differs from the kotlin-spring template's copy"
+
+version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/unslop/__init__.py)
+[ "$(jq -r .version plugin/.claude-plugin/plugin.json)" = "$version" ] || fail "plugin.json version differs from the package version $version"
 
 for name in "${names[@]}"; do
   t="templates/$name"

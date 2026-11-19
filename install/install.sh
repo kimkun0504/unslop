@@ -25,8 +25,9 @@ install_system() {
   dir=$(managed_dir)
   install -d -m 755 "$hook_dir" "$dir"
   for h in guard-bash.sh protect-paths.sh stop-gate.sh; do
-    install -m 755 "$repo/global/hooks/$h" "$hook_dir/$h"
+    install -m 755 "$repo/plugin/hooks/$h" "$hook_dir/$h"
   done
+  install -m 755 "$repo/plugin/bin/unslop" "$hook_dir/unslop"
   if [ -f "$dir/managed-settings.json" ] && ! cmp -s "$dir/managed-settings.json" "$repo/global/managed-settings.json"; then
     cp "$dir/managed-settings.json" "$dir/managed-settings.json.bak.$(date +%Y%m%d%H%M%S)"
     echo "backed up existing managed settings in $dir"
@@ -38,19 +39,13 @@ install_system() {
 install_user() {
   [ -n "$prefix" ] || [ "$(id -u)" != 0 ] || { echo "run the user install without sudo" >&2; exit 1; }
   local home_claude="$HOME/.claude"
-  mkdir -p "$home_claude/agents" "$home_claude/skills"
+  mkdir -p "$home_claude"
   if [ -f "$home_claude/CLAUDE.md" ] && ! cmp -s "$home_claude/CLAUDE.md" "$repo/global/user/CLAUDE.md"; then
     cp "$home_claude/CLAUDE.md" "$home_claude/CLAUDE.md.bak.$(date +%Y%m%d%H%M%S)"
     echo "backed up existing ~/.claude/CLAUDE.md"
   fi
   cp "$repo/global/user/CLAUDE.md" "$home_claude/CLAUDE.md"
-  cp "$repo/global/user/agents/reviewer.md" "$home_claude/agents/reviewer.md"
-  for s in "$repo"/global/user/skills/*/; do
-    name=$(basename "$s")
-    mkdir -p "$home_claude/skills/$name"
-    cp "$s"SKILL.md "$home_claude/skills/$name/SKILL.md"
-  done
-  echo "installed ~/.claude/CLAUDE.md, the reviewer agent and unslop skills"
+  echo "installed ~/.claude/CLAUDE.md; the reviewer agent and skills come with the unslop plugin"
 }
 
 latest_backup() {
@@ -78,7 +73,7 @@ uninstall_system() {
   [ -n "$prefix" ] || [ "$(id -u)" = 0 ] || { echo "system uninstall needs root: sudo $0 uninstall-system" >&2; exit 1; }
   local dir h
   dir=$(managed_dir)
-  for h in guard-bash.sh protect-paths.sh stop-gate.sh; do
+  for h in guard-bash.sh protect-paths.sh stop-gate.sh unslop; do
     if [ -f "$hook_dir/$h" ]; then
       rm -f "$hook_dir/$h"
       echo "removed $hook_dir/$h"
@@ -91,20 +86,7 @@ uninstall_system() {
 
 uninstall_user() {
   [ -n "$prefix" ] || [ "$(id -u)" != 0 ] || { echo "run the user uninstall without sudo" >&2; exit 1; }
-  local home_claude="$HOME/.claude" s name
-  restore_or_remove "$home_claude/CLAUDE.md" "$repo/global/user/CLAUDE.md"
-  if [ -f "$home_claude/agents/reviewer.md" ] && cmp -s "$home_claude/agents/reviewer.md" "$repo/global/user/agents/reviewer.md"; then
-    rm -f "$home_claude/agents/reviewer.md"
-    echo "removed the reviewer agent"
-  fi
-  for s in "$repo"/global/user/skills/*/; do
-    name=$(basename "$s")
-    if [ -f "$home_claude/skills/$name/SKILL.md" ] && cmp -s "$home_claude/skills/$name/SKILL.md" "$s"SKILL.md; then
-      rm -f "$home_claude/skills/$name/SKILL.md"
-      rmdir "$home_claude/skills/$name" 2>/dev/null || true
-      echo "removed the $name skill"
-    fi
-  done
+  restore_or_remove "$HOME/.claude/CLAUDE.md" "$repo/global/user/CLAUDE.md"
   echo "profile layer removed"
 }
 
@@ -112,11 +94,11 @@ check() {
   local dir ok=0
   dir=$(managed_dir)
   for h in guard-bash.sh protect-paths.sh stop-gate.sh; do
-    if cmp -s "$repo/global/hooks/$h" "$hook_dir/$h"; then echo "ok   hook $h"; else echo "DIFF hook $h"; ok=1; fi
+    if cmp -s "$repo/plugin/hooks/$h" "$hook_dir/$h"; then echo "ok   hook $h"; else echo "DIFF hook $h"; ok=1; fi
   done
+  if cmp -s "$repo/plugin/bin/unslop" "$hook_dir/unslop"; then echo "ok   launcher"; else echo "DIFF launcher"; ok=1; fi
   if cmp -s "$repo/global/managed-settings.json" "$dir/managed-settings.json"; then echo "ok   managed settings"; else echo "DIFF managed settings"; ok=1; fi
   if cmp -s "$repo/global/user/CLAUDE.md" "$HOME/.claude/CLAUDE.md"; then echo "ok   user CLAUDE.md"; else echo "DIFF user CLAUDE.md"; ok=1; fi
-  if [ -f "$HOME/.claude/agents/reviewer.md" ]; then echo "ok   reviewer agent"; else echo "MISS reviewer agent"; ok=1; fi
   return "$ok"
 }
 

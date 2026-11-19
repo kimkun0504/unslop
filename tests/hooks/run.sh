@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -uo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
-hooks=$(cd "$here/../../global/hooks" && pwd)
+hooks=$(cd "$here/../../plugin/hooks" && pwd)
+export UNSLOP_MACHINE_HOOKS="$here/no-machine-hooks"
 pass=0
 fail=0
 work=$(mktemp -d)
@@ -220,6 +221,54 @@ if grep -q '"continue":false' "$work/out"; then tally ok; else tally no "stop: n
 rm "$gate/scripts/fast-check"
 expect 0 "stop: missing fast-check halts" stop-gate.sh "$(stop_in s3)"
 if grep -q 'missing' "$work/out"; then tally ok; else tally no "stop: missing runner not reported"; fi
+
+toml="$work/toml"
+mkdir -p "$toml/src"
+printf 'version = "0.1.0"\nprofile = "python"\nfast_check_seconds = 30\n' >"$toml/unslop.toml"
+git -C "$toml" init -q
+git -C "$toml" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m init
+export CLAUDE_PROJECT_DIR="$toml"
+for p in unslop.toml .unslop/baseline.json .unslop/out/config/ruff.toml .github/workflows/unslop.yml .claude/settings.json CLAUDE.md pyproject.toml package-lock.json yarn.lock poetry.lock pom.xml build.gradle; do
+  expect 2 "toml: $p" protect-paths.sh "$(edit_in "$toml/$p")"
+done
+expect 0 "toml: src edit" protect-paths.sh "$(edit_in "$toml/src/app.py")"
+for c in "unslop baseline" "uvx unslop init" "/opt/plugin/bin/unslop baseline" "scripts/rebaseline" "claude plugin disable unslop@unslop" "claude plugin uninstall unslop" "claude plugin marketplace remove unslop"; do
+  expect 2 "toml: block $c" guard-bash.sh "$(bash_in "$c")"
+done
+expect 0 "toml: check allowed" guard-bash.sh "$(bash_in "unslop check")"
+expect 0 "toml: plan allowed" guard-bash.sh "$(bash_in "uvx unslop plan")"
+export CLAUDE_PROJECT_DIR="$plain"
+expect 0 "plain: plugin commands allowed" guard-bash.sh "$(bash_in "claude plugin disable something")"
+expect 0 "plain: session start is silent" session-start.sh '{}'
+if [ -s "$work/out" ]; then tally no "plain: session start printed context"; else tally ok; fi
+export CLAUDE_PROJECT_DIR="$toml"
+expect 0 "toml: session start" session-start.sh '{}'
+if grep -q 'python profile' "$work/out" && grep -q 'bin/unslop check' "$work/out"; then tally ok; else tally no "toml: session context missing"; fi
+
+copy="$work/plugin-copy"
+cp -R "$hooks/.." "$copy"
+cat >"$copy/bin/unslop" <<'SH'
+#!/usr/bin/env bash
+[ "$1" = check ] && [ ! -f "$PWD/broken" ]
+SH
+chmod +x "$copy/bin/unslop"
+saved=$hooks
+hooks="$copy/hooks"
+expect 0 "toml stop: passing check" stop-gate.sh "$(stop_in t1)"
+touch "$toml/broken"
+expect 2 "toml stop: failing check blocks" stop-gate.sh "$(stop_in t1)"
+if grep -q 'unslop check failed' "$work/err"; then tally ok; else tally no "toml stop: failure not labelled"; fi
+mkdir -p "$work/machine"
+printf '#!/usr/bin/env bash\nexit 0\n' >"$work/machine/stop-gate.sh"
+chmod +x "$work/machine/stop-gate.sh"
+UNSLOP_MACHINE_HOOKS="$work/machine" expect 0 "toml stop: defers to the machine gate" stop-gate.sh "$(stop_in t2)"
+if grep -q continue "$work/out"; then tally no "toml stop: plugin copy ran beside the machine gate"; else tally ok; fi
+rm "$toml/broken"
+printf 'version = "0.1.0"\nprofile = "python"\nfast_check_seconds = 5\n' >"$toml/unslop.toml"
+printf '#!/usr/bin/env bash\nsleep 8\n' >"$copy/bin/unslop"
+expect 0 "toml stop: budget from unslop.toml" stop-gate.sh "$(stop_in t3)"
+if grep -q 'exceeded 5s' "$work/out" && grep -q 'unslop.toml' "$work/out"; then tally ok; else tally no "toml stop: budget not read from unslop.toml"; fi
+hooks=$saved
 
 nojq="$work/nojq"
 mkdir -p "$nojq"
