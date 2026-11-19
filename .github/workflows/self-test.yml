@@ -333,3 +333,44 @@ jobs:
           git checkout -- .
           scripts/verify
           scripts/mutation
+  ruby-template:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@f9c4492e86def3e644ab32a0ef185eda5b0c20d0
+        with:
+          ruby-version: "4.0.10"
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          bin/unslop new ruby "$RUNNER_TEMP/ruby"
+          cd "$RUNNER_TEMP/ruby"
+          scripts/setup
+          git add -A && git commit -qm lock
+          scripts/fast-check
+          expect_fail() {
+            printf '%s\n' "$2" > "$3"
+            bundle exec rubocop -A --format quiet "$3" >/dev/null 2>&1 || true
+            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
+            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
+            echo "caught: $1 by $4"
+            rm -f "$3"
+            git checkout -- .
+          }
+          expect_fail "comment" $'module App\n  module Domain\n    class Note\n      def self.value\n        1 # note\n      end\n    end\n  end\nend' lib/app/domain/note.rb "comments are forbidden"
+          expect_fail "puts" $'module App\n  module Cli\n    class Debug\n      def self.show(value)\n        puts(value)\n      end\n    end\n  end\nend' lib/app/cli/debug.rb "write through an Output port"
+          expect_fail "domain I/O" $'module App\n  module Domain\n    class Reader\n      def self.read(path)\n        File.read(path)\n      end\n    end\n  end\nend' lib/app/domain/reader.rb "the domain does no I/O"
+          expect_fail "layer violation" $'module App\n  module Domain\n    class Leak\n      def self.code\n        App::Cli::Application::EXIT_OK\n      end\n    end\n  end\nend' lib/app/domain/leak.rb "App::Domain must not depend on App::Cli"
+          expect_fail "unsigned code" $'module App\n  module Domain\n    class Extra\n      def self.value\n        1\n      end\n    end\n  end\nend' lib/app/domain/extra.rb "Extra"
+          expect_fail "skipped spec" $'RSpec.describe App::Domain::Money do\n  it \'is later\' do\n    skip \'later\'\n  end\nend' spec/app/domain/later_spec.rb "check-diff"
+          sed -i 's/percent_off: 5)/percent_off: 6)/' lib/app/domain/tier.rb
+          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
+          grep -q "failures" "$RUNNER_TEMP/neg.txt" && echo "caught: behaviour change by a failing spec"
+          git checkout -- .
+          scripts/verify
+          scripts/mutation

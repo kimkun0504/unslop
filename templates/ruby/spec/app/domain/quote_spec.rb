@@ -21,8 +21,8 @@ RSpec.describe App::Domain::Quote do
 
   describe '#initialize' do
     let(:subtotal) { App::Domain::Money.new(100) }
-    let(:total) { App::Domain::Money.new(90) }
-    let(:quote) { described_class.new(subtotal, App::Domain::Tier::GOLD, total) }
+    let(:total)    { App::Domain::Money.new(90) }
+    let(:quote)    { described_class.new(subtotal, App::Domain::Tier::GOLD, total) }
 
     it 'keeps its parts' do
       expect([quote.subtotal, quote.tier, quote.total]).to eq([subtotal, App::Domain::Tier::GOLD, total])

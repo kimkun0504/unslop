@@ -68,6 +68,8 @@ Metrics/AbcSize:
   Max: 15
 Layout/LineLength:
   Max: 120
+RSpec/AlignRightLetBrace:
+  Enabled: false
 RSpec/ExampleLength:
   Max: 8
 RSpec/MultipleExpectations:

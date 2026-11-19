@@ -23,8 +23,12 @@ RSpec.describe App::Cli::Application do
 
   describe '#initialize' do
     it 'sends results to the first stream and errors to the second' do
-      expect([call('1'), call('x')]).to eq([[0, ['subtotal=1.00 tier=standard total=1.00'], []],
-                                            [2, [], ['expected a non-negative amount like 12 or 12.50, got "x"']]])
+      expect([call('1'), call('x')]).to eq(
+        [
+          [0, ['subtotal=1.00 tier=standard total=1.00'], []],
+          [2, [], ['expected a non-negative amount like 12 or 12.50, got "x"']]
+        ]
+      )
     end
 
     it 'freezes the application' do
