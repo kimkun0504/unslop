@@ -397,6 +397,7 @@ jobs:
           git add -A && git commit -qm lock
           scripts/fast-check
           expect_fail() {
+            mkdir -p "$(dirname "$3")"
             printf '%s\n' "$2" > "$3"
             mix format "$3" >/dev/null 2>&1 || true
             if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
@@ -439,6 +440,7 @@ jobs:
           git add -A && git commit -qm lock
           scripts/fast-check
           expect_fail() {
+            mkdir -p "$(dirname "$3")"
             printf '%s\n' "$2" > "$3"
             swift format --in-place "$3" >/dev/null 2>&1 || true
             if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
