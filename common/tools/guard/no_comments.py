@@ -41,7 +41,7 @@ NOT_SOURCE = frozenset(
     }
 )
 NAMED_FILES = {"Dockerfile": "dockerfile", "Makefile": "make", "Justfile": "just"}
-GENERATED = re.compile(r"Code generated .* DO NOT EDIT|@generated")
+GENERATED = re.compile(r"Code generated .* DO NOT EDIT|@generated|maintained automatically by")
 HEADER_LINES = 5
 HEADER_DIRECTIVES = (re.compile(r"^#!"), re.compile(r"^#.*coding[:=]"))
 DIRECTIVES = (
