@@ -7,7 +7,7 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-24.04
-    if: ${{ !startsWith(github.ref_name, 'scratch/adopt') }}
+    if: ${{ !startsWith(github.ref_name, 'scratch/adopt') && github.ref_name != 'scratch/macos' }}
     container: ${{ github.ref_name == 'scratch/swift' && 'swift:6.4.2-noble' || '' }}
     env:
       TEMPLATE: ${{ github.ref_name }}
@@ -30,6 +30,46 @@ jobs:
       - name: run tests/scratch.sh
         continue-on-error: true
         run: bash tests/scratch.sh "${TEMPLATE#scratch/}"
+  macos:
+    runs-on: macos-15
+    if: ${{ github.ref_name == 'scratch/macos' }}
+    continue-on-error: true
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - name: put Apple's bash 3.2 and the BSD tools first on PATH
+        run: |
+          mkdir -p "$RUNNER_TEMP/stock"
+          ln -sf /bin/bash "$RUNNER_TEMP/stock/bash"
+          printf '%s\n' /sbin /usr/sbin /bin /usr/bin "$RUNNER_TEMP/stock" >> "$GITHUB_PATH"
+      - name: confirm the shell and tools are the stock macOS ones
+        run: |
+          bash --version | head -n 1 | grep -q 'version 3.2'
+          [ "$(command -v sed)" = /usr/bin/sed ]
+          [ "$(command -v grep)" = /usr/bin/grep ]
+          command -v jq
+          command -v timeout || echo "no timeout on PATH: the stop gate falls back to perl"
+      - run: bash tests/hooks/run.sh
+      - run: bash tests/install/run.sh
+      - run: bash tests/contract/check.sh
+      - run: adopt/shared/.unslop/guard/fetch phpstan
+      - run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          UNSLOP_OWNER=ci bin/unslop new python "$RUNNER_TEMP/py"
+          cd "$RUNNER_TEMP/py"
+          scripts/setup
+          git add -A && git commit -qm lock
+          scripts/fast-check
+          printf 'x = 1  # note\n' > src/app/note.py
+          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: comment"; exit 1; fi
+          grep -q "comments are forbidden" "$RUNNER_TEMP/neg.txt"
+      - run: bash tests/adopt/run.sh python-pip
   adopt:
     runs-on: ubuntu-24.04
     if: ${{ startsWith(github.ref_name, 'scratch/adopt') }}
