@@ -33,4 +33,4 @@ internal sealed record QuoteRequest(IReadOnlyList<string> Lines);
 
 internal sealed record QuoteResponse(string Subtotal, string Tier, string Total);
 
-internal sealed partial class Program;
+public partial class Program;
