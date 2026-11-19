@@ -10,4 +10,4 @@ matcher:
     - App*
 fail_fast: false
 mutation:
-  timeout: 10
+  timeout: 10.0

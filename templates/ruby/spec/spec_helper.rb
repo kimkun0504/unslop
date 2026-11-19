@@ -1,18 +1,19 @@
-if ENV.fetch("COVERAGE", "") == "1"
-  require "simplecov"
+if ENV.fetch('COVERAGE', '') == '1'
+  require 'simplecov'
   SimpleCov.start do
     enable_coverage :branch
-    add_filter "/spec/"
-    add_filter "/tools/"
+    add_filter '/spec/'
+    add_filter '/tools/'
     minimum_coverage line: 100, branch: 100
   end
 end
 
 module RaiseOnOwnWarnings
-  LIB = File.expand_path("../lib", __dir__)
+  LIB = File.expand_path('../lib', __dir__)
+  private_constant :LIB
 
   def warn(message, ...)
-    raise message if message.include?(LIB)
+    raise(message) if message.include?(LIB)
 
     super
   end
@@ -22,7 +23,7 @@ Warning[:deprecated] = true
 Warning[:performance] = true
 Warning.singleton_class.prepend(RaiseOnOwnWarnings)
 
-require_relative "../lib/app"
+require_relative '../lib/app'
 
 RSpec.configure do |config|
   config.disable_monkey_patching!

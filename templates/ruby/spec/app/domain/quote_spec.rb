@@ -1,10 +1,10 @@
 RSpec.describe App::Domain::Quote do
   {
-    [] => "0.00 standard 0.00",
-    ["99.99"] => "99.99 standard 99.99",
-    %w[60 40] => "100.00 silver 95.00",
-    ["499.99"] => "499.99 silver 474.99",
-    ["500"] => "500.00 gold 450.00"
+    [] => '0.00 standard 0.00',
+    ['99.99'] => '99.99 standard 99.99',
+    %w[60 40] => '100.00 silver 95.00',
+    ['499.99'] => '499.99 silver 474.99',
+    ['500'] => '500.00 gold 450.00'
   }.each do |lines, expected|
     it "quotes #{lines.inspect} as #{expected}" do
       quote = described_class.of(*lines)
@@ -12,12 +12,12 @@ RSpec.describe App::Domain::Quote do
     end
   end
 
-  it "reports the first malformed line" do
-    expect { described_class.of("1", "x", "y") }
+  it 'reports the first malformed line' do
+    expect { described_class.of('1', 'x', 'y') }
       .to raise_error(App::Domain::InvalidAmount, 'expected a non-negative amount like 12 or 12.50, got "x"')
   end
 
-  it "is frozen" do
-    expect(described_class.of("1")).to be_frozen
+  it 'is frozen' do
+    expect(described_class.of('1')).to be_frozen
   end
 end

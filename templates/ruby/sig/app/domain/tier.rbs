@@ -1,6 +1,6 @@
 module App
   module Domain
-    class Tier
+    class Tier < Data
       STANDARD: Tier
       SILVER: Tier
       GOLD: Tier
@@ -10,7 +10,7 @@ module App
       attr_reader name: String
       attr_reader percent_off: Integer
 
-      def initialize: (String name, Integer percent_off) -> void
+      def self.new: (name: String, percent_off: Integer) -> Tier
       def self.for_subtotal: (Money subtotal) -> Tier
     end
   end

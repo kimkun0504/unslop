@@ -1,19 +1,14 @@
 module App
   module Domain
+    Tier = Data.define(:name, :percent_off)
+
     class Tier
-      attr_reader :name, :percent_off
-
-      def initialize(name, percent_off)
-        @name = name
-        @percent_off = percent_off
-        freeze
-      end
-
-      STANDARD = new("standard", 0)
-      SILVER = new("silver", 5)
-      GOLD = new("gold", 10)
+      STANDARD = new(name: 'standard', percent_off: 0)
+      SILVER = new(name: 'silver', percent_off: 5)
+      GOLD = new(name: 'gold', percent_off: 10)
       SILVER_FROM_CENTS = 10_000
       GOLD_FROM_CENTS = 50_000
+      public_constant :STANDARD, :SILVER, :GOLD
       private_constant :SILVER_FROM_CENTS, :GOLD_FROM_CENTS
 
       def self.for_subtotal(subtotal)

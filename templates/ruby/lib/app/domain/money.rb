@@ -14,14 +14,14 @@ module App
 
       def self.parse(raw)
         trimmed = raw.strip
-        canonical = trimmed.include?(".") ? trimmed : "#{trimmed}.00"
-        raise InvalidAmount.from(raw) unless CANONICAL.match?(canonical)
+        canonical = trimmed.include?('.') ? trimmed : "#{trimmed}.00"
+        raise(InvalidAmount.from(raw)) unless CANONICAL.match?(canonical)
 
-        new(canonical.delete(".").to_i)
+        new(Integer(canonical.delete('.'), 10))
       end
 
       def initialize(cents)
-        raise ArgumentError, "cents must be a non-negative Integer" unless cents.is_a?(Integer) && !cents.negative?
+        raise(ArgumentError, 'cents must be a non-negative Integer') unless cents.is_a?(Integer) && !cents.negative?
 
         @cents = cents
         freeze
@@ -37,7 +37,7 @@ module App
 
       def render
         units, rest = cents.divmod(CENTS_PER_UNIT)
-        format("%<units>d.%<rest>02d", units:, rest:)
+        format('%<units>d.%<rest>02d', units:, rest:)
       end
     end
   end

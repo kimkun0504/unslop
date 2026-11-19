@@ -3,7 +3,9 @@ module App
     class Application
       EXIT_OK = 0
       EXIT_USAGE = 2
-      USAGE = "usage: app AMOUNT [AMOUNT ...]"
+      USAGE = 'usage: app AMOUNT [AMOUNT ...]'.freeze
+      public_constant :EXIT_OK, :EXIT_USAGE
+      private_constant :USAGE
 
       def initialize(out, err)
         @out = out

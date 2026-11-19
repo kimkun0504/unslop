@@ -26,6 +26,11 @@ Bundler/GemComment:
   Enabled: false
 Bundler/GemVersion:
   EnforcedStyle: required
+Style/SingleLineBlockParams:
+  Enabled: false
+Style/ConstantVisibility:
+  Exclude:
+    - tools/**/*
 Style/MissingElse:
   Enabled: false
 Lint/ConstantResolution:

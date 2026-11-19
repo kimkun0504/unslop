@@ -1,10 +1,10 @@
-require "rubocop"
+require 'rubocop'
 
 module RuboCop
   module Cop
     module Guard
       class OutputThroughPort < Base
-        MSG = "write through an Output port; the process streams belong to bin/"
+        MSG = 'write through an Output port; the process streams belong to bin/'.freeze
         WRITERS = %i[puts print p pp printf putc warn display].freeze
         GLOBALS = %i[$stdout $stderr $stdin].freeze
         STREAMS = %i[STDOUT STDERR STDIN].freeze
@@ -29,12 +29,46 @@ module RuboCop
       end
 
       class DomainPurity < Base
-        IO_MSG = "the domain does no I/O: move %<name>s behind a port in App::Cli"
-        LAYER_MSG = "App::Domain must not depend on App::Cli"
-        IO_CONSTANTS = %i[File IO Dir Pathname FileUtils Net Socket TCPSocket UDPSocket ENV Process Open3 Kernel
-                          Time Random SecureRandom].freeze
-        IO_CALLS = %i[system exec spawn fork open gets readline readlines sleep rand srand require
-                      require_relative load exit exit! abort at_exit].freeze
+        IO_MSG = 'the domain does no I/O: move %<name>s behind a port in App::Cli'.freeze
+        LAYER_MSG = 'App::Domain must not depend on App::Cli'.freeze
+        IO_CONSTANTS = %i[
+          File
+          IO
+          Dir
+          Pathname
+          FileUtils
+          Net
+          Socket
+          TCPSocket
+          UDPSocket
+          ENV
+          Process
+          Open3
+          Kernel
+          Time
+          Random
+          SecureRandom
+        ].freeze
+        IO_CALLS = %i[
+          system
+          exec
+          spawn
+          fork
+          open
+          gets
+          readline
+          readlines
+          sleep
+          rand
+          srand
+          require
+          require_relative
+          load
+          exit
+          exit!
+          abort
+          at_exit
+        ].freeze
 
         def on_const(node)
           name = node.short_name
@@ -49,7 +83,7 @@ module RuboCop
         end
 
         def on_xstr(node)
-          add_offense(node, message: format(IO_MSG, name: "a shell command"))
+          add_offense(node, message: format(IO_MSG, name: 'a shell command'))
         end
 
         private
