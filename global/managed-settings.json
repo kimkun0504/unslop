@@ -58,7 +58,12 @@
         "~/.tflint.d",
         "~/.local/share/uv",
         "~/.local/share/mise",
-        "~/.local/state/mise"
+        "~/.local/state/mise",
+        "~/.mix",
+        "~/.hex",
+        "~/.cache/rebar3",
+        "~/.swiftpm",
+        "~/.local/share/swiftly"
       ],
       "denyWrite": [
         "~/.claude",
@@ -109,7 +114,11 @@
         "repo.packagist.org",
         "packagist.org",
         "registry.terraform.io",
-        "releases.hashicorp.com"
+        "releases.hashicorp.com",
+        "hex.pm",
+        "repo.hex.pm",
+        "builds.hex.pm",
+        "download.swift.org"
       ]
     },
     "credentials": {

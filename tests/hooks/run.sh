@@ -109,7 +109,7 @@ expect 2 "plain: git hooks" protect-paths.sh "$(edit_in "$plain/.git/hooks/pre-c
 expect 2 "plain: malformed" protect-paths.sh "garbage"
 export CLAUDE_PROJECT_DIR="$marked"
 expect 0 "marked: src edit" protect-paths.sh "$(edit_in "$marked/src/a.ts")"
-for p in CLAUDE.md package.json web/package.json tsconfig.json eslint.config.ts scripts/fast-check .github/workflows/ci.yml build.gradle.kts gradle/libs.versions.toml go.mod .golangci.yml pyproject.toml uv.lock Dockerfile vite.config.ts knip.json stryker.config.json .prettierrc.json pnpm-workspace.yaml versions.tf modules/bucket/versions.tf .tflint.hcl .checkov.yaml .terraform.lock.hcl Cargo.toml crates/domain/Cargo.toml Cargo.lock crates/domain/clippy.toml deny.toml rust-toolchain.toml src/App.Api/App.Api.csproj Directory.Build.props Directory.Packages.props global.json .editorconfig src/App.Api/packages.lock.json .config/dotnet-tools.json composer.json composer.lock phpstan.neon deptrac.yaml phpunit.xml.dist infection.json5 .php-cs-fixer.dist.php Gemfile Gemfile.lock .ruby-version .rubocop.yml Steepfile .mutant.yml .rspec spec/spec_helper.rb .unslop/adopt.json .unslop/baseline/ruff.json .unslop/config/ruff.toml; do
+for p in CLAUDE.md package.json web/package.json tsconfig.json eslint.config.ts scripts/fast-check .github/workflows/ci.yml build.gradle.kts gradle/libs.versions.toml go.mod .golangci.yml pyproject.toml uv.lock Dockerfile vite.config.ts knip.json stryker.config.json .prettierrc.json pnpm-workspace.yaml versions.tf modules/bucket/versions.tf .tflint.hcl .checkov.yaml .terraform.lock.hcl Cargo.toml crates/domain/Cargo.toml Cargo.lock crates/domain/clippy.toml deny.toml rust-toolchain.toml src/App.Api/App.Api.csproj Directory.Build.props Directory.Packages.props global.json .editorconfig src/App.Api/packages.lock.json .config/dotnet-tools.json composer.json composer.lock phpstan.neon deptrac.yaml phpunit.xml.dist infection.json5 .php-cs-fixer.dist.php Gemfile Gemfile.lock .ruby-version .rubocop.yml Steepfile .mutant.yml .rspec spec/spec_helper.rb Package.swift Package.resolved .swift-version .swiftlint.yml .swift-format mix.exs mix.lock .credo.exs .formatter.exs .tool-versions .unslop/adopt.json .unslop/baseline/ruff.json .unslop/config/ruff.toml; do
   expect 2 "marked: $p" protect-paths.sh "$(edit_in "$marked/$p")"
 done
 expect 2 "marked: dot-dot traversal into scripts" protect-paths.sh "$(edit_in "$marked/src/../scripts/fast-check")"
@@ -131,7 +131,7 @@ expect 2 "marked: test locked ts" protect-paths.sh "$(edit_in "$marked/src/a.tes
 expect 2 "marked: test locked go" protect-paths.sh "$(edit_in "$marked/internal/x/a_test.go")"
 expect 2 "marked: test locked py" protect-paths.sh "$(edit_in "$marked/tests/test_a.py")"
 expect 2 "marked: test locked kt" protect-paths.sh "$(edit_in "$marked/src/test/kotlin/AT.kt")"
-for t in spec/models/user_spec.rb tests/Domain/MoneyTest.php tests/App.Tests/QuoteTests.cs tests/bucket.tftest.hcl test/app.js crates/app/tests/cli.rs; do
+for t in Tests/DomainTests/MoneyTests.swift spec/models/user_spec.rb tests/Domain/MoneyTest.php tests/App.Tests/QuoteTests.cs tests/bucket.tftest.hcl test/app.js crates/app/tests/cli.rs; do
   expect 2 "marked: test locked $t" protect-paths.sh "$(edit_in "$marked/$t")"
 done
 expect 0 "marked: src still editable" protect-paths.sh "$(edit_in "$marked/src/main.py")"

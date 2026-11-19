@@ -13,6 +13,6 @@ jq -n --argjson tests "$tests" '{
     {name: "tflint", format: "sarif", report: ".unslop/out/tflint.sarif",
      run: "tflint --recursive --config \"$PWD/.unslop/config/tflint.hcl\" --format sarif --force > .unslop/out/tflint.sarif"},
     {name: "checkov", format: "sarif", report: ".unslop/out/results_sarif.sarif",
-     run: "uvx checkov==3.4.3 --directory . --framework terraform --skip-path .unslop --output sarif --output-file-path .unslop/out --soft-fail --quiet > /dev/null"}
+     run: "uvx --python 3.13 checkov==3.4.3 --directory . --framework terraform --skip-path .unslop --output sarif --output-file-path .unslop/out --soft-fail --quiet > /dev/null"}
   ]
 } + (if $tests == null then {} else {tests: $tests} end)'

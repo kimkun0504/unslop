@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 base=$("$(dirname "$0")/diff-base" "${1:-origin/main}")
-pattern='\.(skip|only|todo|fixme)[.(A-Z]|(^|[^A-Za-z0-9_.])x(it|describe|test)\(|@ts-(ignore|expect-error|nocheck)|eslint-disable|(istanbul|c8|v8) ignore|@Disabled|@Ignore([^A-Za-z]|$)|@Suppress(Warnings|FBWarnings)?\(|NOPMD|CHECKSTYLE:OFF|t\.Skip|nolint|lint:ignore|pytest\.(mark\.)?(skip|xfail)|unittest\.skip|noqa|type: *ignore|pyright: *ignore|pragma: *no cover|atlas:nolint|squawk-ignore|#!?\[(allow|expect|ignore)([]( ]|$)|#!?\[cfg_attr\([^)]*(allow|expect)|#pragma +warning +disable|SuppressMessage(Attribute)?\(|Skip *= *"|markTest(Skipped|Incomplete)|CodeCoverageIgnore|phpstan-ignore|psalm-suppress|infection-ignore|rubocop: *(disable|todo)|steep: *ignore|:nocov:|mutant: *disable|(^|[^A-Za-z0-9_.])[xf](it|describe|context|specify|example)[ (]|(^|[^A-Za-z0-9_.:])(skip|pending)( +["'\'':]|\(|$)|(skip|pending|focus): *true'
+pattern='\.(skip|only|todo|fixme)[.(A-Z]|(^|[^A-Za-z0-9_.])x(it|describe|test)\(|@ts-(ignore|expect-error|nocheck)|eslint-disable|(istanbul|c8|v8) ignore|@Disabled|@Ignore([^A-Za-z]|$)|@Suppress(Warnings|FBWarnings)?\(|NOPMD|CHECKSTYLE:OFF|t\.Skip|nolint|lint:ignore|pytest\.(mark\.)?(skip|xfail)|unittest\.skip|noqa|type: *ignore|pyright: *ignore|pragma: *no cover|atlas:nolint|squawk-ignore|#!?\[(allow|expect|ignore)([]( ]|$)|#!?\[cfg_attr\([^)]*(allow|expect)|#pragma +warning +disable|SuppressMessage(Attribute)?\(|Skip *= *"|markTest(Skipped|Incomplete)|CodeCoverageIgnore|phpstan-ignore|psalm-suppress|infection-ignore|rubocop: *(disable|todo)|steep: *ignore|:nocov:|mutant: *disable|(^|[^A-Za-z0-9_.])[xf](it|describe|context|specify|example)[ (]|(^|[^A-Za-z0-9_.:])(skip|pending)( +["'\'':]|\(|$)|(skip|pending|focus): *true|@(module)?tag +(:skip|skip:)|@dialyzer +\{?:?nowarn|@compile +\{?:?(nowarn|no_warn)|\.disabled\(|withKnownIssue|XCTSkip'
 code=(':(glob)**/*.ts' ':(glob)**/*.tsx' ':(glob)**/*.js' ':(glob)**/*.jsx' ':(glob)**/*.py' ':(glob)**/*.go' ':(glob)**/*.kt' ':(glob)**/*.java' ':(glob)**/*.sql' ':(glob)**/*.rs' ':(glob)**/*.cs' ':(glob)**/*.tf' ':(glob)**/*.php' ':(glob)**/*.rb' ':(glob)**/*.ex' ':(glob)**/*.exs' ':(glob)**/*.swift')
 excluded=(':(exclude)scripts/**' ':(exclude)tools/guard/**' ':(exclude).unslop/**' ':(exclude)eslint-rules/**')
 hits=$(
@@ -14,7 +14,7 @@ if [ -n "$hits" ]; then
   printf 'check-diff: new skip or suppression found:\n%s\n' "$hits" >&2
   exit 1
 fi
-tests=('*.test.*' '*.spec.*' '*_test.go' 'test_*.py' '*_test.py' 'src/test/*' '*/src/test/*' '*/__snapshots__/*' 'tests/*' '*/tests/*' 'test/*' '*/test/*' 'spec/*' '*/spec/*' '*_spec.rb' '*Test.php' '*Tests.cs' '*Test.cs' '*.tftest.hcl')
+tests=('*.test.*' '*.spec.*' '*_test.go' 'test_*.py' '*_test.py' 'src/test/*' '*/src/test/*' '*/__snapshots__/*' 'tests/*' '*/tests/*' 'test/*' '*/test/*' 'spec/*' '*/spec/*' 'Tests/*' '*/Tests/*' '*_spec.rb' '*Test.php' '*Tests.cs' '*Test.cs' '*.tftest.hcl')
 tampered=$(git diff --name-only --no-renames --diff-filter=DM "$base" -- "${tests[@]}")
 if [ -n "$tampered" ]; then
   printf 'check-diff: existing tests modified or deleted; a human must review:\n%s\n' "$tampered" >&2

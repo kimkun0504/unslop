@@ -20,7 +20,7 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: "0.13.9"
-      - run: uv run --no-project --with tree-sitter-language-pack==1.25.0 --with pytest==9.2.0 pytest -q tests/guard
+      - run: uv run --no-project --python 3.13 --with tree-sitter-language-pack==1.25.0 --with pytest==9.2.0 pytest -q tests/guard
   python-template:
     runs-on: ubuntu-24.04
     steps:
@@ -375,6 +375,94 @@ jobs:
           git checkout -- .
           scripts/verify
           scripts/mutation
+  elixir-template:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
+        with:
+          version-file: templates/elixir/.tool-versions
+          version-type: strict
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          UNSLOP_OWNER=ci bin/unslop new elixir "$RUNNER_TEMP/elixir"
+          cd "$RUNNER_TEMP/elixir"
+          scripts/setup
+          git add -A && git commit -qm lock
+          scripts/fast-check
+          expect_fail() {
+            mkdir -p "$(dirname "$3")"
+            printf '%s\n' "$2" > "$3"
+            mix format "$3" >/dev/null 2>&1 || true
+            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
+            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
+            echo "caught: $1 by $4"
+            rm -f "$3"
+            git checkout -- .
+          }
+          expect_fail "comment" $'defmodule App.Domain.Note do\n  @spec value() :: 1\n  def value, do: 1 # note\nend' lib/app/domain/note.ex "comments are forbidden"
+          expect_fail "IO.puts to the process stream" $'defmodule App.Cli.Debug do\n  @spec show(String.t()) :: :ok\n  def show(value), do: IO.puts(value)\nend' lib/app/cli/debug.ex "write through an injected device"
+          expect_fail "domain I/O" $'defmodule App.Domain.Reader do\n  @spec read(Path.t()) :: binary()\n  def read(path), do: File.read!(path)\nend' lib/app/domain/reader.ex "the domain does no I/O"
+          expect_fail "layer violation" $'defmodule App.Domain.Leak do\n  @spec run() :: 0 | 2\n  def run, do: App.Cli.run([], :stdio, :stdio)\nend' lib/app/domain/leak.ex "forbidden reference"
+          expect_fail "type error" $'defmodule App.Domain.Broken do\n  @spec total() :: integer()\n  def total, do: "1" + 1\nend' lib/app/domain/broken.ex "incompatible types"
+          expect_fail "missing spec" $'defmodule App.Domain.Unspecified do\n  def value, do: 1\nend' lib/app/domain/unspecified.ex "@spec"
+          expect_fail "skipped test" $'defmodule App.LaterTest do\n  use ExUnit.Case, async: true\n\n  @tag :skip\n  test "later" do\n    assert true\n  end\nend' test/app/later_test.exs "check-diff"
+          sed -i 's/percent_off: 5}/percent_off: 6}/' lib/app/domain/tier.ex
+          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
+          grep -q "failed" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for behaviour change"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
+          echo "caught: behaviour change by a failing test"
+          git checkout -- .
+          scripts/verify
+  swift-template:
+    runs-on: ubuntu-24.04
+    container: swift:6.4.2-noble
+    steps:
+      - run: apt-get update -qq && apt-get install -y -qq git curl jq > /dev/null
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          UNSLOP_OWNER=ci bin/unslop new swift "$RUNNER_TEMP/swift"
+          cd "$RUNNER_TEMP/swift"
+          scripts/setup
+          git add -A && git commit -qm lock --allow-empty
+          scripts/fast-check
+          expect_fail() {
+            mkdir -p "$(dirname "$3")"
+            printf '%s\n' "$2" > "$3"
+            swift format --in-place "$3" >/dev/null 2>&1 || true
+            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
+            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
+            echo "caught: $1 by $4"
+            rm -f "$3"
+            git checkout -- .
+          }
+          expect_fail "comment" $'public enum Note {\n    public static let value = 1 // note\n}' Sources/Domain/Note.swift "comments are forbidden"
+          expect_fail "print in the adapter" $'public enum Debug {\n    public static func show(_ value: String) {\n        print(value)\n    }\n}' Sources/CLI/Debug.swift "write through an Output port"
+          expect_fail "Foundation in the domain" $'import Foundation\n\npublic enum Clock {\n    public static func now() -> Date {\n        Date()\n    }\n}' Sources/Domain/Clock.swift "the domain does no I/O"
+          expect_fail "layer violation" $'import CLI\n\npublic enum Leak {\n    public static let code = Application.exitOK\n}' Sources/Domain/Leak.swift 'circular dependency\|no such module'
+          expect_fail "force unwrap" $'public enum Unsafe {\n    public static func cents() -> Int {\n        Int("1")!\n    }\n}' Sources/Domain/Unsafe.swift "orce"
+          expect_fail "shared mutable state" $'public enum Counter {\n    public static var count = 0\n}' Sources/Domain/Counter.swift "concurrency-safe"
+          expect_fail "disabled test" $'import Testing\n\nstruct LaterTests {\n    @Test(.disabled("later"))\n    func later() {}\n}' Tests/DomainTests/LaterTests.swift "check-diff"
+          sed -i 's/silverPercentOff = 5/silverPercentOff = 6/' Sources/Domain/Tier.swift
+          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
+          grep -q "failed" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for behaviour change"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
+          echo "caught: behaviour change by a failing test"
+          git checkout -- .
+          scripts/verify
   adopt:
     runs-on: ubuntu-24.04
     strategy:

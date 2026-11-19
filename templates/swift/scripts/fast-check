@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+scripts/check-comments
+scripts/check-diff
+swift format lint --strict --recursive --parallel Sources Tests Package.swift
+.tools/swiftlint lint --strict --quiet
+swift build --build-tests
+swift test --quiet

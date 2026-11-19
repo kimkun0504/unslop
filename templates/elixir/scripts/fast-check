@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+scripts/check-comments
+scripts/check-diff
+mix format --check-formatted
+env MIX_ENV=test mix compile --warnings-as-errors
+mix credo --strict
+mix test --warnings-as-errors

@@ -285,6 +285,61 @@
         "mutation": "mutant"
       },
       "adopt": null
+    },
+    {
+      "name": "elixir",
+      "title": "Elixir",
+      "kind": "service",
+      "toolchain": {
+        "elixir": "1.20.5",
+        "erlang": "29.1.2"
+      },
+      "gates": {
+        "format": "mix format",
+        "lint": "Credo strict with opt-in readability, refactor and warning checks",
+        "types": "compiler type checker with warnings as errors, Dialyzer with extra and missing returns and unmatched returns, @spec on every public function",
+        "architecture": "Boundary at compile time; Credo guards: pure domain, output only through injected devices",
+        "tests": "ExUnit with StreamData properties",
+        "coverage": "mix test --cover, 100% of lines",
+        "dead-code": "compiler unused warnings as errors, mix deps.unlock --check-unused",
+        "supply-chain": "mix.lock checked, mix hex.audit, mix_audit"
+      },
+      "summary": {
+        "format": "mix format",
+        "lint": "Credo strict, compiler types, Dialyzer",
+        "architecture": "Boundary, I/O banned in domain",
+        "tests": "ExUnit + StreamData",
+        "mutation": "none yet"
+      },
+      "adopt": null,
+      "autofix": "mix format"
+    },
+    {
+      "name": "swift",
+      "title": "Swift",
+      "kind": "service",
+      "toolchain": {
+        "swift": "6.4.2"
+      },
+      "gates": {
+        "format": "swift format lint --strict",
+        "lint": "SwiftLint with every opt-in rule that does not conflict with the formatter",
+        "types": "Swift 6 language mode, strict concurrency, strict memory safety, ExistentialAny, all warnings as errors",
+        "architecture": "SwiftPM targets: Domain depends on nothing; SwiftLint rules keep Foundation, I/O, the clock and randomness out of Domain and print out of Domain and CLI",
+        "tests": "Swift Testing with parameterized tests",
+        "coverage": "llvm-cov, 100% of lines, regions and functions in Domain and CLI",
+        "dead-code": "unused declarations as compiler errors",
+        "supply-chain": "Package.resolved; no third-party packages in the template"
+      },
+      "summary": {
+        "format": "swift-format",
+        "lint": "SwiftLint (all opt-in), Swift 6 strict concurrency",
+        "architecture": "SwiftPM targets, I/O banned in domain",
+        "tests": "Swift Testing",
+        "mutation": "none yet"
+      },
+      "adopt": null,
+      "autofix": "swift format --in-place --recursive Sources Tests Package.swift"
     }
   ],
   "adopt": [
