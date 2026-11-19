@@ -1,5 +1,4 @@
 import fnmatch
-import glob
 import json
 import os
 import re
@@ -225,12 +224,17 @@ def tested(tests: Json, since: str) -> bool:
     pattern = text(tests.get("coverage"))
     if not pattern:
         return True
-    reports = sorted(glob.glob(pattern, recursive=True))
+    reports = sorted(path.as_posix() for path in Path().glob(pattern) if path.is_file())
     if not reports:
         print(f"coverage: the tests wrote no report matching {pattern}")
         return False
     roots = sorted(
-        {root for item in cast("list[object]", tests.get("src_roots", [])) for root in glob.glob(text(item)) if Path(root).is_dir()}
+        {
+            root
+            for item in cast("list[object]", tests.get("src_roots", []))
+            for root in (path.as_posix() for path in Path().glob(text(item)))
+            if Path(root).is_dir()
+        }
     )
     command = ["uv", "run", "--quiet", "--no-project", "--with", DIFF_COVER, "diff-cover", *reports]
     command += ["--compare-branch", since, "--fail-under", "100", "--include-untracked"]

@@ -35,11 +35,11 @@ cases() {
   printf 'package legacy\n\nfun area(): Int = 42 * 7\n' > src/main/kotlin/legacy/Area.kt
   printf 'package legacy\n\nimport kotlin.test.Test\nimport kotlin.test.assertEquals\n\nclass AreaTest {\n    @Test\n    fun area() {\n        assertEquals(294, area())\n    }\n}\n' > src/test/kotlin/legacy/AreaTest.kt
   expect_fail "new detekt finding" "MagicNumber"
-  printf 'package legacy\n\nfun triple(value: Int): Int = value * 3\n' > src/main/kotlin/legacy/Triple.kt
+  printf 'package legacy\n\nfun twice(value: Int): Int = value * 2\n' > src/main/kotlin/legacy/Twice.kt
   expect_fail "untested new code" "every changed line must be covered"
   printf 'package legacy\n\nimport kotlin.test.Ignore\nimport kotlin.test.Test\n\nclass LaterTest {\n    @Ignore\n    @Test\n    fun later() {\n    }\n}\n' > src/test/kotlin/legacy/LaterTest.kt
   expect_fail "ignored test" "check-diff"
-  printf 'package legacy\n\nfun triple(value: Int): Int = value * 3\n' > src/main/kotlin/legacy/Triple.kt
-  printf 'package legacy\n\nimport kotlin.test.Test\nimport kotlin.test.assertEquals\n\nclass TripleTest {\n    @Test\n    fun triples() {\n        assertEquals(6, triple(2))\n    }\n}\n' > src/test/kotlin/legacy/TripleTest.kt
+  printf 'package legacy\n\nfun twice(value: Int): Int = value * 2\n' > src/main/kotlin/legacy/Twice.kt
+  printf 'package legacy\n\nimport kotlin.test.Test\nimport kotlin.test.assertEquals\n\nclass TwiceTest {\n    @Test\n    fun doubles() {\n        assertEquals(4, twice(2))\n    }\n}\n' > src/test/kotlin/legacy/TwiceTest.kt
   expect_pass "clean, tested new code"
 }

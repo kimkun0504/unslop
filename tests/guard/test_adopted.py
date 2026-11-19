@@ -35,11 +35,13 @@ def test_pyright_eslint_and_tsc_reports_parse() -> None:
     pyright = {"generalDiagnostics": [{"file": "a.py", "rule": "reportReturnType", "range": {"start": {"line": 1}}, "message": "bad\nmore"}]}
     eslint = [{"filePath": "tool.js", "messages": [{"ruleId": None, "line": 2, "message": "parse"}]}]
     tsc = "src/a.ts(4,7): error TS2532: Object is possibly 'undefined'.\n  continuation\n"
-    found = [*adopted.pyright(json.dumps(pyright)), *adopted.eslint(json.dumps(eslint)), *adopted.tsc(tsc)]
+    guard = "src/A.kt:5:5: println() is forbidden; use the logger\nnoise\n"
+    found = [*adopted.pyright(json.dumps(pyright)), *adopted.eslint(json.dumps(eslint)), *adopted.tsc(tsc), *adopted.lines(guard)]
     assert [(f.path, f.rule, f.line, f.message) for f in found] == [
         ("a.py", "reportReturnType", 2, "bad"),
         ("tool.js", "fatal", 2, "parse"),
         ("src/a.ts", "TS2532", 4, "Object is possibly 'undefined'."),
+        ("src/A.kt", "println() is forbidden", 5, "println() is forbidden; use the logger"),
     ]
 
 
