@@ -4,13 +4,14 @@ swift test --enable-code-coverage
 codecov=$(swift test --show-codecov-path)
 profdata="$(dirname "$codecov")/default.profdata"
 bin=$(swift build --build-tests --show-bin-path)
-binary=$(find "$bin" -maxdepth 1 -name '*PackageTests.xctest' | head -n 1)
-[ -n "$binary" ] || { echo "swift_coverage: no test bundle in $bin" >&2; exit 1; }
-if [ -d "$binary" ]; then
-  binary="$binary/Contents/MacOS/$(basename "$binary" .xctest)"
-fi
-if command -v llvm-cov >/dev/null 2>&1; then
-  llvm-cov export -format=lcov -instr-profile "$profdata" "$binary" -ignore-filename-regex='(\.build|Tests)/' > .unslop/out/coverage.lcov
-else
-  xcrun llvm-cov export -format=lcov -instr-profile "$profdata" "$binary" -ignore-filename-regex='(\.build|Tests)/' > .unslop/out/coverage.lcov
-fi
+objects=()
+while IFS= read -r bundle; do
+  if [ -d "$bundle" ]; then
+    bundle="$bundle/Contents/MacOS/$(basename "$bundle" .xctest)"
+  fi
+  [ ${#objects[@]} -eq 0 ] && objects+=("$bundle") || objects+=(-object "$bundle")
+done < <(find "$bin" -maxdepth 1 -name '*.xctest' | sort)
+[ ${#objects[@]} -gt 0 ] || { echo "swift_coverage: no test bundle in $bin" >&2; ls "$bin" >&2; exit 1; }
+cov=(llvm-cov)
+command -v llvm-cov >/dev/null 2>&1 || cov=(xcrun llvm-cov)
+"${cov[@]}" export -format=lcov -instr-profile "$profdata" "${objects[@]}" -ignore-filename-regex='(\.build|Tests)/' > .unslop/out/coverage.lcov

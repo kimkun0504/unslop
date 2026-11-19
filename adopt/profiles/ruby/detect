@@ -30,6 +30,8 @@ fi
   echo "    - vendor/**/*"
   echo "    - node_modules/**/*"
   echo "    - db/schema.rb"
+  echo "Style/FrozenStringLiteralComment:"
+  echo "  Enabled: false"
 } > .unslop/config/rubocop.yml
 config=.unslop/config/rubocop.yml
 coverage="rm -f .unslop/out/ruby-coverage-*.xml && RUBYOPT=\"-r./.unslop/guard/ruby_coverage.rb\""
