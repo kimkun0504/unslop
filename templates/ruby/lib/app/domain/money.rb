@@ -21,7 +21,9 @@ module App
       end
 
       def initialize(cents)
-        raise(ArgumentError, 'cents must be a non-negative Integer') unless cents.instance_of?(Integer) && !cents.negative?
+        unless cents.instance_of?(Integer) && !cents.negative?
+          raise(ArgumentError, 'cents must be a non-negative Integer')
+        end
 
         @cents = cents
         freeze

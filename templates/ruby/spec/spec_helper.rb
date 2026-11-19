@@ -12,8 +12,11 @@ module RaiseOnOwnWarnings
   LIB = File.expand_path('../lib', __dir__)
   private_constant :LIB
 
-  def warn(message, ...)
-    raise(message) if message.include?(LIB)
+  CATEGORIES = %i[deprecated performance].freeze
+  private_constant :CATEGORIES
+
+  def warn(message, category: nil, **)
+    raise(message) if CATEGORIES.include?(category) && message.include?(LIB)
 
     super
   end

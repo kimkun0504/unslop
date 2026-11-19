@@ -34,6 +34,10 @@ RSpec.describe App::Domain::Money do
       end
     end
 
+    it 'keeps the cents' do
+      expect(described_class.new(7).cents).to eq(7)
+    end
+
     it 'freezes the value' do
       expect(described_class.new(0)).to be_frozen
     end
