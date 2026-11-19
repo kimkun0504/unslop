@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+has() { jq -e --arg name "$1" '(.dependencies // {}) + (.devDependencies // {}) | has($name)' package.json >/dev/null; }
+[ -f package.json ] || { echo "detect: no package.json in $(pwd)" >&2; exit 1; }
+if [ -f pnpm-lock.yaml ]; then
+  run="pnpm exec"; setup="corepack enable && pnpm install --frozen-lockfile"
+elif [ -f yarn.lock ]; then
+  run="yarn"; setup="corepack enable && yarn install --immutable"
+else
+  run="npx --no-install"; setup="npm ci"
+fi
+base_config=tsconfig.json
+[ ! -f tsconfig.app.json ] || base_config=tsconfig.app.json
+sources=.
+[ ! -d src ] || sources=src
+checks='[]'
+if [ -f "$base_config" ]; then
+  mkdir -p .unslop/config
+  jq -n --arg base "../../$base_config" '{
+    extends: $base,
+    compilerOptions: {
+      noEmit: true, strict: true, allowUnreachableCode: false, allowUnusedLabels: false,
+      exactOptionalPropertyTypes: true, noFallthroughCasesInSwitch: true, noImplicitOverride: true,
+      noImplicitReturns: true, noPropertyAccessFromIndexSignature: true, noUncheckedIndexedAccess: true,
+      noUnusedLocals: true, noUnusedParameters: true, skipLibCheck: true
+    }
+  }' > .unslop/config/tsconfig.json
+  checks=$(jq --arg run "$run" '. + [{name: "tsc", format: "tsc", report: ".unslop/out/tsc.txt",
+    run: "\($run) tsc -p .unslop/config/tsconfig.json --pretty false > .unslop/out/tsc.txt || true"}]' <<<"$checks")
+fi
+if compgen -G 'eslint.config.*' >/dev/null || compgen -G '.eslintrc*' >/dev/null; then
+  checks=$(jq --arg run "$run" '. + [{name: "eslint", format: "eslint", report: ".unslop/out/eslint.json",
+    run: "\($run) eslint . --format json --output-file .unslop/out/eslint.json || true"}]' <<<"$checks")
+fi
+format='[]'
+if has prettier; then
+  format=$(jq -n --arg run "$run" '[{name: "prettier", glob: ["*.ts", "*.tsx", "*.js", "*.jsx", "*.mjs", "*.cjs", "*.mts", "*.cts"],
+    run: "\($run) prettier --stdin-filepath {path}"}]')
+fi
+coverage=".unslop/out/cobertura-coverage.xml"
+if has vitest && { has @vitest/coverage-v8 || has @vitest/coverage-istanbul; }; then
+  tests="$run vitest run --coverage.enabled --coverage.reporter=cobertura --coverage.reportsDirectory=.unslop/out '--coverage.include=$sources/**'"
+elif has vitest; then
+  tests="$run vitest run"; coverage=""
+  echo "detect: add @vitest/coverage-v8 to turn on coverage of changed lines" >&2
+elif has jest; then
+  tests="$run jest --coverage --coverageReporters=cobertura --coverageDirectory=.unslop/out '--collectCoverageFrom=$sources/**/*.{ts,tsx,js,jsx}'"
+else
+  tests="npm test"; coverage=""
+  echo "detect: no vitest or jest found; coverage of changed lines is off until .unslop/adopt.json names a coverage report" >&2
+fi
+jq -n --arg setup "$setup" --arg tests "$tests" --arg coverage "$coverage" --argjson checks "$checks" --argjson format "$format" '{
+  stack: "typescript",
+  setup: $setup,
+  format: $format,
+  checks: $checks,
+  tests: ({run: $tests} + (if $coverage == "" then {} else {coverage: $coverage} end))
+}'
