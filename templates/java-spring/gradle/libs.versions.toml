@@ -1,0 +1,29 @@
+[versions]
+spring-boot = "4.1.2"
+spring-modulith = "2.1.2"
+errorprone-core = "2.53.0"
+errorprone-plugin = "5.2.0"
+nullaway = "0.14.4"
+jspecify = "1.0.1"
+spotless = "8.11.0"
+google-java-format = "1.37.0"
+pitest-plugin = "1.19.0"
+pitest-core = "1.30.2"
+pitest-junit5 = "1.2.2"
+jacoco = "0.8.16"
+
+[libraries]
+spring-modulith-bom = { module = "org.springframework.modulith:spring-modulith-bom", version.ref = "spring-modulith" }
+spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-modulith-starter-test = { module = "org.springframework.modulith:spring-modulith-starter-test" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
+errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone-core" }
+nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+errorprone = { id = "net.ltgt.errorprone", version.ref = "errorprone-plugin" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+pitest = { id = "info.solidsoft.pitest", version.ref = "pitest-plugin" }

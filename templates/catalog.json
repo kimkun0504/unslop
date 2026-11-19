@@ -84,6 +84,27 @@
       }
     },
     {
+      "name": "java-spring",
+      "title": "Java + Spring Boot",
+      "kind": "service",
+      "toolchain": {
+        "java": "25",
+        "gradle": "9.9.1",
+        "spring-boot": "4.1.2"
+      },
+      "gates": {
+        "format": "google-java-format via spotless",
+        "lint": "Error Prone (SystemOut as error), javac -Xlint:all -Werror",
+        "types": "NullAway in JSpecify mode on @NullMarked packages",
+        "architecture": "Spring Modulith verify",
+        "tests": "JUnit 5 + AssertJ + Spring Boot integration tests",
+        "coverage": "100% lines and branches (JaCoCo)",
+        "mutation": "PIT STRONGER, 100% killed",
+        "dead-code": "javac and Error Prone unused checks",
+        "supply-chain": "Gradle version catalog"
+      }
+    },
+    {
       "name": "terraform",
       "title": "Terraform on AWS",
       "kind": "infrastructure",
