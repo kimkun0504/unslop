@@ -1,0 +1,7 @@
+/.build/
+/.swiftpm/
+/.tools/
+*.xcodeproj
+.env
+.env.*
+!.env.example

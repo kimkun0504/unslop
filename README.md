@@ -67,6 +67,7 @@ Every template ships a small working feature in the house style and passes the s
 | `php` | PHP-CS-Fixer | PHPStan max + strict rules, native types only | deptrac, I/O banned in domain | PHPUnit 13 | Infection | not yet |
 | `ruby` | RuboCop | RuboCop with every cop, Steep strict on RBS | RuboCop guards: pure domain, output through ports | RSpec | mutant | not yet |
 | `elixir` | mix format | Credo strict, compiler types, Dialyzer | Boundary, I/O banned in domain | ExUnit + StreamData | none yet | not yet |
+| `swift` | swift-format | SwiftLint (all opt-in), Swift 6 strict concurrency | SwiftPM targets, I/O banned in domain | Swift Testing | none yet | not yet |
 
 | Adopt profile | For | Format, on changed files | Lint and types, ratcheted | Tests and changed-line coverage |
 |---|---|---|---|---|
@@ -77,7 +78,7 @@ Every template ships a small working feature in the house style and passes the s
 | `terraform` | Terraform: .tf files | terraform fmt | tflint (all rules, AWS), checkov | terraform test, when the repository has tests |
 <!-- stacks:end -->
 
-The tables are generated from [`templates/catalog.json`](templates/catalog.json), which also lists every gate per template; run `bin/unslop list` to see it in the terminal. Adopt profiles bring the same checks to an existing repository; see [Adopting an existing repository](docs/adopting.md). Next stack: Swift. To add one, follow [Adding a stack](docs/adding-a-stack.md).
+The tables are generated from [`templates/catalog.json`](templates/catalog.json), which also lists every gate per template; run `bin/unslop list` to see it in the terminal. Adopt profiles bring the same checks to an existing repository; see [Adopting an existing repository](docs/adopting.md).  To add one, follow [Adding a stack](docs/adding-a-stack.md).
 
 Every template has the same commands:
 

@@ -68,7 +68,12 @@
       "Edit(mix.lock)",
       "Edit(.credo.exs)",
       "Edit(.formatter.exs)",
-      "Edit(.tool-versions)"
+      "Edit(.tool-versions)",
+      "Edit(Package.swift)",
+      "Edit(Package.resolved)",
+      "Edit(.swift-version)",
+      "Edit(.swiftlint.yml)",
+      "Edit(.swift-format)"
     ]
   },
   "sandbox": {
@@ -140,7 +145,12 @@
         "./mix.lock",
         "./.credo.exs",
         "./.formatter.exs",
-        "./.tool-versions"
+        "./.tool-versions",
+        "./Package.swift",
+        "./Package.resolved",
+        "./.swift-version",
+        "./.swiftlint.yml",
+        "./.swift-format"
       ]
     }
   }

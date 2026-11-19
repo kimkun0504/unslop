@@ -61,7 +61,9 @@
         "~/.local/state/mise",
         "~/.mix",
         "~/.hex",
-        "~/.cache/rebar3"
+        "~/.cache/rebar3",
+        "~/.swiftpm",
+        "~/.local/share/swiftly"
       ],
       "denyWrite": [
         "~/.claude",
@@ -115,7 +117,8 @@
         "releases.hashicorp.com",
         "hex.pm",
         "repo.hex.pm",
-        "builds.hex.pm"
+        "builds.hex.pm",
+        "download.swift.org"
       ]
     },
     "credentials": {

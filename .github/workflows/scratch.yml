@@ -8,12 +8,17 @@ jobs:
   probe:
     runs-on: ubuntu-24.04
     if: ${{ !startsWith(github.ref_name, 'scratch/adopt') }}
+    container: ${{ github.ref_name == 'scratch/swift' && 'swift:6.4.2-noble' || '' }}
     env:
       TEMPLATE: ${{ github.ref_name }}
     steps:
+      - if: github.ref_name == 'scratch/swift'
+        run: apt-get update -qq && apt-get install -y -qq git curl jq > /dev/null
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+      - if: github.ref_name == 'scratch/swift'
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: "0.13.9"
@@ -22,10 +27,6 @@ jobs:
         with:
           version-file: templates/elixir/.tool-versions
           version-type: strict
-      - uses: swift-actions/setup-swift@7ca6abe6b3b0e8b5421b88be48feee39cbf52c6a
-        if: github.ref_name == 'scratch/swift'
-        with:
-          swift-version: "6.4.2"
       - name: run tests/scratch.sh
         continue-on-error: true
         run: bash tests/scratch.sh "${TEMPLATE#scratch/}"
