@@ -189,3 +189,12 @@ def test_phpstan_rubocop_and_credo_reports_parse() -> None:
         ("lib/calc.rb", "Style/StringLiterals", 2),
         ("lib/a.ex", "Credo.Check.Readability.Specs", 5),
     ]
+
+
+def test_terminal_colour_codes_are_stripped_before_parsing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    line = "Sources/A.swift:3:9: \x1b[1;33mwarning: \x1b[1;39mvalue 'x' was never used\x1b[0;0m [#\x1b]8;;https://x\x1b\\NoUsage\x1b]8;;\x1b\\]"
+    report = ".unslop/out/build.txt"
+    (tmp_path / "sample.txt").write_text(line + "\n")
+    check = {"name": "compiler", "format": "compiler", "report": report, "run": f"cp sample.txt {report}"}
+    assert [(f.path, f.rule, f.line) for f in adopted.collect(check)] == [("Sources/A.swift", "NoUsage", 3)]

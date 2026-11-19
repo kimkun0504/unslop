@@ -1,3 +1,4 @@
+Mix.ensure_application!(:tools)
 [data, output] = System.argv()
 root = File.cwd!() <> "/"
 {:ok, _pid} = :cover.start()

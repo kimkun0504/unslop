@@ -3,8 +3,9 @@ set -euo pipefail
 swift test --enable-code-coverage
 codecov=$(swift test --show-codecov-path)
 profdata="$(dirname "$codecov")/default.profdata"
-binary=$(find .build -maxdepth 4 -path '*/debug/*PackageTests.xctest' | head -n 1)
-[ -n "$binary" ] || { echo "swift_coverage: no test bundle under .build" >&2; exit 1; }
+bin=$(swift build --build-tests --show-bin-path)
+binary=$(find "$bin" -maxdepth 1 -name '*PackageTests.xctest' | head -n 1)
+[ -n "$binary" ] || { echo "swift_coverage: no test bundle in $bin" >&2; exit 1; }
 if [ -d "$binary" ]; then
   binary="$binary/Contents/MacOS/$(basename "$binary" .xctest)"
 fi

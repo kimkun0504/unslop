@@ -24,6 +24,7 @@ MSBUILD_LINE = re.compile(
 COMPILER_LINE = re.compile(r"^(?P<path>[^:\n]+\.[A-Za-z]+):(?P<line>\d+):\d+: (?:warning|error): (?P<message>.*)$")
 ELIXIR_WARNING = re.compile(r"^\s*warning: (?P<message>.*)$")
 ELIXIR_LOCATION = re.compile(r"^\s*(?:└─ )?(?P<path>[^\s:]+\.exs?):(?P<line>\d+)(?::\d+)?:")
+TERMINAL_CODES = re.compile(r"\x1b\]8;;[^\x1b]*\x1b\\|\x1b\[[0-9;?]*[A-Za-z]")
 QUOTED = re.compile(r"\"[^\"]*\"|'[^']*'|`[^`]*`|\d+")
 SWIFT_GROUP = re.compile(r"\[#(?P<group>[A-Za-z]+)\]")
 TSC_LINE = re.compile(r"^(?P<path>.+?)\((?P<line>\d+),\d+\): error (?P<rule>TS\d+): (?P<message>.*)$")
@@ -262,7 +263,7 @@ def collect(check: Json) -> list[Finding]:
     if not report.is_file():
         sys.stderr.write(result.stdout + result.stderr)
         raise BrokenCheckError(name, f"the command wrote no report to {report}")
-    content = report.read_text()
+    content = TERMINAL_CODES.sub("", report.read_text())
     if not content.strip() and result.returncode != 0 and result.stderr.strip():
         sys.stderr.write(result.stderr[-4000:])
         raise BrokenCheckError(name, f"the command failed with exit code {result.returncode} and an empty report")

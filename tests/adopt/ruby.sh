@@ -4,7 +4,7 @@ build_legacy() {
   printf '# legacy\ndef add(a,b)\n  unused = 1\n  a+b\nend\n' > lib/calc.rb
   printf 'require_relative "../lib/calc"\n\nRSpec.describe "add" do\n  it "adds" do\n    expect(add(1, 2)).to eq(3)\n  end\nend\n' > spec/calc_spec.rb
   printf 'vendor/\n.bundle/\n' > .gitignore
-  bundle lock --quiet
+  bundle lock > /dev/null
 }
 cases() {
   printf '# frozen_string_literal: true\n\ndef mul(a, b)\n  a * b # product\nend\n' > lib/mul.rb

@@ -19,7 +19,13 @@ mkdir -p .unslop/config
 } > .unslop/config/phpstan.neon
 tests='null'
 if [ -f phpunit.xml ] || [ -f phpunit.xml.dist ] || [ -x vendor/bin/phpunit ] || jq -e '."require-dev"."phpunit/phpunit"' composer.json >/dev/null; then
-  tests=$(jq -n --arg run "vendor/bin/phpunit$filters --coverage-clover .unslop/out/clover.xml" '{run: $run, coverage: ".unslop/out/clover.xml"}')
+  suite=""
+  if [ ! -f phpunit.xml ] && [ ! -f phpunit.xml.dist ]; then
+    for dir in tests test; do
+      [ -z "$suite" ] && [ -d "$dir" ] && suite=" $dir"
+    done
+  fi
+  tests=$(jq -n --arg run "vendor/bin/phpunit$filters --coverage-clover .unslop/out/clover.xml$suite" '{run: $run, coverage: ".unslop/out/clover.xml"}')
 fi
 jq -n --argjson tests "$tests" '{
   stack: "php",
