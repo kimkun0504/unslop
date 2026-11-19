@@ -10,11 +10,8 @@ pub fn run(args: &[String], out: &mut impl Write, err: &mut impl Write) -> io::R
     }
     match domain::quote(args.iter().map(String::as_str)) {
         Ok(result) => {
-            writeln!(
-                out,
-                "subtotal={} tier={} total={}",
-                result.subtotal, result.tier, result.total
-            )?;
+            let line = format!("subtotal={} tier={}", result.subtotal, result.tier);
+            writeln!(out, "{line} total={}", result.total)?;
             Ok(EXIT_OK)
         }
         Err(error) => {
