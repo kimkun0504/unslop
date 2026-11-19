@@ -182,6 +182,22 @@ rm "$gate/broken"
 expect 0 "stop: fixed passes" stop-gate.sh "$(stop_in s1)"
 if grep -q 'continue' "$work/out"; then tally no "stop: pass should not halt"; else tally ok; fi
 git -C "$gate" add -A && git -C "$gate" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m work
+
+slow="$work/slow"
+mkdir -p "$slow/.claude" "$slow/scripts"
+printf '{"fast_check_seconds": 5}' >"$slow/.claude/unslop.json"
+git -C "$slow" init -q
+git -C "$slow" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m init
+printf '#!/usr/bin/env bash\nsleep 8\n' >"$slow/scripts/fast-check"
+chmod +x "$slow/scripts/fast-check"
+export CLAUDE_PROJECT_DIR="$slow"
+expect 0 "stop: project budget exceeded halts visibly" stop-gate.sh "$(stop_in slow1)"
+if grep -q 'exceeded 5s' "$work/out"; then tally ok; else tally no "stop: budget from .claude/unslop.json not used"; fi
+printf '{"fast_check_seconds": 20}' >"$slow/.claude/unslop.json"
+expect 0 "stop: larger project budget passes" stop-gate.sh "$(stop_in slow2)"
+if grep -q 'continue' "$work/out"; then tally no "stop: within budget should not halt"; else tally ok; fi
+export CLAUDE_PROJECT_DIR="$gate"
+
 touch "$gate/broken"
 git -C "$gate" add -A && git -C "$gate" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m broken
 expect 2 "stop: committed broken work still checked" stop-gate.sh "$(stop_in s2)"
@@ -190,12 +206,6 @@ if grep -q '"continue":false' "$work/out"; then tally ok; else tally no "stop: n
 rm "$gate/scripts/fast-check"
 expect 0 "stop: missing fast-check halts" stop-gate.sh "$(stop_in s3)"
 if grep -q 'missing' "$work/out"; then tally ok; else tally no "stop: missing runner not reported"; fi
-printf '#!/usr/bin/env bash\nsleep 5\n' >"$gate/scripts/fast-check"
-chmod +x "$gate/scripts/fast-check"
-sed 's/^limit=240$/limit=1/' "$hooks/stop-gate.sh" >"$work/stop-fast.sh"
-chmod +x "$work/stop-fast.sh"
-printf '%s' "$(stop_in s4)" | "$work/stop-fast.sh" >"$work/out" 2>&1
-if grep -q 'exceeded' "$work/out"; then tally ok; else tally no "stop: timeout not halted: $(cat "$work/out")"; fi
 
 nojq="$work/nojq"
 mkdir -p "$nojq"

@@ -26,7 +26,10 @@ fingerprint=$(
 [ "$fingerprint" = "$(cat "$ok_file" 2>/dev/null || true)" ] && exit 0
 runner="./scripts/fast-check"
 [ -x "$runner" ] || halt "stop-gate: $runner missing; work NOT verified"
-limit=240
+limit=$(jq -r '.fast_check_seconds // 240' "$root/.claude/unslop.json" 2>/dev/null || echo 240)
+case "$limit" in '' | *[!0-9]*) limit=240 ;; esac
+[ "$limit" -ge 5 ] || limit=5
+[ "$limit" -le 1700 ] || limit=1700
 status=0
 if command -v timeout >/dev/null 2>&1; then
   out=$(timeout "$limit" "$runner" 2>&1) || status=$?
@@ -36,7 +39,9 @@ else
   out=$(perl -e 'alarm shift; exec @ARGV or exit 127' "$limit" "$runner" 2>&1) || status=$?
   [ "$status" -eq 142 ] && status=124
 fi
-[ "$status" -eq 124 ] && halt "stop-gate: fast-check exceeded ${limit}s; move slow suites to CI"
+if [ "$status" -eq 124 ]; then
+  halt "stop-gate: fast-check exceeded ${limit}s. A human can raise fast_check_seconds in .claude/unslop.json (up to 1700) or narrow the test command"
+fi
 if [ "$status" -eq 0 ]; then
   echo "$fingerprint" >"$ok_file"
   rm -f "$fail_file"

@@ -25,6 +25,16 @@ for workflow in .github/workflows/*.yml templates/*/.github/workflows/*.yml adop
   grep -Eq '^permissions:' "$workflow" || fail "$workflow must declare top-level permissions"
 done
 
+if grep -rIl -e 'kimkun0504' -e 'Kun Kim' common adopt templates >/dev/null 2>&1; then
+  fail "shared files name a specific owner; use UNSLOP_OWNER_HANDLE and UNSLOP_OWNER_NAME placeholders"
+fi
+scaffold=$(mktemp -d)
+GIT_AUTHOR_NAME=c GIT_AUTHOR_EMAIL=c@c GIT_COMMITTER_NAME=c GIT_COMMITTER_EMAIL=c@c UNSLOP_OWNER=octocat UNSLOP_OWNER_NAME="Mona Lisa" \
+  bin/unslop new go "$scaffold/p" >/dev/null
+if grep -rIl 'UNSLOP_' "$scaffold/p" --exclude-dir=.git >/dev/null; then fail "unslop new left owner placeholders unfilled"; fi
+grep -q '^\* @octocat$' "$scaffold/p/.github/CODEOWNERS" || fail "unslop new did not fill CODEOWNERS"
+rm -rf "$scaffold"
+
 expected=$(tests/contract/stacks-table.sh)
 actual=$(sed -n '/<!-- stacks:start -->/,/<!-- stacks:end -->/p' README.md | sed '1d;$d')
 [ "$expected" = "$actual" ] || fail "README.md stacks tables are out of date; regenerate them with tests/contract/stacks-table.sh"

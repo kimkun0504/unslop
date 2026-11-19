@@ -18,6 +18,36 @@ usage() {
   exit 1
 }
 
+owner_handle() {
+  if [ -n "${UNSLOP_OWNER:-}" ]; then
+    echo "$UNSLOP_OWNER"
+  elif command -v gh >/dev/null 2>&1 && gh api user --jq .login 2>/dev/null; then
+    :
+  else
+    git config --get github.user 2>/dev/null || true
+  fi
+}
+
+personalize() {
+  local target=$1 handle name today file
+  shift
+  handle=$(owner_handle)
+  name=${UNSLOP_OWNER_NAME:-$(git config --get user.name 2>/dev/null || true)}
+  name=${name:-${handle:-the repository owner}}
+  today=$(date +%Y-%m-%d)
+  for file in "$@"; do
+    [ -f "$target/$file" ] || continue
+    sed -e "s/UNSLOP_DATE/$today/g" -e "s|UNSLOP_OWNER_NAME|${name//|/}|g" "$target/$file" >"$target/$file.new"
+    if [ -n "$handle" ]; then
+      sed -i.bak "s/UNSLOP_OWNER_HANDLE/$handle/g" "$target/$file.new" && rm -f "$target/$file.new.bak"
+    fi
+    mv "$target/$file.new" "$target/$file"
+  done
+  if [ -z "$handle" ] && grep -q UNSLOP_OWNER_HANDLE "$target/.github/CODEOWNERS" 2>/dev/null; then
+    echo "warning: no GitHub handle found; set UNSLOP_OWNER or edit .github/CODEOWNERS" >&2
+  fi
+}
+
 list() {
   jq -r '.templates[] | "\(.name)\t\(.title)\tadopt: \(.adopt // "none")", (.gates | to_entries[] | "    \(.key): \(.value)"), ""' "$repo/templates/catalog.json"
   echo "adopt profiles for existing repositories: $(names "$repo/adopt/profiles")"
@@ -32,6 +62,7 @@ new_project() {
   cp -R "$repo/templates/$template/." "$target/"
   find "$target" \( -name __pycache__ -o -name node_modules -o -name .venv -o -name .pytest_cache \) -prune -exec rm -rf {} +
   chmod +x "$target"/scripts/*
+  personalize "$target" .github/CODEOWNERS docs/decisions/0001-no-code-comments.md docs/decisions/0002-guardrails-change-only-by-humans.md docs/decisions/0003-review-rubric.md docs/decisions/template.md
   git -C "$target" init -q -b main
   git -C "$target" add -A
   git -C "$target" commit -q -m "Scaffold from unslop $template template"
@@ -73,6 +104,7 @@ adopt_project() {
   cp "$repo/common/scripts/check-comments" "$repo/common/scripts/check-diff" "$repo/common/scripts/diff-base" "$target/scripts/"
   cp "$repo/common/tools/guard/no_comments.py" "$target/tools/guard/"
   cp "$repo"/common/docs/decisions/000[123]-*.md "$target/.unslop/decisions/"
+  personalize "$target" .unslop/decisions/0001-no-code-comments.md .unslop/decisions/0002-guardrails-change-only-by-humans.md .unslop/decisions/0003-review-rubric.md
   chmod +x "$target"/scripts/*
   (cd "$target" && "$repo/adopt/profiles/$profile/detect") > "$target/.unslop/adopt.json"
   jq '(.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks) = [{context: "unslop"}]' \
@@ -91,8 +123,19 @@ adopt_project() {
     echo "baseline failed: fix the commands in .unslop/adopt.json, then run scripts/setup and scripts/rebaseline" >&2
     exit 1
   fi
+  local started elapsed budget
+  started=$SECONDS
   if (cd "$target" && scripts/fast-check); then
-    echo "scripts/fast-check passes against the new baseline"
+    elapsed=$((SECONDS - started))
+    budget=$((elapsed * 2 + 60))
+    [ "$budget" -ge 240 ] || budget=240
+    [ "$budget" -le 1700 ] || budget=1700
+    jq --argjson budget "$budget" '.fast_check_seconds = $budget' "$target/.claude/unslop.json" >"$target/.claude/unslop.json.new"
+    mv "$target/.claude/unslop.json.new" "$target/.claude/unslop.json"
+    echo "scripts/fast-check passes against the new baseline in ${elapsed}s; the end-of-session check allows ${budget}s"
+    if [ "$elapsed" -gt 600 ]; then
+      echo "warning: fast-check takes over 10 minutes; narrow the test command in .unslop/adopt.json so Claude gets feedback sooner" >&2
+    fi
   else
     echo "scripts/fast-check fails; usually the test command in .unslop/adopt.json needs adjusting for this repository" >&2
     exit 1

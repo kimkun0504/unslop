@@ -37,7 +37,8 @@ Switched on by `.claude/unslop.json`, which every template project contains. Fil
 | P2 | Applied migrations and existing decision records cannot be edited; new ones can be added | `protect-paths.sh` | Gate |
 | P3 | Tests can be locked for an implementation phase: `touch .claude/tests.locked` | `protect-paths.sh` | Gate |
 | P4 | Claude cannot stop while `scripts/fast-check` fails | Stop hook `stop-gate.sh` | Gate |
-| P5 | The stop check never fails silently: three identical failures or twenty in a session end the session with a visible reason | `stop-gate.sh` | Gate |
+| P5 | The stop check never fails silently: three identical failures, twenty in a session, or running past the project's time budget end the session with a visible reason | `stop-gate.sh` | Gate |
+| P5a | The time budget is per project: `fast_check_seconds` in `.claude/unslop.json`, 240 by default, at most 1700; `unslop adopt` sets it to twice the measured run plus a minute. The file is read-only for Claude | `stop-gate.sh`, `protect-paths.sh` | Boundary |
 | P6 | Committed work is still checked; only an exact state that already passed is skipped | `stop-gate.sh` fingerprint of HEAD, diff and untracked files | Gate |
 | P7 | No code comments in any language | `scripts/check-comments` (tree-sitter parsers for 300+ languages) | Gate |
 | P8 | No new suppressions or skipped tests: `eslint-disable`, `@ts-expect-error`, `# noqa`, `# type: ignore`, `//nolint`, `@Suppress`, `.skip`, `.only`, `@Disabled`, `t.Skip` and more | `scripts/check-diff` | Gate |
