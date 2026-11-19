@@ -1,5 +1,3 @@
-using App.Domain;
-
 namespace App.Domain.Tests;
 
 public sealed class PricingTests
@@ -12,7 +10,7 @@ public sealed class PricingTests
     [InlineData("500", "500.00 Gold 450.00")]
     public void AppliesTheTierForTheSubtotal(string lines, string expected)
     {
-        Quote quote = Quote.Of(lines.Split(';', StringSplitOptions.RemoveEmptyEntries));
+        var quote = Quote.Of(lines.Split(';', StringSplitOptions.RemoveEmptyEntries));
         Assert.Equal(expected, $"{quote.Subtotal} {quote.Tier} {quote.Total}");
     }
 
@@ -21,6 +19,22 @@ public sealed class PricingTests
     {
         InvalidAmountException error = Assert.Throws<InvalidAmountException>(() => Quote.Of(["1", "x", "y"]));
         Assert.Equal("expected a non-negative amount like 12 or 12.50, got \"x\"", error.Message);
+    }
+
+    [Theory]
+    [InlineData(Tier.Standard, "standard", 0)]
+    [InlineData(Tier.Silver, "silver", 5)]
+    [InlineData(Tier.Gold, "gold", 10)]
+    public void NamesAndDiscountsEachTier(Tier tier, string name, long percent) =>
+        Assert.Equal((name, percent), (Quote.NameOf(tier), Quote.PercentOff(tier)));
+
+    [Fact]
+    public void RejectsUndefinedTiers()
+    {
+        const Tier undefined = (Tier)99;
+        Assert.Equal(
+            ["tier", "tier"],
+            [Assert.Throws<ArgumentOutOfRangeException>(() => Quote.NameOf(undefined)).ParamName, Assert.Throws<ArgumentOutOfRangeException>(() => Quote.PercentOff(undefined)).ParamName]);
     }
 
     [Fact]

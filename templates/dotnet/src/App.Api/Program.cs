@@ -16,10 +16,10 @@ internal static class QuoteEndpoint
     {
         try
         {
-            Quote quote = Quote.Of(request.Lines);
+            var quote = Quote.Of(request.Lines);
             return TypedResults.Ok(new QuoteResponse(
                 quote.Subtotal.ToString(),
-                TierName(quote.Tier),
+                Quote.NameOf(quote.Tier),
                 quote.Total.ToString()));
         }
         catch (InvalidAmountException error)
@@ -27,13 +27,6 @@ internal static class QuoteEndpoint
             return TypedResults.Problem(error.Message, statusCode: StatusCodes.Status400BadRequest, title: "Invalid amount");
         }
     }
-
-    private static string TierName(Tier tier) => tier switch
-    {
-        Tier.Silver => "silver",
-        Tier.Gold => "gold",
-        _ => "standard",
-    };
 }
 
 internal sealed record QuoteRequest(IReadOnlyList<string> Lines);

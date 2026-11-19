@@ -22,12 +22,9 @@ public sealed partial class Money
         ArgumentNullException.ThrowIfNull(raw);
         string trimmed = raw.Trim();
         string canonical = trimmed.Contains('.', StringComparison.Ordinal) ? trimmed : trimmed + ".00";
-        if (!CanonicalAmount().IsMatch(canonical))
-        {
-            throw new InvalidAmountException(raw);
-        }
-
-        return new Money(long.Parse(canonical.Replace(".", string.Empty, StringComparison.Ordinal), CultureInfo.InvariantCulture));
+        return CanonicalAmount().IsMatch(canonical)
+            ? new Money(long.Parse(canonical.Replace(".", string.Empty, StringComparison.Ordinal), CultureInfo.InvariantCulture))
+            : throw new InvalidAmountException(raw);
     }
 
     public Money Plus(Money other)

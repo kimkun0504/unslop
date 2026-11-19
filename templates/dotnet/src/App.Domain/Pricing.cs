@@ -22,18 +22,24 @@ public sealed record Quote(Money Subtotal, Tier Tier, Money Total)
     public static Tier TierFor(Money subtotal)
     {
         ArgumentNullException.ThrowIfNull(subtotal);
-        if (subtotal.Cents >= GoldFromCents)
-        {
-            return Tier.Gold;
-        }
-
-        return subtotal.Cents >= SilverFromCents ? Tier.Silver : Tier.Standard;
+        return subtotal.Cents >= GoldFromCents ? Tier.Gold
+            : subtotal.Cents >= SilverFromCents ? Tier.Silver
+            : Tier.Standard;
     }
 
     public static long PercentOff(Tier tier) => tier switch
     {
+        Tier.Standard => 0,
         Tier.Silver => 5,
         Tier.Gold => 10,
-        _ => 0,
+        _ => throw new ArgumentOutOfRangeException(nameof(tier)),
+    };
+
+    public static string NameOf(Tier tier) => tier switch
+    {
+        Tier.Standard => "standard",
+        Tier.Silver => "silver",
+        Tier.Gold => "gold",
+        _ => throw new ArgumentOutOfRangeException(nameof(tier)),
     };
 }

@@ -1,9 +1,9 @@
-using App.Domain;
-
 namespace App.Domain.Tests;
 
 public sealed class MoneyTests
 {
+    private static readonly string[] RenderInputs = ["0.05", "10.50", "0"];
+
     [Theory]
     [InlineData("0", 0)]
     [InlineData("12", 1200)]
@@ -30,12 +30,12 @@ public sealed class MoneyTests
 
     [Fact]
     public void RendersCentsWithTwoDigits() =>
-        Assert.Equal(["0.05", "10.50", "0.00"], new[] { "0.05", "10.50", "0" }.Select(raw => Money.Parse(raw).ToString()));
+        Assert.Equal(["0.05", "10.50", "0.00"], RenderInputs.Select(raw => Money.Parse(raw).ToString()));
 
     [Fact]
     public void AddsAndDiscounts()
     {
-        Money ten = Money.Parse("10");
+        var ten = Money.Parse("10");
         Assert.Equal(["15.00", "9.50"], [ten.Plus(Money.Parse("5")).ToString(), ten.LessPercent(5).ToString()]);
     }
 

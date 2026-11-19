@@ -1,5 +1,3 @@
-using App.Domain;
-
 namespace App.Domain.Tests;
 
 public sealed class ArchitectureTests

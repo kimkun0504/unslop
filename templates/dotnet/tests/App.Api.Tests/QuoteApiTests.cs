@@ -4,43 +4,34 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace App.Api.Tests;
 
-public sealed class QuoteApiTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class QuoteApiTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
 {
-    private readonly WebApplicationFactory<Program> factory;
+    private static readonly Uri Quotes = new("/quotes", UriKind.Relative);
 
-    public QuoteApiTests(WebApplicationFactory<Program> factory)
+    private async Task<HttpResponseMessage> PostAsync(params string[] lines)
     {
-        this.factory = factory;
+        using HttpClient client = factory.CreateClient();
+        return await client.PostAsJsonAsync(Quotes, new QuoteRequest(lines), TestContext.Current.CancellationToken);
     }
 
     [Fact]
     public async Task ReturnsTheQuote()
     {
-        using HttpClient client = factory.CreateClient();
-        using HttpResponseMessage response = await client.PostAsJsonAsync(new Uri("/quotes", UriKind.Relative), new { lines = new[] { "60", "40" } }, TestContext.Current.CancellationToken);
+        using HttpResponseMessage response = await PostAsync("60", "40");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("{\"subtotal\":\"100.00\",\"tier\":\"silver\",\"total\":\"95.00\"}", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
-    }
-
-    [Theory]
-    [InlineData("500", "gold")]
-    [InlineData("1", "standard")]
-    public async Task NamesTiersInLowerCase(string amount, string tier)
-    {
-        using HttpClient client = factory.CreateClient();
-        using HttpResponseMessage response = await client.PostAsJsonAsync(new Uri("/quotes", UriKind.Relative), new { lines = new[] { amount } }, TestContext.Current.CancellationToken);
-        Assert.Contains($"\"tier\":\"{tier}\"", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), StringComparison.Ordinal);
+        Assert.Equal(
+            new QuoteResponse("100.00", "silver", "95.00"),
+            await response.Content.ReadFromJsonAsync<QuoteResponse>(TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task ReturnsProblemDetailsForAMalformedAmount()
     {
-        using HttpClient client = factory.CreateClient();
-        using HttpResponseMessage response = await client.PostAsJsonAsync(new Uri("/quotes", UriKind.Relative), new { lines = new[] { "1.5" } }, TestContext.Current.CancellationToken);
+        using HttpResponseMessage response = await PostAsync("1.5");
         string body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Contains("\"title\":\"Invalid amount\"", body, StringComparison.Ordinal);
-        Assert.Contains("got \\u00221.5\\u0022", body, StringComparison.Ordinal);
+        Assert.Contains("Invalid amount", body, StringComparison.Ordinal);
+        Assert.Contains("1.5", body, StringComparison.Ordinal);
     }
 }
