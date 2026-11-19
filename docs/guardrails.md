@@ -44,9 +44,22 @@ Switched on by `.claude/unslop.json`, which every template project contains. Fil
 | P9 | Existing tests cannot be changed or deleted without the `tests-reviewed` label | `scripts/check-diff` | Gate |
 | P10 | Per-stack quality gates: format, lint, types, architecture, tests, coverage, mutation, dead code, supply chain | `scripts/fast-check`, `scripts/verify`, `scripts/mutation`; see the [stack matrix](../README.md#stacks) | Gate |
 
+## 2a. Adopted repositories
+
+`bin/unslop adopt <profile> <repo>` switches the project layer on in an existing repository. P1 to P6 and P9 apply unchanged. The rest are rewritten as ratchets, so legacy code keeps working and new work meets the full bar. Files: `adopt/shared/` and `adopt/profiles/<profile>/`, installed into `.unslop/` and `scripts/`.
+
+| ID | Guardrail | Mechanism | Strength |
+|---|---|---|---|
+| A1 | No comments on lines a change adds | `scripts/check-comments` with `--since`, base from `scripts/diff-base` | Gate |
+| A2 | No lint or type finding beyond the recorded baseline, counted per file and rule so moved code does not count as new | `.unslop/guard/adopted.py` ratchet over SARIF, pyright, ESLint, tsc and line reports | Gate |
+| A3 | A file that was formatted stays formatted, and new files must be formatted; legacy files are never forced into a reformat | Format ratchet comparing each changed file before and after | Gate |
+| A4 | Every changed line is covered by a test | `diff-cover --fail-under 100` on the project's own coverage report | Gate |
+| A5 | The baseline and the adopt configuration are read-only for Claude; only a human shrinks the baseline, with `scripts/rebaseline` | `.unslop/*` in `protect-paths.sh`, deny rules, sandbox `denyWrite` | Boundary |
+| A6 | Downloaded tools are pinned by checksum | `.unslop/guard/fetch` | Gate |
+
 ## 3. CI and GitHub layer
 
-Files: `.github/workflows/ci.yml` and `.github/rulesets/main.json` in each project.
+Files: `.github/workflows/ci.yml` and `.github/rulesets/main.json` in each template project; `.github/workflows/unslop.yml` and `.unslop/ruleset.json` (required check `unslop`) in an adopted repository.
 
 | ID | Guardrail | Mechanism | Strength |
 |---|---|---|---|

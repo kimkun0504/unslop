@@ -11,7 +11,7 @@ AI coding agents copy what they see and stop when they think they are done. Inst
 | Layer | Applies to | What it does | Details |
 |---|---|---|---|
 | **Machine** | Every repository on your computer | Hides secrets and credentials, sandboxes shell commands behind a network allowlist, blocks history rewrites, hook bypasses and infrastructure or database mutations | [Guardrails §1](docs/guardrails.md#1-machine-layer) |
-| **Project** | Projects created from a template | Makes build and lint configs read-only for the agent, bans comments and suppressions, protects existing tests, and refuses to let the agent stop while checks fail | [Guardrails §2](docs/guardrails.md#2-project-layer) |
+| **Project** | Projects created from a template or adopted with `unslop adopt` | Makes build and lint configs read-only for the agent, bans comments and suppressions, protects existing tests, and refuses to let the agent stop while checks fail | [Guardrails §2](docs/guardrails.md#2-project-layer) |
 | **CI and GitHub** | Every pull request | Runs the same checks plus mutation testing and audits; the ruleset blocks merging until they pass | [Guardrails §3](docs/guardrails.md#3-ci-and-github-layer) |
 | **Claude profile** | Your Claude Code sessions | A ten-line `CLAUDE.md`, a read-only reviewer agent, and skills for specs, migrations and long runs | [Guardrails §4](docs/guardrails.md#4-claude-profile-layer) |
 
@@ -36,6 +36,14 @@ scripts/setup
 scripts/verify
 gh api -X POST repos/OWNER/REPO/rulesets --input .github/rulesets/main.json
 ```
+
+Or bring an existing repository under the same guardrails, with its current findings recorded as a baseline so only new code has to meet the bar:
+
+```bash
+~/Desktop/unslop/bin/unslop adopt python ~/code/my-service
+```
+
+See [Adopting an existing repository](docs/adopting.md).
 
 In Claude Code, run `/unslop-spec` to write the spec, then `/unslop-long-run` for an unattended build. See [the workflow guide](docs/workflow.md).
 
@@ -84,6 +92,7 @@ Every template has the same commands:
 | [Guardrail catalog](docs/guardrails.md) | Every guardrail, its mechanism, and how hard it is to get around |
 | [Engineering standards](docs/standards.md) | The architecture, domain, API, data, testing, security and delivery standards, and which ones a tool enforces today |
 | [Workflow](docs/workflow.md) | Spec first, test first, long unattended runs, what to do when a guardrail blocks Claude |
+| [Adopting an existing repository](docs/adopting.md) | Baselines, ratchets and changed-line coverage for code that already exists |
 | [Adding a stack](docs/adding-a-stack.md) | The template contract and how a new stack is proven |
 | [Known limits](docs/limits.md) | What is not yet guaranteed |
 
@@ -94,8 +103,9 @@ global/            machine and profile layer: managed settings, hooks, CLAUDE.md
 install/           installer for the machine and profile layers
 common/            files every project gets: decision records, check scripts, comment checker, settings
 templates/         one folder per stack, plus catalog.json
-bin/unslop         scaffolds a project from a template
-tests/             hook tests, comment checker tests, the stack contract check
+adopt/             files and per-stack profiles for adopting an existing repository
+bin/unslop         new, adopt and list
+tests/             hook tests, guard tests, the stack contract check, adoption fixtures
 docs/              the documentation above
 ```
 

@@ -25,6 +25,7 @@ KTS
   printf 'package legacy\n\n// legacy\nfun add(a: Int, b: Int): Int {\n    println("adding")\n    return a + b\n}\n' > src/main/kotlin/legacy/Calc.kt
   printf 'package legacy\n\nimport kotlin.test.Test\nimport kotlin.test.assertEquals\n\nclass CalcTest {\n    @Test\n    fun adds() {\n        assertEquals(3, add(1, 2))\n    }\n}\n' > src/test/kotlin/legacy/CalcTest.kt
   printf 'build/\n.gradle/\n.kotlin/\n' > .gitignore
+  gradle --quiet testClasses || gradle --quiet --refresh-dependencies testClasses
 }
 cases() {
   printf 'package legacy\n\nfun mul(a: Int, b: Int): Int = a * b // product\n' > src/main/kotlin/legacy/Mul.kt

@@ -58,3 +58,14 @@ The template ships one small feature that shows the house style end to end: inpu
 2. Add a job to `.github/workflows/self-test.yml` that scaffolds the template with `bin/unslop new`, runs `scripts/setup`, `scripts/verify` and `scripts/mutation` (if any), and plants violations: a comment, a suppression, a banned call, a layer violation and a behaviour change. Each must be caught by the check meant to catch it.
 3. While iterating, push to a `scratch/<stack>` branch. Set the repository variable `SCRATCH_TEMPLATE` to the template name (and optionally `SCRATCH_FIX` to its formatter command), and add the toolchain setup step to the `probe` job in `.github/workflows/scratch.yml`. The job scaffolds the template, prints the formatter's changes as a patch, then runs every script and records a `RESULT` line for each without failing, so work in progress sends no failure notifications.
 4. Run `tests/contract/check.sh` locally, open a pull request and merge only when every self-test job is green.
+
+## Adding an adopt profile
+
+An adopt profile brings a stack's checks to an existing repository. It lives in `adopt/profiles/<name>/`:
+
+| Path | Purpose |
+|---|---|
+| `detect` | Runs inside the repository and prints `.unslop/adopt.json`: the setup command, format commands that read a file on stdin and print it formatted, ratcheted checks with their report format (`sarif`, `pyright`, `eslint`, `tsc` or `lines`), and the test command with its coverage report |
+| `files/` | Copied into the repository: strict tool configuration under `.unslop/config/` and `.github/workflows/unslop.yml` with a job named `unslop` |
+
+Add the profile to the `adopt` section of `templates/catalog.json`, regenerate the README tables with `tests/contract/stacks-table.sh`, and add a fixture in `tests/adopt/<name>.sh` (or `<name>-<variant>.sh`) with a `build_legacy` function that creates a messy repository and a `cases` function that plants new violations with `expect_fail` and clean work with `expect_pass`. Add the fixture to the `adopt` matrix in `.github/workflows/self-test.yml`.
