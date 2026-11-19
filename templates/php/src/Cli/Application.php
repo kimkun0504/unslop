@@ -12,9 +12,7 @@ final readonly class Application
     public const int EXIT_OK = 0;
     public const int EXIT_USAGE = 2;
 
-    public function __construct(private Output $out, private Output $err)
-    {
-    }
+    public function __construct(private Output $out, private Output $err) {}
 
     public function run(string ...$arguments): int
     {

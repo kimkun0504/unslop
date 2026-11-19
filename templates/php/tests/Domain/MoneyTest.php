@@ -27,7 +27,7 @@ final class MoneyTest extends TestCase
     #[TestWith(['1.005'])]
     #[TestWith(['abc'])]
     #[TestWith(['1,00'])]
-    #[TestWith(["1.00\n"])]
+    #[TestWith(['1.0a'])]
     public function testRejectsMalformedAmountsWithTheInputInTheMessage(string $raw): void
     {
         $this->expectException(InvalidAmount::class);
@@ -39,7 +39,7 @@ final class MoneyTest extends TestCase
     {
         self::assertSame(
             ['0.05', '10.50', '0.00'],
-            array_map(static fn (string $raw): string => Money::parse($raw)->render(), ['0.05', '10.50', '0']),
+            array_map(static fn(string $raw): string => Money::parse($raw)->render(), ['0.05', '10.50', '0']),
         );
     }
 

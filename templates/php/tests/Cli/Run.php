@@ -6,7 +6,5 @@ namespace App\Tests\Cli;
 
 final readonly class Run
 {
-    public function __construct(public int $code, public string $out, public string $err)
-    {
-    }
+    public function __construct(public int $code, public string $out, public string $err) {}
 }

@@ -10,8 +10,7 @@ final readonly class Quote
         public Money $subtotal,
         public Tier $tier,
         public Money $total,
-    ) {
-    }
+    ) {}
 
     public static function of(string ...$lines): self
     {

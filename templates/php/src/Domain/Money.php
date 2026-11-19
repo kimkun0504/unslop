@@ -10,9 +10,7 @@ final readonly class Money
     private const int WHOLE_PERCENT = 100;
     private const string CANONICAL = '/^(0|[1-9][0-9]{0,11})\.[0-9]{2}$/D';
 
-    private function __construct(public int $cents)
-    {
-    }
+    private function __construct(public int $cents) {}
 
     public static function zero(): self
     {

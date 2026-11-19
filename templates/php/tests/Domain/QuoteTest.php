@@ -18,7 +18,7 @@ final class QuoteTest extends TestCase
     #[TestWith(['500', '500.00 gold 450.00'])]
     public function testAppliesTheTierForTheSubtotal(string $lines, string $expected): void
     {
-        $quote = Quote::of(...array_values(array_filter(explode(';', $lines), static fn (string $line): bool => $line !== '')));
+        $quote = Quote::of(...array_values(array_filter(explode(';', $lines), static fn(string $line): bool => $line !== '')));
         self::assertSame($expected, sprintf('%s %s %s', $quote->subtotal->render(), $quote->tier->value, $quote->total->render()));
     }
 

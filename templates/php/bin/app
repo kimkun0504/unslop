@@ -13,4 +13,7 @@ $application = new Application(
     new StreamOutput(new SplFileObject('php://stderr', 'w')),
 );
 
-exit($application->run(...array_slice($argv, 1)));
+$serverArguments = $_SERVER['argv'] ?? [];
+$arguments = is_array($serverArguments) ? array_values(array_filter(array_slice($serverArguments, 1), is_string(...))) : [];
+
+exit($application->run(...$arguments));

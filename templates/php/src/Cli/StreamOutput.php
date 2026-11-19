@@ -8,9 +8,7 @@ use SplFileObject;
 
 final readonly class StreamOutput implements Output
 {
-    public function __construct(private SplFileObject $file)
-    {
-    }
+    public function __construct(private SplFileObject $file) {}
 
     public function line(string $text): void
     {
