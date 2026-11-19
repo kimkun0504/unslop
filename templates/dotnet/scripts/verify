@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+scripts/fast-check
+dotnet test App.slnx --no-build -p:CollectCoverage=true -p:Threshold=100 -p:ThresholdType=line%2Cbranch -p:ThresholdStat=total -p:Exclude='[*]Program'
+dotnet build App.slnx --no-restore --configuration Release

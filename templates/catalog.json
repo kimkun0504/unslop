@@ -145,6 +145,26 @@
         "dead-code": "rustc unused lints denied",
         "supply-chain": "Cargo.lock --locked, cargo-deny advisories, licenses, bans, sources"
       }
+    },
+    {
+      "name": "dotnet",
+      "title": "C# + ASP.NET Core",
+      "kind": "service",
+      "toolchain": {
+        "dotnet-sdk": "10.0.404",
+        "framework": "net10.0"
+      },
+      "gates": {
+        "format": "dotnet format --verify-no-changes",
+        "lint": "AnalysisMode All, every analyzer and code-style rule as an error",
+        "types": "nullable reference types, warnings as errors",
+        "architecture": "domain assembly may reference only core framework assemblies (architecture test)",
+        "tests": "xUnit v3 + WebApplicationFactory integration tests",
+        "coverage": "100% lines and branches (coverlet)",
+        "mutation": "Stryker.NET, 100% score",
+        "dead-code": "IDE and CA unused-code analyzers",
+        "supply-chain": "central package versions, lockfiles in locked mode, NuGet audit of transitive packages"
+      }
     }
   ]
 }

@@ -41,7 +41,15 @@
       "Edit(**/clippy.toml)",
       "Edit(deny.toml)",
       "Edit(rust-toolchain.toml)",
-      "Edit(rustfmt.toml)"
+      "Edit(rustfmt.toml)",
+      "Edit(**/*.csproj)",
+      "Edit(*.slnx)",
+      "Edit(Directory.*.props)",
+      "Edit(global.json)",
+      "Edit(.editorconfig)",
+      "Edit(**/packages.lock.json)",
+      "Edit(.config/dotnet-tools.json)",
+      "Edit(stryker-config.json)"
     ]
   },
   "sandbox": {
@@ -87,7 +95,14 @@
         "./deny.toml",
         "./rust-toolchain.toml",
         "./rustfmt.toml",
-        "./crates/domain/clippy.toml"
+        "./crates/domain/clippy.toml",
+        "./Directory.Build.props",
+        "./Directory.Packages.props",
+        "./global.json",
+        "./.editorconfig",
+        "./.config",
+        "./stryker-config.json",
+        "./App.slnx"
       ]
     }
   }

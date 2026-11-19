@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+required=$(jq -r '.sdk.version' global.json)
+dotnet --list-sdks | grep -q "^$required " || { echo ".NET SDK $required required; see https://dotnet.microsoft.com/download" >&2; exit 1; }
+command -v uv >/dev/null || { echo "uv missing; see https://docs.astral.sh/uv" >&2; exit 1; }
+dotnet tool restore
+if find . -name packages.lock.json -path './src/*' | grep -q .; then
+  dotnet restore App.slnx --locked-mode
+else
+  dotnet restore App.slnx
+  echo "created packages.lock.json files; commit them so every restore is reproducible" >&2
+fi
