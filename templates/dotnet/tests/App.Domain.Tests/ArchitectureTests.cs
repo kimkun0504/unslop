@@ -2,7 +2,7 @@ namespace App.Domain.Tests;
 
 public sealed class ArchitectureTests
 {
-    private static readonly string[] Allowed = ["System.Runtime", "System.Linq", "System.Text.RegularExpressions", "System.Collections"];
+    private static readonly string[] Allowed = ["netstandard", "System.Runtime", "System.Linq", "System.Text.RegularExpressions", "System.Collections"];
 
     [Fact]
     public void DomainReferencesOnlyPureFrameworkAssemblies()

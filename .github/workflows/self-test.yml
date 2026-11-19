@@ -271,6 +271,7 @@ jobs:
           cd "$RUNNER_TEMP/net"
           scripts/setup
           git add -A && git commit -qm lock
+          scripts/fast-check
           expect_fail() {
             printf '%s\n' "$2" > "$3"
             if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
@@ -281,7 +282,7 @@ jobs:
           }
           D=src/App.Domain
           expect_fail "comment" $'namespace App.Domain;\n\npublic static class Note\n{\n    public static int Value => 1; // note\n}' "$D/Note.cs" "comments are forbidden"
-          expect_fail "console in domain" $'namespace App.Domain;\n\npublic static class Shout\n{\n    public static void Say() => Console.WriteLine("x");\n}' "$D/Shout.cs" "DomainReferencesOnlyPureFrameworkAssemblies"
+          expect_fail "console in domain" $'namespace App.Domain;\n\npublic static class Shout\n{\n    public static void Say() => Console.WriteLine("x");\n}' "$D/Shout.cs" "System.Console"
           expect_fail "pragma suppression" $'namespace App.Domain;\n\n#pragma warning disable CA1822\npublic static class Quiet\n{\n}' "$D/Quiet.cs" "check-diff"
           expect_fail "unchecked null" $'namespace App.Domain;\n\npublic static class Maybe\n{\n    public static string Value() => null;\n}' "$D/Maybe.cs" "CS8603"
           sed -i 's/Tier.Silver => 5,/Tier.Silver => 6,/' "$D/Pricing.cs"
