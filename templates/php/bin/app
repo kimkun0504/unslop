@@ -1,0 +1,16 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\Cli\Application;
+use App\Cli\StreamOutput;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+$application = new Application(
+    new StreamOutput(new SplFileObject('php://stdout', 'w')),
+    new StreamOutput(new SplFileObject('php://stderr', 'w')),
+);
+
+exit($application->run(...array_slice($argv, 1)));

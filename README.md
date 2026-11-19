@@ -52,6 +52,7 @@ Every template ships a small working feature in the house style and passes the s
 | `java-spring` | google-java-format | Error Prone, NullAway (JSpecify), `-Xlint:all -Werror` | Spring Modulith | JUnit 5, AssertJ, Spring Boot | PIT |
 | `rust` | rustfmt | clippy (all, pedantic, nursery, restriction), `#[allow]` denied | workspace crates, I/O banned in domain | cargo test, proptest | cargo-mutants |
 | `dotnet` | dotnet format | all analyzers as errors, nullable reference types | domain references only core framework | xUnit v3, WebApplicationFactory | Stryker.NET |
+| `php` | PHP-CS-Fixer | PHPStan max + strict rules, native types only | deptrac, I/O banned in domain | PHPUnit 13 | Infection |
 | `terraform` | terraform fmt | tflint (all rules, AWS), validate, checkov | single-purpose modules | `terraform test` with mocked providers | none available |
 
 The full gate list per template is in [`templates/catalog.json`](templates/catalog.json). Next stacks: Swift, Ruby, PHP and Elixir. To add one, follow [Adding a stack](docs/adding-a-stack.md).

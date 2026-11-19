@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+scripts/check-comments
+scripts/check-diff
+vendor/bin/php-cs-fixer check --diff --show-progress=none
+vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+vendor/bin/deptrac analyse --no-progress
+vendor/bin/phpunit

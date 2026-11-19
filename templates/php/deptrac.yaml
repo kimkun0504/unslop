@@ -1,0 +1,20 @@
+deptrac:
+    paths:
+        - ./src
+    layers:
+        -
+            name: Domain
+            collectors:
+                -
+                    type: directory
+                    value: src/Domain/.*
+        -
+            name: Cli
+            collectors:
+                -
+                    type: directory
+                    value: src/Cli/.*
+    ruleset:
+        Domain: ~
+        Cli:
+            - Domain

@@ -49,7 +49,14 @@
       "Edit(.editorconfig)",
       "Edit(**/packages.lock.json)",
       "Edit(.config/dotnet-tools.json)",
-      "Edit(stryker-config.json)"
+      "Edit(stryker-config.json)",
+      "Edit(composer.json)",
+      "Edit(composer.lock)",
+      "Edit(phpstan.neon)",
+      "Edit(deptrac.yaml)",
+      "Edit(phpunit.xml.dist)",
+      "Edit(infection.json5)",
+      "Edit(.php-cs-fixer.dist.php)"
     ]
   },
   "sandbox": {
@@ -102,7 +109,14 @@
         "./.editorconfig",
         "./.config",
         "./stryker-config.json",
-        "./App.slnx"
+        "./App.slnx",
+        "./composer.json",
+        "./composer.lock",
+        "./phpstan.neon",
+        "./deptrac.yaml",
+        "./phpunit.xml.dist",
+        "./infection.json5",
+        "./.php-cs-fixer.dist.php"
       ]
     }
   }
