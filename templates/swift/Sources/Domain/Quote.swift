@@ -9,6 +9,6 @@ public struct Quote: Equatable, Sendable {
             sum = sum.plus(try Money.parse(line))
         }
         let level = Tier.forSubtotal(sum)
-        return Self(subtotal: sum, tier: level, total: sum.lessPercent(level.percentOff))
+        return Self(subtotal: sum, tier: level, total: sum.less(level.percentOff))
     }
 }

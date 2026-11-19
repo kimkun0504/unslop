@@ -32,7 +32,17 @@ struct MoneyTests {
 
     @Test(arguments: [(100, 5, 95), (99, 50, 49), (99, 0, 99), (99, 100, 0)])
     func takesPercentOff(cents: Int, percent: Int, expected: Int) throws {
-        #expect(try #require(Money(cents: cents)).lessPercent(percent).cents == expected)
+        #expect(try #require(Money(cents: cents)).less(try #require(Percent(percent))).cents == expected)
+    }
+
+    @Test(arguments: [-1, 101])
+    func refusesPercentOutsideTheRange(value: Int) {
+        #expect(Percent(value) == nil)
+    }
+
+    @Test(arguments: [0, 100])
+    func acceptsPercentAtTheEdges(value: Int) {
+        #expect(Percent(value)?.value == value)
     }
 
     @Test(arguments: [(0, "0.00"), (5, "0.05"), (1_250, "12.50"), (10_000, "100.00")])

@@ -2,7 +2,6 @@ public struct Money: Equatable, Sendable {
     public static let zero = Self(validCents: 0)
 
     private static let centsPerUnit = 100
-    private static let wholePercent = 100
 
     public let cents: Int
 
@@ -37,8 +36,8 @@ public struct Money: Equatable, Sendable {
         Self(validCents: cents + other.cents)
     }
 
-    public func lessPercent(_ percent: Int) -> Self {
-        precondition((0...Self.wholePercent).contains(percent), "percent must be between 0 and 100")
-        return Self(validCents: cents * (Self.wholePercent - percent) / Self.wholePercent)
+    public func less(_ percent: Percent) -> Self {
+        let whole = Percent.whole.value
+        return Self(validCents: cents * (whole - percent.value) / whole)
     }
 }

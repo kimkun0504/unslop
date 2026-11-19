@@ -11,6 +11,6 @@ struct TierTests {
 
     @Test(arguments: [(Tier.standard, 0), (.silver, 5), (.gold, 10)])
     func discounts(tier: Tier, percentOff: Int) {
-        #expect(tier.percentOff == percentOff)
+        #expect(tier.percentOff.value == percentOff)
     }
 }
