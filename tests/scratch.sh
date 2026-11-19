@@ -15,6 +15,12 @@ step() {
 }
 step setup scripts/setup
 git add -A && git commit -qm lock
+if [ -n "${SCRATCH_FIX:-}" ]; then
+  step autofix bash -c "$SCRATCH_FIX"
+  echo "PATCH-BEGIN"
+  git diff
+  echo "PATCH-END"
+fi
 step fast-check scripts/fast-check
 step verify scripts/verify
 [ -x scripts/mutation ] && step mutation scripts/mutation
