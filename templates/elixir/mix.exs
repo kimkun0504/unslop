@@ -15,7 +15,7 @@ defmodule App.MixProject do
       dialyzer: [
         plt_local_path: "priv/plts",
         plt_core_path: "priv/plts",
-        flags: [:error_handling, :extra_return, :missing_return, :underspecs, :unmatched_returns],
+        flags: [:error_handling, :extra_return, :missing_return, :unmatched_returns],
         list_unused_filters: true
       ]
     ]

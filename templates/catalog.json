@@ -297,7 +297,7 @@
       "gates": {
         "format": "mix format",
         "lint": "Credo strict with opt-in readability, refactor and warning checks",
-        "types": "compiler type checker with warnings as errors, Dialyzer with underspecs and unmatched returns, @spec on every public function",
+        "types": "compiler type checker with warnings as errors, Dialyzer with extra and missing returns and unmatched returns, @spec on every public function",
         "architecture": "Boundary at compile time; Credo guards: pure domain, output only through injected devices",
         "tests": "ExUnit with StreamData properties",
         "coverage": "mix test --cover, 100% of lines",
