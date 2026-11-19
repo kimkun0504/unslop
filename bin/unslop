@@ -15,6 +15,7 @@ new_project() {
   mkdir -p "$target"
   cp -R "$repo/common/." "$target/"
   cp -R "$repo/templates/$template/." "$target/"
+  find "$target" \( -name __pycache__ -o -name node_modules -o -name .venv -o -name .pytest_cache \) -prune -exec rm -rf {} +
   chmod +x "$target"/scripts/*
   git -C "$target" init -q -b main
   git -C "$target" add -A

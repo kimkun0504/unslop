@@ -7,9 +7,9 @@ trap 'rm -f "$profile"' EXIT
 go test -count=1 -race -covermode=atomic -coverpkg=./internal/... -coverprofile="$profile" ./...
 total=$(go tool cover -func="$profile" | awk '/^total:/ { print $3 }')
 [ "$total" = "100.0%" ] || { go tool cover -func="$profile" | grep -v '100.0%' >&2; echo "coverage is $total; 100.0% required" >&2; exit 1; }
-for target in $(grep -rl --include='*_test.go' '^func Fuzz' internal | xargs -n1 dirname | sort -u); do
-  for fuzz in $(grep -ho '^func Fuzz[A-Za-z0-9_]*' "$target"/*_test.go | sed 's/^func //'); do
-    go test -run='^$' -fuzz="^${fuzz}\$" -fuzztime="${FUZZ_TIME:-15s}" "./$target"
-  done
-done
+while IFS= read -r test_file; do
+  while IFS= read -r fuzz; do
+    go test -run='^$' -fuzz="^${fuzz}\$" -fuzztime="${FUZZ_TIME:-15s}" "./$(dirname "$test_file")"
+  done < <(sed -n 's/^func \(Fuzz[A-Za-z0-9_]*\).*/\1/p' "$test_file")
+done < <(git ls-files --cached --others --exclude-standard -- '*_test.go')
 go build ./...

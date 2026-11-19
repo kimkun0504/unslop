@@ -1,0 +1,73 @@
+{
+  "templates": [
+    {
+      "name": "python",
+      "title": "Python",
+      "kind": "service",
+      "toolchain": { "python": "3.13", "uv": "0.13.9" },
+      "gates": {
+        "format": "ruff format",
+        "lint": "ruff (ALL rules)",
+        "types": "basedpyright (all)",
+        "architecture": "import-linter",
+        "tests": "pytest strict + hypothesis",
+        "coverage": "100% branch",
+        "mutation": "mutmut, 100% killed",
+        "dead-code": "deptry",
+        "supply-chain": "uv lock, 7-day release age, pip-audit"
+      }
+    },
+    {
+      "name": "ts-react",
+      "title": "TypeScript + React",
+      "kind": "web",
+      "toolchain": { "node": "22", "pnpm": "12.21.0" },
+      "gates": {
+        "format": "prettier",
+        "lint": "typescript-eslint strict-type-checked, jsx-a11y strict, react-hooks",
+        "types": "tsc @tsconfig/strictest",
+        "architecture": "eslint-plugin-boundaries",
+        "tests": "vitest + testing-library + fast-check",
+        "coverage": "100% lines and branches",
+        "mutation": "stryker, 100% score",
+        "dead-code": "knip",
+        "supply-chain": "pnpm lockfile, 1-day release age, pnpm audit",
+        "design-system": "tailwind tokens only, no arbitrary values or inline styles"
+      }
+    },
+    {
+      "name": "go",
+      "title": "Go",
+      "kind": "service",
+      "toolchain": { "go": "1.27.4", "golangci-lint": "2.15.0" },
+      "gates": {
+        "format": "gofumpt, goimports",
+        "lint": "golangci-lint (all linters)",
+        "types": "go vet (enable-all)",
+        "architecture": "depguard layer rules",
+        "tests": "go test -race -shuffle + native fuzzing",
+        "coverage": "100% statements in internal/",
+        "mutation": null,
+        "dead-code": "unused, unparam",
+        "supply-chain": "go mod verify, go mod tidy -diff, govulncheck"
+      }
+    },
+    {
+      "name": "kotlin-spring",
+      "title": "Kotlin + Spring Boot",
+      "kind": "service",
+      "toolchain": { "java": "21", "gradle": "9.9.1", "kotlin": "2.4.21", "spring-boot": "4.1.2" },
+      "gates": {
+        "format": "ktlint via spotless",
+        "lint": "detekt (all rules) + syntax guard for println, TODO and !!",
+        "types": "kotlinc allWarningsAsErrors",
+        "architecture": "Spring Modulith verify",
+        "tests": "JUnit 5 + Spring Boot integration tests",
+        "coverage": "100% lines and branches (JaCoCo)",
+        "mutation": "PIT STRONGER, 100% killed",
+        "dead-code": "detekt unused rules",
+        "supply-chain": "Gradle version catalog"
+      }
+    }
+  ]
+}
