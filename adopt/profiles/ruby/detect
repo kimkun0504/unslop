@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[ -f Gemfile ] || { echo "detect: no Gemfile in $(pwd)" >&2; exit 1; }
+in_lock() { [ -f Gemfile.lock ] && grep -q "^    $1 (" Gemfile.lock; }
+mkdir -p .unslop/config
+plugins=()
+if in_lock rubocop; then
+  rubocop="bundle exec rubocop"
+  setup="bundle install"
+  in_lock rubocop-performance && plugins+=(rubocop-performance)
+  in_lock rubocop-rspec && plugins+=(rubocop-rspec)
+else
+  gems=.unslop/out/gems
+  rubocop="env -u BUNDLE_GEMFILE -u RUBYOPT GEM_HOME=$gems GEM_PATH=$gems $gems/bin/rubocop"
+  setup="bundle install && gem install --no-document --install-dir $gems rubocop:1.92.3 rubocop-performance:1.27.0 rubocop-rspec:3.10.2"
+  plugins=(rubocop-performance)
+  [ ! -d spec ] || plugins+=(rubocop-rspec)
+fi
+{
+  [ ! -f .rubocop.yml ] || echo "inherit_from: ../../.rubocop.yml"
+  if [ ${#plugins[@]} -gt 0 ]; then
+    echo "plugins:"
+    printf '  - %s\n' "${plugins[@]}"
+  fi
+  echo "AllCops:"
+  echo "  NewCops: enable"
+  echo "  SuggestExtensions: false"
+  echo "  Exclude:"
+  echo "    - .unslop/**/*"
+  echo "    - vendor/**/*"
+  echo "    - node_modules/**/*"
+  echo "    - db/schema.rb"
+} > .unslop/config/rubocop.yml
+config=.unslop/config/rubocop.yml
+coverage="rm -f .unslop/out/ruby-coverage-*.xml && RUBYOPT=\"-r./.unslop/guard/ruby_coverage.rb\""
+if [ -d spec ]; then
+  tests="$coverage bundle exec rspec"
+else
+  tests="$coverage bundle exec rake test"
+fi
+jq -n --arg setup "$setup" --arg rubocop "$rubocop" --arg config "$config" --arg tests "$tests" '{
+  stack: "ruby",
+  setup: $setup,
+  format: [{name: "rubocop layout", glob: ["*.rb", "*.rake", "Gemfile", "Rakefile"],
+    run: "\($rubocop) --config \($config) --only Layout --autocorrect --stdin {path} --stderr --fail-level fatal --format quiet"}],
+  checks: [{name: "rubocop", format: "rubocop", report: ".unslop/out/rubocop.json",
+    run: "\($rubocop) --config \($config) --format json --out .unslop/out/rubocop.json"}],
+  tests: {run: $tests, coverage: ".unslop/out/ruby-coverage-*.xml"}
+}'

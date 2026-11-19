@@ -112,3 +112,80 @@ def test_a_broken_tool_is_not_mistaken_for_a_clean_result(tmp_path: Path, monkey
     missing = {"name": "lint", "format": "sarif", "report": ".unslop/out/none.sarif", "run": "true"}
     with pytest.raises(adopted.BrokenCheckError, match="wrote no report"):
         adopted.collect(missing)
+
+
+def test_cargo_messages_use_the_lint_name_and_primary_span() -> None:
+    lines = [
+        json.dumps({"reason": "compiler-artifact"}),
+        json.dumps(
+            {
+                "reason": "compiler-message",
+                "message": {
+                    "message": "used `unwrap()` on a `Result` value",
+                    "code": {"code": "clippy::unwrap_used"},
+                    "spans": [{"file_name": "src/lib.rs", "line_start": 7, "is_primary": True}],
+                },
+            }
+        ),
+        json.dumps(
+            {
+                "reason": "compiler-message",
+                "message": {
+                    "message": "unused variable: `x`",
+                    "code": None,
+                    "spans": [{"file_name": "src/main.rs", "line_start": 2, "is_primary": True}],
+                },
+            }
+        ),
+        json.dumps({"reason": "compiler-message", "message": {"message": "2 warnings emitted", "code": None, "spans": []}}),
+        "Finished dev profile",
+    ]
+    found = list(adopted.cargo("\n".join(lines)))
+    assert [(f.path, f.rule, f.line) for f in found] == [("src/lib.rs", "clippy::unwrap_used", 7), ("src/main.rs", "unused variable: _", 2)]
+
+
+def test_msbuild_and_compiler_lines_parse_once_each() -> None:
+    build = (
+        "/w/src/Api/Quote.cs(12,9): warning CA1822: Member 'Total' does not access instance data [/w/src/Api/Api.csproj]\n"
+        "/w/src/Api/Quote.cs(12,9): warning CA1822: Member 'Total' does not access instance data [/w/src/Api/Api.csproj]\n"
+        "  Api -> /w/bin/Api.dll\n"
+    )
+    swift = (
+        "Sources/Domain/Money.swift:4:9: warning: var 'count' is not concurrency-safe [#MutableGlobalVariable]\n"
+        "Sources/Domain/Money.swift:9:5: warning: initialization of immutable value 'x' was never used\n"
+    )
+    assert [(f.path, f.rule, f.line) for f in adopted.msbuild(build)] == [("/w/src/Api/Quote.cs", "CA1822", 12)]
+    assert [(f.path, f.rule) for f in adopted.compiler(swift)] == [
+        ("Sources/Domain/Money.swift", "MutableGlobalVariable"),
+        ("Sources/Domain/Money.swift", "initialization of immutable value _ was never used"),
+    ]
+
+
+def test_elixir_warnings_pair_with_their_location() -> None:
+    report = (
+        '    warning: variable "x" is unused (prefix it with an underscore)\n'
+        "    │\n"
+        "  3 │   def f(x), do: 1\n"
+        "    │\n"
+        "    └─ lib/legacy.ex:3:9: Legacy.f/1\n"
+        "\n"
+        "warning: function g/0 is unused\n"
+        "  lib/legacy.ex:8: Legacy (module)\n"
+    )
+    found = list(adopted.elixir(report))
+    assert [(f.path, f.rule, f.line) for f in found] == [
+        ("lib/legacy.ex", "variable _ is unused (prefix it with an underscore)", 3),
+        ("lib/legacy.ex", "function g/_ is unused", 8),
+    ]
+
+
+def test_phpstan_rubocop_and_credo_reports_parse() -> None:
+    phpstan = {"files": {"src/Calc.php": {"messages": [{"message": "Missing type", "line": 4, "identifier": "missingType.parameter"}]}}}
+    rubocop = {"files": [{"path": "lib/calc.rb", "offenses": [{"cop_name": "Style/StringLiterals", "message": "quotes", "location": {"start_line": 2}}]}]}
+    credo = {"issues": [{"filename": "lib/a.ex", "line_no": 5, "check": "Credo.Check.Readability.Specs", "message": "spec"}]}
+    found = [*adopted.phpstan(json.dumps(phpstan)), *adopted.rubocop(json.dumps(rubocop)), *adopted.credo(json.dumps(credo))]
+    assert [(f.path, f.rule, f.line) for f in found] == [
+        ("src/Calc.php", "missingType.parameter", 4),
+        ("lib/calc.rb", "Style/StringLiterals", 2),
+        ("lib/a.ex", "Credo.Check.Readability.Specs", 5),
+    ]

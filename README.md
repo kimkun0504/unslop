@@ -62,12 +62,12 @@ Every template ships a small working feature in the house style and passes the s
 | `kotlin-spring` | ktlint | detekt (all rules), warnings as errors | Spring Modulith | JUnit 5, Spring Boot | PIT | `jvm` |
 | `java-spring` | google-java-format | Error Prone, NullAway (JSpecify), `-Xlint:all -Werror` | Spring Modulith | JUnit 5, AssertJ, Spring Boot | PIT | `jvm` |
 | `terraform` | terraform fmt | tflint (all rules, AWS), validate, checkov | single-purpose modules | `terraform test` with mocked providers | none available | `terraform` |
-| `rust` | rustfmt | clippy (all, pedantic, nursery, restriction), `#[allow]` denied | workspace crates, I/O banned in domain | cargo test, proptest | cargo-mutants | not yet |
-| `dotnet` | dotnet format | all analyzers as errors, nullable reference types | domain references only core framework | xUnit v3, WebApplicationFactory | Stryker.NET | not yet |
-| `php` | PHP-CS-Fixer | PHPStan max + strict rules, native types only | deptrac, I/O banned in domain | PHPUnit 13 | Infection | not yet |
-| `ruby` | RuboCop | RuboCop with every cop, Steep strict on RBS | RuboCop guards: pure domain, output through ports | RSpec | mutant | not yet |
-| `elixir` | mix format | Credo strict, compiler types, Dialyzer | Boundary, I/O banned in domain | ExUnit + StreamData | none yet | not yet |
-| `swift` | swift-format | SwiftLint (all opt-in), Swift 6 strict concurrency | SwiftPM targets, I/O banned in domain | Swift Testing | none yet | not yet |
+| `rust` | rustfmt | clippy (all, pedantic, nursery, restriction), `#[allow]` denied | workspace crates, I/O banned in domain | cargo test, proptest | cargo-mutants | `rust` |
+| `dotnet` | dotnet format | all analyzers as errors, nullable reference types | domain references only core framework | xUnit v3, WebApplicationFactory | Stryker.NET | `dotnet` |
+| `php` | PHP-CS-Fixer | PHPStan max + strict rules, native types only | deptrac, I/O banned in domain | PHPUnit 13 | Infection | `php` |
+| `ruby` | RuboCop | RuboCop with every cop, Steep strict on RBS | RuboCop guards: pure domain, output through ports | RSpec | mutant | `ruby` |
+| `elixir` | mix format | Credo strict, compiler types, Dialyzer | Boundary, I/O banned in domain | ExUnit + StreamData | none yet | `elixir` |
+| `swift` | swift-format | SwiftLint (all opt-in), Swift 6 strict concurrency | SwiftPM targets, I/O banned in domain | Swift Testing | none yet | `swift` |
 
 | Adopt profile | For | Format, on changed files | Lint and types, ratcheted | Tests and changed-line coverage |
 |---|---|---|---|---|
@@ -76,6 +76,12 @@ Every template ships a small working feature in the house style and passes the s
 | `go` | Go: a go.mod at the root | gofmt | golangci-lint (all linters) | go test -race with coverage |
 | `jvm` | Java and Kotlin: Gradle or Maven builds | none; the project's own formatter | PMD for Java, detekt (all rules) for Kotlin | JaCoCo added without editing the build |
 | `terraform` | Terraform: .tf files | terraform fmt | tflint (all rules, AWS), checkov | terraform test, when the repository has tests |
+| `rust` | Rust: a Cargo.toml at the root | rustfmt | clippy pedantic and nursery, no unwrap, expect, panic or print outside tests | cargo llvm-cov |
+| `dotnet` | C# and .NET: a solution or project file at the root | none; the project's own formatter | all .NET analyzers, code style and nullable warnings from the build | dotnet test with Coverlet |
+| `php` | PHP: composer.json | none; the project's own formatter | PHPStan at max level | PHPUnit with clover coverage of src, app and lib |
+| `ruby` | Ruby: a Gemfile | RuboCop layout cops, in the project's style | RuboCop with the project's config plus new cops and the performance and RSpec plugins | RSpec or rake test, with coverage through Ruby's Coverage module |
+| `elixir` | Elixir: mix.exs | mix format | compiler warnings, Credo strict when the project uses Credo | mix test with cover, converted for diff coverage |
+| `swift` | Swift: Package.swift | swift format, when the project has a .swift-format | SwiftLint defect rules on top of the project's config, compiler warnings with complete strict concurrency | swift test with llvm-cov |
 <!-- stacks:end -->
 
 The tables are generated from [`templates/catalog.json`](templates/catalog.json), which also lists every gate per template; run `bin/unslop list` to see it in the terminal. Adopt profiles bring the same checks to an existing repository; see [Adopting an existing repository](docs/adopting.md).  To add one, follow [Adding a stack](docs/adding-a-stack.md).

@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+[ -f Package.swift ] || { echo "detect: no Package.swift in $(pwd)" >&2; exit 1; }
+mkdir -p .unslop/config
+{
+  [ ! -f .swiftlint.yml ] || echo "parent_config: ../../.swiftlint.yml"
+  echo "excluded:"
+  echo "  - ../../.build"
+  echo "  - ../../.unslop"
+  echo "opt_in_rules:"
+  for rule in force_unwrapping implicitly_unwrapped_optional fatal_error_message discouraged_optional_boolean \
+    unowned_variable_capture weak_delegate empty_count first_where contains_over_first_not_nil \
+    unused_declaration unused_import discouraged_assert discouraged_none_name private_swiftui_state \
+    unhandled_throwing_task legacy_objc_type redundant_type_annotation; do
+    echo "  - $rule"
+  done
+} > .unslop/config/swiftlint.yml
+format='[]'
+if [ -f .swift-format ]; then
+  format='[{"name": "swift format", "glob": ["*.swift"], "run": "swift format --assume-filename {path}"}]'
+else
+  echo "detect: no .swift-format in the repository, so formatting is left to the project" >&2
+fi
+jq -n --argjson format "$format" '{
+  stack: "swift",
+  setup: "swift build --build-tests",
+  format: $format,
+  checks: [
+    {name: "swiftlint", format: "sarif", report: ".unslop/out/swiftlint.sarif",
+     run: "\"$(.unslop/guard/fetch swiftlint)\" lint --config .unslop/config/swiftlint.yml --reporter sarif --quiet > .unslop/out/swiftlint.sarif"},
+    {name: "compiler", format: "compiler", report: ".unslop/out/build.txt",
+     run: "swift build --build-tests --scratch-path .unslop/out/build -Xswiftc -strict-concurrency=complete > .unslop/out/build.txt 2>&1"}
+  ],
+  tests: {run: ".unslop/guard/swift_coverage", coverage: ".unslop/out/coverage.lcov"}
+}'

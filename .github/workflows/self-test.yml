@@ -12,8 +12,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - run: shellcheck global/hooks/*.sh tests/hooks/run.sh tests/contract/*.sh tests/adopt/run.sh install/install.sh common/scripts/* bin/unslop templates/*/scripts/* adopt/shared/scripts/* adopt/shared/.unslop/guard/fetch adopt/profiles/*/detect
-      - run: shellcheck -s bash tests/adopt/[!r]*.sh
+      - run: shellcheck global/hooks/*.sh tests/hooks/run.sh tests/contract/*.sh tests/adopt/run.sh install/install.sh common/scripts/* bin/unslop templates/*/scripts/* adopt/shared/scripts/* adopt/shared/.unslop/guard/fetch adopt/profiles/*/detect adopt/profiles/elixir/files/.unslop/guard/elixir_test adopt/profiles/swift/files/.unslop/guard/swift_coverage
+      - run: find tests/adopt -name "*.sh" ! -name run.sh -exec shellcheck -s bash {} +
       - run: jq empty global/managed-settings.json common/.claude/settings.json common/.github/rulesets/main.json
       - run: tests/hooks/run.sh
       - run: tests/contract/check.sh
@@ -468,8 +468,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        fixture: [python, typescript, go, jvm-maven, jvm-gradle, terraform]
+        fixture: [python, typescript, go, jvm-maven, jvm-gradle, terraform, rust, dotnet, php, ruby, elixir, swift]
+    container: ${{ matrix.fixture == 'swift' && 'swift:6.4.2-noble' || '' }}
     steps:
+      - if: matrix.fixture == 'swift'
+        run: apt-get update -qq && apt-get install -y -qq git curl jq > /dev/null
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
@@ -493,12 +496,37 @@ jobs:
         if: matrix.fixture == 'jvm-gradle'
         with:
           gradle-version: "9.9.1"
+      - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
+        if: matrix.fixture == 'rust'
+        with:
+          tool: cargo-llvm-cov@0.9.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73
+        if: matrix.fixture == 'dotnet'
+        with:
+          dotnet-version: "10.0.x"
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        if: matrix.fixture == 'php'
+        with:
+          php-version: "8.4"
+          coverage: pcov
+          tools: composer:v2
+      - uses: ruby/setup-ruby@f9c4492e86def3e644ab32a0ef185eda5b0c20d0
+        if: matrix.fixture == 'ruby'
+        with:
+          ruby-version: "4.0.10"
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
+        if: matrix.fixture == 'elixir'
+        with:
+          otp-version: "29.1.2"
+          elixir-version: "1.20.5"
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
         if: matrix.fixture == 'terraform'
         with:
           terraform_wrapper: false
       - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337
         if: matrix.fixture == 'terraform'
+      - if: matrix.fixture == 'swift'
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - run: bash tests/adopt/run.sh "${{ matrix.fixture }}"
         env:
           GITHUB_TOKEN: ${{ github.token }}
