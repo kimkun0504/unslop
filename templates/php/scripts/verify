@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+scripts/fast-check
+rm -rf build
+XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-clover build/coverage.xml --coverage-text
+php tools/guard/coverage.php build/coverage.xml
+composer audit --no-interaction

@@ -291,3 +291,45 @@ jobs:
           git checkout -- .
           scripts/verify
           scripts/mutation
+  php-template:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: "8.5"
+          coverage: pcov
+          tools: composer:v2
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          bin/unslop new php "$RUNNER_TEMP/php"
+          cd "$RUNNER_TEMP/php"
+          scripts/setup
+          git add -A && git commit -qm lock
+          scripts/fast-check
+          expect_fail() {
+            printf '%s\n' "$2" > "$3"
+            vendor/bin/php-cs-fixer fix --show-progress=none "$3" >/dev/null 2>&1 || true
+            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
+            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
+            echo "caught: $1 by $4"
+            rm -f "$3"
+            git checkout -- .
+          }
+          expect_fail "comment" $'<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Domain;\n\nfinal class Note\n{\n    public const int VALUE = 1; // note\n}' src/Domain/Note.php "comments are forbidden"
+          expect_fail "var_dump" $'<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Cli;\n\nfinal class Debug\n{\n    public static function show(string $value): void\n    {\n        var_dump($value);\n    }\n}' src/Cli/Debug.php "write through an Output"
+          expect_fail "domain I/O" $'<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Domain;\n\nfinal class Reader\n{\n    public static function read(string $path): string|false\n    {\n        return file_get_contents($path);\n    }\n}' src/Domain/Reader.php "the domain does no I/O"
+          expect_fail "layer violation" $'<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Domain;\n\nuse App\\Cli\\Application;\n\nfinal class Leak\n{\n    public static function code(): int\n    {\n        return Application::EXIT_OK;\n    }\n}' src/Domain/Leak.php "must not depend on"
+          expect_fail "skipped test" $'<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Tests\\Domain;\n\nuse PHPUnit\\Framework\\TestCase;\n\nfinal class LaterTest extends TestCase\n{\n    public function testLater(): void\n    {\n        self::markTestSkipped(\'later\');\n    }\n}' tests/Domain/LaterTest.php "check-diff"
+          sed -i 's/self::Silver => 5,/self::Silver => 6,/' src/Domain/Tier.php
+          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
+          grep -q "FAILURES" "$RUNNER_TEMP/neg.txt" && echo "caught: behaviour change by a failing test"
+          git checkout -- .
+          scripts/verify
+          scripts/mutation

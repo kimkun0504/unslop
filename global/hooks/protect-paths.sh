@@ -20,6 +20,7 @@ case "$rel" in
   go.mod|go.sum|*/go.mod|*/go.sum|.golangci.y*ml|.custom-gcl.yml|.go-arch-lint.yml) block "$rel" ;;
   pyproject.toml|*/pyproject.toml|uv.lock|.importlinter|ruff.toml|.python-version|lefthook.yml) block "$rel" ;;
   *.csproj|*.slnx|*.sln|Directory.Build.props|Directory.Packages.props|Directory.Build.targets|global.json|.editorconfig|packages.lock.json|*/packages.lock.json|.config/dotnet-tools.json|stryker-config.json) block "$rel" ;;
+  composer.json|composer.lock|phpstan.neon|phpstan.neon.dist|deptrac.yaml|phpunit.xml.dist|infection.json5|.php-cs-fixer.dist.php) block "$rel" ;;
   Cargo.toml|*/Cargo.toml|Cargo.lock|clippy.toml|*/clippy.toml|deny.toml|rust-toolchain.toml|rustfmt.toml) block "$rel" ;;
   versions.tf|*/versions.tf|.tflint.hcl|.checkov.yaml|.terraform.lock.hcl) block "$rel" ;;
   mise.toml|mise.lock|renovate.json|.hadolint.yaml|.gitleaks.toml|.semgrep*|*.rego|Dockerfile|*/Dockerfile|.squawk.toml|atlas.hcl|flyway.toml) block "$rel" ;;
