@@ -5,12 +5,12 @@ scripts/fast-check
 rm -rf TestResults
 dotnet test --project tests/App.Domain.Tests --no-build --results-directory "$PWD/TestResults/domain" --coverlet --coverlet-output-format cobertura --coverlet-include "[App.Domain]*"
 dotnet test --project tests/App.Api.Tests --no-build --results-directory "$PWD/TestResults/api" --coverlet --coverlet-output-format cobertura --coverlet-include "[App.Api]*" --coverlet-exclude "[App.Api]Program"
-if ! find TestResults -name '*.cobertura.xml' | grep -q .; then
+if ! find TestResults -name '*cobertura*.xml' | grep -q .; then
   echo "coverage: no Cobertura reports under TestResults; files written:" >&2
   find . -path ./node_modules -prune -o \( -name '*cobertura*' -o -name '*.coverage*' \) -print >&2
   exit 1
 fi
-find TestResults -name '*.cobertura.xml' -print0 | xargs -0 uv run --quiet --no-project python -c '
+find TestResults -name '*cobertura*.xml' -print0 | xargs -0 uv run --quiet --no-project python -c '
 import sys
 import xml.etree.ElementTree as ET
 
