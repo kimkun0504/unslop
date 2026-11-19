@@ -285,6 +285,34 @@
         "mutation": "mutant"
       },
       "adopt": null
+    },
+    {
+      "name": "elixir",
+      "title": "Elixir",
+      "kind": "service",
+      "toolchain": {
+        "elixir": "1.20.5",
+        "erlang": "29.1.2"
+      },
+      "gates": {
+        "format": "mix format",
+        "lint": "Credo strict with opt-in readability, refactor and warning checks",
+        "types": "compiler type checker with warnings as errors, Dialyzer with underspecs and unmatched returns, @spec on every public function",
+        "architecture": "Boundary at compile time; Credo guards: pure domain, output only through injected devices",
+        "tests": "ExUnit with StreamData properties",
+        "coverage": "mix test --cover, 100% of lines",
+        "dead-code": "compiler unused warnings as errors, mix deps.unlock --check-unused",
+        "supply-chain": "mix.lock checked, mix hex.audit, mix_audit"
+      },
+      "summary": {
+        "format": "mix format",
+        "lint": "Credo strict, compiler types, Dialyzer",
+        "architecture": "Boundary, I/O banned in domain",
+        "tests": "ExUnit + StreamData",
+        "mutation": "none yet"
+      },
+      "adopt": null,
+      "autofix": "mix format"
     }
   ],
   "adopt": [

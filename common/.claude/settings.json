@@ -63,7 +63,12 @@
       "Edit(Steepfile)",
       "Edit(.mutant.yml)",
       "Edit(.rspec)",
-      "Edit(spec/spec_helper.rb)"
+      "Edit(spec/spec_helper.rb)",
+      "Edit(mix.exs)",
+      "Edit(mix.lock)",
+      "Edit(.credo.exs)",
+      "Edit(.formatter.exs)",
+      "Edit(.tool-versions)"
     ]
   },
   "sandbox": {
@@ -130,7 +135,12 @@
         "./Steepfile",
         "./.mutant.yml",
         "./.rspec",
-        "./spec/spec_helper.rb"
+        "./spec/spec_helper.rb",
+        "./mix.exs",
+        "./mix.lock",
+        "./.credo.exs",
+        "./.formatter.exs",
+        "./.tool-versions"
       ]
     }
   }

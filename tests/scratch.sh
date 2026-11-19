@@ -2,8 +2,11 @@
 set -uo pipefail
 git config --global user.name ci
 git config --global user.email ci@example.com
+template=${1:?usage: tests/scratch.sh <template>}
+[ -d "templates/$template" ] || { echo "no template named $template; nothing to probe"; exit 0; }
+fix=$(jq -r --arg t "$template" '.templates[] | select(.name == $t) | .autofix // empty' templates/catalog.json)
 work="${RUNNER_TEMP:-/tmp}/scratch"
-bin/unslop new "${SCRATCH_TEMPLATE:-php}" "$work"
+UNSLOP_OWNER=ci bin/unslop new "$template" "$work"
 cd "$work" || exit 0
 step() {
   echo "::group::$1"
@@ -15,8 +18,8 @@ step() {
 }
 step setup scripts/setup
 git add -A && git commit -qm lock
-if [ -n "${SCRATCH_FIX:-}" ]; then
-  step autofix bash -c "$SCRATCH_FIX"
+if [ -n "$fix" ]; then
+  step autofix bash -c "$fix"
   echo "PATCH-BEGIN"
   git diff
   echo "PATCH-END"

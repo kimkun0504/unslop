@@ -7,7 +7,9 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-24.04
-    if: vars.SCRATCH_TEMPLATE != ''
+    if: ${{ !startsWith(github.ref_name, 'scratch/adopt') }}
+    env:
+      TEMPLATE: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -15,14 +17,21 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: "0.13.9"
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
+        if: github.ref_name == 'scratch/elixir'
+        with:
+          version-file: templates/elixir/.tool-versions
+          version-type: strict
+      - uses: swift-actions/setup-swift@7ca6abe6b3b0e8b5421b88be48feee39cbf52c6a
+        if: github.ref_name == 'scratch/swift'
+        with:
+          swift-version: "6.4.2"
       - name: run tests/scratch.sh
         continue-on-error: true
-        run: bash tests/scratch.sh
-        env:
-          SCRATCH_TEMPLATE: ${{ vars.SCRATCH_TEMPLATE }}
-          SCRATCH_FIX: ${{ vars.SCRATCH_FIX }}
+        run: bash tests/scratch.sh "${TEMPLATE#scratch/}"
   adopt:
     runs-on: ubuntu-24.04
+    if: ${{ startsWith(github.ref_name, 'scratch/adopt') }}
     strategy:
       fail-fast: false
       matrix:

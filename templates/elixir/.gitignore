@@ -1,0 +1,10 @@
+/_build/
+/deps/
+/cover/
+/priv/plts/
+/doc/
+erl_crash.dump
+/app
+.env
+.env.*
+!.env.example
