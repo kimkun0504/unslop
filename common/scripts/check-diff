@@ -14,7 +14,8 @@ if [ -n "$hits" ]; then
   printf 'check-diff: new skip or suppression found:\n%s\n' "$hits" >&2
   exit 1
 fi
-tampered=$(git diff --name-only --diff-filter=DM "$base" -- '*.test.*' '*.spec.*' '*_test.go' 'test_*.py' '**/test_*.py' '*_test.py' 'src/test/**' '**/src/test/**' '**/__snapshots__/**')
+tests=('*.test.*' '*.spec.*' '*_test.go' 'test_*.py' '*_test.py' 'src/test/*' '*/src/test/*' '*/__snapshots__/*' 'tests/*' '*/tests/*' 'test/*' '*/test/*' 'spec/*' '*/spec/*' '*_spec.rb' '*Test.php' '*Tests.cs' '*Test.cs' '*.tftest.hcl')
+tampered=$(git diff --name-only --no-renames --diff-filter=DM "$base" -- "${tests[@]}")
 if [ -n "$tampered" ]; then
   printf 'check-diff: existing tests modified or deleted; a human must review:\n%s\n' "$tampered" >&2
   [ "${CHECK_DIFF_ALLOW_TEST_CHANGES:-}" = 1 ] || exit 1

@@ -38,9 +38,46 @@
     "failIfUnavailable": true,
     "allowUnsandboxedCommands": false,
     "filesystem": {
-      "allowWrite": ["~/.gradle", "~/.m2", "~/.cache", "~/.local/share/pnpm", "~/Library/pnpm", "~/Library/Caches", "~/go/pkg/mod", "~/.npm"],
-      "denyWrite": ["~/.claude", "~/.claude.json", "./.claude", "./.mcp.json", "./.git/hooks", "./.git/config"],
-      "denyRead": ["~/.ssh", "~/.aws", "~/.kube", "~/.config/gcloud", "~/.docker/config.json", "~/.npmrc", "~/.pypirc", "~/.netrc"]
+      "allowWrite": [
+        "~/.gradle",
+        "~/.m2",
+        "~/.cache",
+        "~/.local/share/pnpm",
+        "~/Library/pnpm",
+        "~/Library/Caches",
+        "~/go/pkg/mod",
+        "~/.npm",
+        "~/.cargo",
+        "~/.rustup",
+        "~/.nuget",
+        "~/.dotnet",
+        "~/.gem",
+        "~/.bundle",
+        "~/.composer",
+        "~/.terraform.d",
+        "~/.tflint.d",
+        "~/.local/share/uv",
+        "~/.local/share/mise",
+        "~/.local/state/mise"
+      ],
+      "denyWrite": [
+        "~/.claude",
+        "~/.claude.json",
+        "./.claude",
+        "./.mcp.json",
+        "./.git/hooks",
+        "./.git/config"
+      ],
+      "denyRead": [
+        "~/.ssh",
+        "~/.aws",
+        "~/.kube",
+        "~/.config/gcloud",
+        "~/.docker/config.json",
+        "~/.npmrc",
+        "~/.pypirc",
+        "~/.netrc"
+      ]
     },
     "network": {
       "strictAllowlist": true,
@@ -58,19 +95,57 @@
         "proxy.golang.org",
         "sum.golang.org",
         "pypi.org",
-        "files.pythonhosted.org"
+        "files.pythonhosted.org",
+        "api.github.com",
+        "release-assets.githubusercontent.com",
+        "raw.githubusercontent.com",
+        "crates.io",
+        "index.crates.io",
+        "static.crates.io",
+        "static.rust-lang.org",
+        "api.nuget.org",
+        "rubygems.org",
+        "index.rubygems.org",
+        "repo.packagist.org",
+        "packagist.org",
+        "registry.terraform.io",
+        "releases.hashicorp.com"
       ]
     },
     "credentials": {
       "envVars": [
-        { "name": "GITHUB_TOKEN", "mode": "deny" },
-        { "name": "GH_TOKEN", "mode": "deny" },
-        { "name": "NPM_TOKEN", "mode": "deny" },
-        { "name": "AWS_ACCESS_KEY_ID", "mode": "deny" },
-        { "name": "AWS_SECRET_ACCESS_KEY", "mode": "deny" },
-        { "name": "AWS_SESSION_TOKEN", "mode": "deny" },
-        { "name": "DATABASE_URL", "mode": "deny" },
-        { "name": "PGPASSWORD", "mode": "deny" }
+        {
+          "name": "GITHUB_TOKEN",
+          "mode": "deny"
+        },
+        {
+          "name": "GH_TOKEN",
+          "mode": "deny"
+        },
+        {
+          "name": "NPM_TOKEN",
+          "mode": "deny"
+        },
+        {
+          "name": "AWS_ACCESS_KEY_ID",
+          "mode": "deny"
+        },
+        {
+          "name": "AWS_SECRET_ACCESS_KEY",
+          "mode": "deny"
+        },
+        {
+          "name": "AWS_SESSION_TOKEN",
+          "mode": "deny"
+        },
+        {
+          "name": "DATABASE_URL",
+          "mode": "deny"
+        },
+        {
+          "name": "PGPASSWORD",
+          "mode": "deny"
+        }
       ]
     }
   },
@@ -78,16 +153,36 @@
     "PreToolUse": [
       {
         "matcher": "Bash|Monitor|PowerShell",
-        "hooks": [{ "type": "command", "command": "/usr/local/lib/claude-guard/guard-bash.sh", "timeout": 10, "onFailure": "block" }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/local/lib/claude-guard/guard-bash.sh",
+            "timeout": 10,
+            "onFailure": "block"
+          }
+        ]
       },
       {
         "matcher": "Edit|Write|NotebookEdit",
-        "hooks": [{ "type": "command", "command": "/usr/local/lib/claude-guard/protect-paths.sh", "timeout": 10, "onFailure": "block" }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/local/lib/claude-guard/protect-paths.sh",
+            "timeout": 10,
+            "onFailure": "block"
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "hooks": [{ "type": "command", "command": "/usr/local/lib/claude-guard/stop-gate.sh", "timeout": 300 }]
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/local/lib/claude-guard/stop-gate.sh",
+            "timeout": 300
+          }
+        ]
       }
     ]
   }

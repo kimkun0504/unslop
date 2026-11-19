@@ -109,9 +109,19 @@ expect 2 "plain: git hooks" protect-paths.sh "$(edit_in "$plain/.git/hooks/pre-c
 expect 2 "plain: malformed" protect-paths.sh "garbage"
 export CLAUDE_PROJECT_DIR="$marked"
 expect 0 "marked: src edit" protect-paths.sh "$(edit_in "$marked/src/a.ts")"
-for p in CLAUDE.md package.json web/package.json tsconfig.json eslint.config.ts scripts/fast-check .github/workflows/ci.yml build.gradle.kts gradle/libs.versions.toml go.mod .golangci.yml pyproject.toml uv.lock docs/decisions/0001-no-code-comments.md Dockerfile vite.config.ts knip.json stryker.config.json .prettierrc.json pnpm-workspace.yaml versions.tf modules/bucket/versions.tf .tflint.hcl .checkov.yaml .terraform.lock.hcl Cargo.toml crates/domain/Cargo.toml Cargo.lock crates/domain/clippy.toml deny.toml rust-toolchain.toml src/App.Api/App.Api.csproj Directory.Build.props Directory.Packages.props global.json .editorconfig src/App.Api/packages.lock.json .config/dotnet-tools.json composer.json composer.lock phpstan.neon deptrac.yaml phpunit.xml.dist infection.json5 .php-cs-fixer.dist.php Gemfile Gemfile.lock .ruby-version .rubocop.yml Steepfile .mutant.yml .rspec spec/spec_helper.rb .unslop/adopt.json .unslop/baseline/ruff.json .unslop/config/ruff.toml; do
+for p in CLAUDE.md package.json web/package.json tsconfig.json eslint.config.ts scripts/fast-check .github/workflows/ci.yml build.gradle.kts gradle/libs.versions.toml go.mod .golangci.yml pyproject.toml uv.lock Dockerfile vite.config.ts knip.json stryker.config.json .prettierrc.json pnpm-workspace.yaml versions.tf modules/bucket/versions.tf .tflint.hcl .checkov.yaml .terraform.lock.hcl Cargo.toml crates/domain/Cargo.toml Cargo.lock crates/domain/clippy.toml deny.toml rust-toolchain.toml src/App.Api/App.Api.csproj Directory.Build.props Directory.Packages.props global.json .editorconfig src/App.Api/packages.lock.json .config/dotnet-tools.json composer.json composer.lock phpstan.neon deptrac.yaml phpunit.xml.dist infection.json5 .php-cs-fixer.dist.php Gemfile Gemfile.lock .ruby-version .rubocop.yml Steepfile .mutant.yml .rspec spec/spec_helper.rb .unslop/adopt.json .unslop/baseline/ruff.json .unslop/config/ruff.toml; do
   expect 2 "marked: $p" protect-paths.sh "$(edit_in "$marked/$p")"
 done
+expect 2 "marked: dot-dot traversal into scripts" protect-paths.sh "$(edit_in "$marked/src/../scripts/fast-check")"
+expect 2 "marked: traversal through a missing folder" protect-paths.sh "$(edit_in "$marked/new/deeper/../../CLAUDE.md")"
+expect 2 "marked: dot segments" protect-paths.sh "$(edit_in "$marked/./.github/./workflows/ci.yml")"
+ln -s "$marked" "$work/linked"
+expect 2 "marked: guardrail file through a symlinked path" protect-paths.sh "$(edit_in "$work/linked/scripts/fast-check")"
+CLAUDE_PROJECT_DIR="$work/linked" expect 2 "marked: project dir given as a symlink" protect-paths.sh "$(edit_in "$marked/CLAUDE.md")"
+expect 0 "marked: traversal back into source" protect-paths.sh "$(edit_in "$marked/scripts/../src/a.ts")"
+expect 0 "marked: new decision record" protect-paths.sh "$(edit_in "$marked/docs/decisions/0009-new.md")"
+mkdir -p "$marked/docs/decisions" && touch "$marked/docs/decisions/0001-no-code-comments.md"
+expect 2 "marked: existing decision record" protect-paths.sh "$(edit_in "$marked/docs/decisions/0001-no-code-comments.md")"
 expect 0 "marked: new migration" protect-paths.sh "$(edit_in "$marked/db/migrations/V9__new.sql")"
 mkdir -p "$marked/db/migrations" && touch "$marked/db/migrations/V1__init.sql"
 expect 2 "marked: existing migration" protect-paths.sh "$(edit_in "$marked/db/migrations/V1__init.sql")"
@@ -121,7 +131,31 @@ expect 2 "marked: test locked ts" protect-paths.sh "$(edit_in "$marked/src/a.tes
 expect 2 "marked: test locked go" protect-paths.sh "$(edit_in "$marked/internal/x/a_test.go")"
 expect 2 "marked: test locked py" protect-paths.sh "$(edit_in "$marked/tests/test_a.py")"
 expect 2 "marked: test locked kt" protect-paths.sh "$(edit_in "$marked/src/test/kotlin/AT.kt")"
+for t in spec/models/user_spec.rb tests/Domain/MoneyTest.php tests/App.Tests/QuoteTests.cs tests/bucket.tftest.hcl test/app.js crates/app/tests/cli.rs; do
+  expect 2 "marked: test locked $t" protect-paths.sh "$(edit_in "$marked/$t")"
+done
 expect 0 "marked: src still editable" protect-paths.sh "$(edit_in "$marked/src/main.py")"
+
+diffrepo="$work/diffrepo"
+mkdir -p "$diffrepo/scripts" "$diffrepo/spec" "$diffrepo/tests/Domain" "$diffrepo/src"
+cp "$here/../../common/scripts/check-diff" "$here/../../common/scripts/diff-base" "$diffrepo/scripts/"
+git -C "$diffrepo" init -q -b main
+printf 'it works\n' > "$diffrepo/spec/money_spec.rb"
+printf '<?php\n' > "$diffrepo/tests/Domain/MoneyTest.php"
+printf 'x = 1\n' > "$diffrepo/src/app.py"
+git -C "$diffrepo" add -A && git -C "$diffrepo" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -m base
+check_diff() { (cd "$diffrepo" && scripts/check-diff >/dev/null 2>&1); }
+if check_diff; then tally ok; else tally no "check-diff: clean tree should pass"; fi
+printf 'it changed\n' > "$diffrepo/spec/money_spec.rb"
+if check_diff; then tally no "check-diff: edited Ruby spec should fail"; else tally ok; fi
+git -C "$diffrepo" checkout -q -- .
+git -C "$diffrepo" mv tests/Domain/MoneyTest.php tests/Domain/PriceTest.php
+printf '<?php\nchanged\n' > "$diffrepo/tests/Domain/PriceTest.php"
+if check_diff; then tally no "check-diff: renamed and edited PHP test should fail"; else tally ok; fi
+git -C "$diffrepo" reset -q --hard
+printf 'x = 2\n' > "$diffrepo/src/app.py"
+if check_diff; then tally ok; else tally no "check-diff: source edits should pass"; fi
+git -C "$diffrepo" checkout -q -- .
 
 stop_in() { jq -cn --arg s "$1" '{session_id:$s,stop_hook_active:false}'; }
 gate="$work/gate"
