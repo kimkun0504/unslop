@@ -109,7 +109,7 @@ expect 2 "plain: git hooks" protect-paths.sh "$(edit_in "$plain/.git/hooks/pre-c
 expect 2 "plain: malformed" protect-paths.sh "garbage"
 export CLAUDE_PROJECT_DIR="$marked"
 expect 0 "marked: src edit" protect-paths.sh "$(edit_in "$marked/src/a.ts")"
-for p in CLAUDE.md package.json web/package.json tsconfig.json eslint.config.ts scripts/fast-check .github/workflows/ci.yml build.gradle.kts gradle/libs.versions.toml go.mod .golangci.yml pyproject.toml uv.lock docs/decisions/0001-no-code-comments.md Dockerfile vite.config.ts knip.json stryker.config.json .prettierrc.json pnpm-workspace.yaml versions.tf modules/bucket/versions.tf .tflint.hcl .checkov.yaml .terraform.lock.hcl Cargo.toml crates/domain/Cargo.toml Cargo.lock crates/domain/clippy.toml deny.toml rust-toolchain.toml; do
+for p in CLAUDE.md package.json web/package.json tsconfig.json eslint.config.ts scripts/fast-check .github/workflows/ci.yml build.gradle.kts gradle/libs.versions.toml go.mod .golangci.yml pyproject.toml uv.lock docs/decisions/0001-no-code-comments.md Dockerfile vite.config.ts knip.json stryker.config.json .prettierrc.json pnpm-workspace.yaml versions.tf modules/bucket/versions.tf .tflint.hcl .checkov.yaml .terraform.lock.hcl Cargo.toml crates/domain/Cargo.toml Cargo.lock crates/domain/clippy.toml deny.toml rust-toolchain.toml src/App.Api/App.Api.csproj Directory.Build.props Directory.Packages.props global.json .editorconfig src/App.Api/packages.lock.json .config/dotnet-tools.json; do
   expect 2 "marked: $p" protect-paths.sh "$(edit_in "$marked/$p")"
 done
 expect 0 "marked: new migration" protect-paths.sh "$(edit_in "$marked/db/migrations/V9__new.sql")"

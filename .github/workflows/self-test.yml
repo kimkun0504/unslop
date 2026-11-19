@@ -252,3 +252,42 @@ jobs:
           git checkout -- .
           scripts/verify
           scripts/mutation
+  dotnet-template:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73
+        with:
+          global-json-file: templates/dotnet/global.json
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          bin/unslop new dotnet "$RUNNER_TEMP/net"
+          cd "$RUNNER_TEMP/net"
+          scripts/setup
+          git add -A && git commit -qm lock
+          scripts/fast-check
+          expect_fail() {
+            printf '%s\n' "$2" > "$3"
+            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
+            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
+            echo "caught: $1 by $4"
+            rm -f "$3"
+            git checkout -- .
+          }
+          D=src/App.Domain
+          expect_fail "comment" $'namespace App.Domain;\n\npublic static class Note\n{\n    public static int Value => 1; // note\n}' "$D/Note.cs" "comments are forbidden"
+          expect_fail "console in domain" $'namespace App.Domain;\n\npublic static class Shout\n{\n    public static void Say() => Console.WriteLine("x");\n}' "$D/Shout.cs" "System.Console"
+          expect_fail "pragma suppression" $'namespace App.Domain;\n\n#pragma warning disable CA1822\npublic static class Quiet\n{\n}' "$D/Quiet.cs" "check-diff"
+          expect_fail "unchecked null" $'namespace App.Domain;\n\npublic static class Maybe\n{\n    public static string Value() => null;\n}' "$D/Maybe.cs" "CS8603"
+          sed -i 's/Tier.Silver => 5,/Tier.Silver => 6,/' "$D/Pricing.cs"
+          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
+          grep -qE "Failed|failed" "$RUNNER_TEMP/neg.txt" && echo "caught: behaviour change by a failing test"
+          git checkout -- .
+          scripts/verify
+          scripts/mutation

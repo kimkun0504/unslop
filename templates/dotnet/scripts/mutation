@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+log=$(mktemp)
+trap 'rm -f "$log"' EXIT
+rm -rf StrykerOutput
+status=0
+dotnet stryker | tee "$log" || status=$?
+if [ "$status" -ne 0 ] || ! grep -Eq 'final mutation score is 100(\.0+)? ?%' "$log"; then
+  report=$(find StrykerOutput -name mutation-report.json | head -n 1)
+  if [ -n "$report" ]; then
+    echo "mutants not killed:" >&2
+    jq -r '.files | to_entries[] | .key as $file | .value.mutants[] | select(.status != "Killed" and .status != "Ignored" and .status != "CompileError") | "\($file):\(.location.start.line):\(.location.start.column) \(.status) \(.mutatorName) -> \(.replacement // "")"' "$report" >&2
+  fi
+  echo "mutation: Stryker did not report a 100% score" >&2
+  exit 1
+fi
