@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+source=.
+[ ! -d src ] || source=src
+coverage="--cov=$source --cov-config=.unslop/config/coveragerc --cov-report=xml:.unslop/out/coverage.xml"
+if [ -f uv.lock ]; then
+  tests="uv run --with pytest-cov pytest -q $coverage"
+  setup="uv sync --locked"
+elif [ -f poetry.lock ]; then
+  tests="poetry run pytest -q $coverage"
+  setup="poetry install --no-interaction"
+else
+  tests="python -m pytest -q $coverage"
+  setup="python -m pip install -e . pytest pytest-cov"
+fi
+jq -n --arg tests "$tests" --arg setup "$setup" '{
+  stack: "python",
+  setup: $setup,
+  format: [{name: "ruff format", glob: ["*.py", "*.pyi"], run: "uvx ruff@0.17.4 format --stdin-filename {path} -"}],
+  checks: [
+    {name: "ruff", format: "sarif", report: ".unslop/out/ruff.sarif",
+     run: "uvx ruff@0.17.4 check --config .unslop/config/ruff.toml --exit-zero --output-format sarif --output-file .unslop/out/ruff.sarif ."},
+    {name: "basedpyright", format: "pyright", report: ".unslop/out/basedpyright.json",
+     run: "uvx basedpyright@1.40.2 -p .unslop/config/pyrightconfig.json --outputjson > .unslop/out/basedpyright.json"}
+  ],
+  tests: {run: $tests, coverage: ".unslop/out/coverage.xml"}
+}'

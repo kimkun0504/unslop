@@ -14,7 +14,7 @@ case "$rel" in
 esac
 [ -f "$root/.claude/unslop.json" ] || exit 0
 case "$rel" in
-  CLAUDE.md|AGENTS.md|.github/*|CODEOWNERS|scripts/*|tools/guard/*|docs/decisions/*) block "$rel" ;;
+  CLAUDE.md|AGENTS.md|.github/*|CODEOWNERS|scripts/*|tools/guard/*|docs/decisions/*|.unslop/*) block "$rel" ;;
   package.json|*/package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.npmrc|tsconfig*.json|*/tsconfig*.json|eslint.config.*|eslint-rules/*|.dependency-cruiser.*|knip.*|stryker.config.*|vitest.config.*|vite.config.*|.prettierrc*|.prettierignore|playwright.config.*|lighthouserc.*|.size-limit.*) block "$rel" ;;
   build.gradle.kts|*/build.gradle.kts|settings.gradle.kts|gradle/*|build-logic/*|gradle.properties|gradlew|gradlew.bat|config/*) block "$rel" ;;
   go.mod|go.sum|*/go.mod|*/go.sum|.golangci.y*ml|.custom-gcl.yml|.go-arch-lint.yml) block "$rel" ;;

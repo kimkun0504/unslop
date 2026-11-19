@@ -1,0 +1,9 @@
+{
+  "typeCheckingMode": "all",
+  "include": ["../.."],
+  "exclude": ["../../.venv", "../../.unslop", "../../tools/guard", "../../**/node_modules", "../../**/__pycache__", "../../build", "../../dist"],
+  "venvPath": "../..",
+  "venv": ".venv",
+  "extraPaths": ["../../src"],
+  "reportUnnecessaryTypeIgnoreComment": "error"
+}

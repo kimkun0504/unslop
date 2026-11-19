@@ -1,0 +1,54 @@
+version: "2"
+run:
+  tests: true
+  relative-path-mode: gitroot
+  issues-exit-code: 0
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+linters:
+  default: all
+  disable:
+    - exhaustruct
+    - depguard
+    - gomodguard
+    - wsl
+    - wsl_v5
+    - nlreturn
+    - lll
+    - varnamelen
+    - ireturn
+    - tagliatelle
+    - godot
+    - godox
+    - godoclint
+    - dupword
+  settings:
+    govet:
+      enable-all: true
+    exhaustive:
+      default-signifies-exhaustive: true
+    cyclop:
+      max-complexity: 10
+    gocognit:
+      min-complexity: 12
+    funlen:
+      lines: 60
+      statements: 40
+    nolintlint:
+      allow-unused: false
+      require-explanation: true
+      require-specific: true
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^fmt\.Print.*$
+        - pattern: ^print(ln)?$
+        - pattern: ^panic$
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+  exclusions:
+    generated: strict
+    warn-unused: true
