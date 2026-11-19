@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [ -x gradlew ] || compgen -G 'build.gradle*' >/dev/null || compgen -G 'settings.gradle*' >/dev/null; then
+  build=gradle
+  [ ! -x gradlew ] || build=./gradlew
+  tests="$build test --init-script .unslop/config/jacoco.init.gradle"
+  coverage="**/build/reports/jacoco/test/jacocoTestReport.xml"
+elif [ -f pom.xml ]; then
+  build=mvn
+  [ ! -x mvnw ] || build=./mvnw
+  tests="$build -B -q org.jacoco:jacoco-maven-plugin:0.8.14:prepare-agent test org.jacoco:jacoco-maven-plugin:0.8.14:report"
+  coverage="**/target/site/jacoco/jacoco.xml"
+else
+  echo "detect: no Gradle or Maven build in $(pwd)" >&2
+  exit 1
+fi
+checks='[]'
+if git ls-files '*.kt' | grep -q .; then
+  checks=$(jq '. + [{name: "detekt", format: "sarif", report: ".unslop/out/detekt.sarif",
+    run: "java -jar \"$(.unslop/guard/fetch detekt)\" --input . --excludes \"**/build/**,**/.unslop/**\" --build-upon-default-config --all-rules --report sarif:.unslop/out/detekt.sarif > /dev/null || true"}]' <<<"$checks")
+fi
+if git ls-files '*.java' | grep -q .; then
+  checks=$(jq '. + [{name: "pmd", format: "sarif", report: ".unslop/out/pmd.sarif",
+    run: "\"$(.unslop/guard/fetch pmd)\" check --dir . --rulesets rulesets/java/quickstart.xml --format sarif --report-file .unslop/out/pmd.sarif --no-fail-on-violation --no-fail-on-error --no-progress"}]' <<<"$checks")
+fi
+jq -n --arg tests "$tests" --arg coverage "$coverage" --argjson checks "$checks" '{
+  stack: "jvm",
+  checks: $checks,
+  tests: {run: $tests, coverage: $coverage, src_roots: ["src/main/java", "src/main/kotlin", "*/src/main/java", "*/src/main/kotlin"]}
+}'

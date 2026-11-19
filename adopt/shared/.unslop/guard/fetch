@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+case "${1:-}" in
+  detekt)
+    url=https://github.com/detekt/detekt/releases/download/v1.23.8/detekt-cli-1.23.8-all.jar
+    sum=2ce2ff952e150baf28a29cda70a363b0340b3e81a55f43e51ec5edffc3d066c1
+    name=detekt-cli.jar ;;
+  pmd)
+    url=https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.29.0/pmd-dist-7.29.0-bin.zip
+    sum=d27177c185b837fa57f097e482d1253468aa035379c5eb2671fa0a279109b179
+    name=pmd.zip ;;
+  *) echo "usage: fetch detekt|pmd" >&2; exit 2 ;;
+esac
+dir="${XDG_CACHE_HOME:-$HOME/.cache}/unslop/$sum"
+if [ ! -f "$dir/$name" ]; then
+  mkdir -p "$dir"
+  curl -fsSL --retry 3 -o "$dir/$name.part" "$url"
+  echo "$sum  $dir/$name.part" | sha256sum -c --quiet - >&2 || { rm -f "$dir/$name.part"; echo "fetch: checksum mismatch for $url" >&2; exit 1; }
+  mv "$dir/$name.part" "$dir/$name"
+fi
+if [ "$name" = pmd.zip ]; then
+  [ -d "$dir/unpacked" ] || { unzip -q -o "$dir/$name" -d "$dir/unpacked.part" && mv "$dir/unpacked.part" "$dir/unpacked"; }
+  echo "$dir/unpacked/pmd-bin-7.29.0/bin/pmd"
+else
+  echo "$dir/$name"
+fi

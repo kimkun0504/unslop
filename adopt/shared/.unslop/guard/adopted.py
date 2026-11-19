@@ -1,4 +1,5 @@
 import fnmatch
+import glob
 import json
 import os
 import re
@@ -212,11 +213,15 @@ def tested(tests: Json, since: str) -> bool:
         sys.stderr.write(result.stderr[-4000:])
         print("tests: failed")
         return False
-    coverage = text(tests.get("coverage"))
-    if not coverage:
+    pattern = text(tests.get("coverage"))
+    if not pattern:
         return True
-    roots = [text(root) for root in cast("list[object]", tests.get("src_roots", []))]
-    command = ["uv", "run", "--quiet", "--no-project", "--with", DIFF_COVER, "diff-cover", coverage]
+    reports = sorted(glob.glob(pattern, recursive=True))
+    if not reports:
+        print(f"coverage: the tests wrote no report matching {pattern}")
+        return False
+    roots = sorted({root for item in cast("list[object]", tests.get("src_roots", [])) for root in glob.glob(text(item)) if Path(root).is_dir()})
+    command = ["uv", "run", "--quiet", "--no-project", "--with", DIFF_COVER, "diff-cover", *reports]
     command += ["--compare-branch", since, "--fail-under", "100", "--include-untracked"]
     command += ["--exclude", *GUARD_PATHS]
     if roots:
