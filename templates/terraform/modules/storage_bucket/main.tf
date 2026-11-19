@@ -31,25 +31,22 @@ data "aws_caller_identity" "current" {}
 
 data "aws_partition" "current" {}
 
-data "aws_iam_policy_document" "key" {
-  statement {
-    sid       = "AccountAdministration"
-    effect    = "Allow"
-    actions   = ["kms:*"]
-    resources = ["*"]
-
-    principals {
-      type        = "AWS"
-      identifiers = ["arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:root"]
-    }
-  }
-}
-
 resource "aws_kms_key" "this" {
   description             = "Encryption key for ${var.name}"
   enable_key_rotation     = true
   deletion_window_in_days = 30
-  policy                  = data.aws_iam_policy_document.key.json
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AccountAdministration"
+        Effect    = "Allow"
+        Action    = "kms:*"
+        Resource  = "*"
+        Principal = { AWS = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:root" }
+      },
+    ]
+  })
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
