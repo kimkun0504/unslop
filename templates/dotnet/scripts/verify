@@ -2,7 +2,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 scripts/fast-check
-find . -name '*.cobertura.xml' -path '*TestResults*' -print0 | xargs -0 uv run --quiet --no-project python -c '
+rm -rf TestResults
+dotnet test --project tests/App.Domain.Tests --no-build --results-directory TestResults/domain --coverlet --coverlet-output-format cobertura --coverlet-include "[App.Domain]*"
+dotnet test --project tests/App.Api.Tests --no-build --results-directory TestResults/api --coverlet --coverlet-output-format cobertura --coverlet-include "[App.Api]*" --coverlet-exclude "[App.Api]Program"
+find TestResults -name '*.cobertura.xml' -print0 | xargs -0 uv run --quiet --no-project python -c '
 import sys
 import xml.etree.ElementTree as ET
 

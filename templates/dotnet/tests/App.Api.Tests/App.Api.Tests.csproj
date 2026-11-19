@@ -2,7 +2,6 @@
   <PropertyGroup>
     <IsPackable>false</IsPackable>
     <OutputType>Exe</OutputType>
-    <TestingPlatformCommandLineArguments>--coverlet --coverlet-output-format cobertura --coverlet-file-prefix $(MSBuildProjectName) --coverlet-include "[App.Api]*" --coverlet-exclude "[App.Api]Program"</TestingPlatformCommandLineArguments>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" />

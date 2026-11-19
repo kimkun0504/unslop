@@ -5,5 +5,4 @@ scripts/check-comments
 scripts/check-diff
 dotnet format App.slnx --verify-no-changes --no-restore
 dotnet build App.slnx --no-restore
-find . -name '*.cobertura.xml' -path '*TestResults*' -delete
 dotnet test --solution App.slnx --no-build
