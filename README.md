@@ -49,8 +49,9 @@ Every template ships a small working feature in the house style and passes the s
 | `ts-react` | prettier | typescript-eslint strict, tsc strictest, jsx-a11y | eslint-plugin-boundaries | vitest, testing-library, fast-check | Stryker |
 | `go` | gofumpt | golangci-lint (all linters) | depguard | race detector, native fuzzing | none maintained |
 | `kotlin-spring` | ktlint | detekt (all rules), warnings as errors | Spring Modulith | JUnit 5, Spring Boot | PIT |
+| `terraform` | terraform fmt | tflint (all rules, AWS), validate, checkov | single-purpose modules | `terraform test` with mocked providers | none available |
 
-The full gate list per template is in [`templates/catalog.json`](templates/catalog.json). Next stacks: Terraform, Java with Spring, Rust and C# with .NET. To add one, follow [Adding a stack](docs/adding-a-stack.md).
+The full gate list per template is in [`templates/catalog.json`](templates/catalog.json). Next stacks: Java with Spring, Rust and C# with .NET. To add one, follow [Adding a stack](docs/adding-a-stack.md).
 
 Every template has the same commands:
 

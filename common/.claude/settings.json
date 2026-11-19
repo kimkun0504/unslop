@@ -31,7 +31,11 @@
       "Edit(.prettierignore)",
       "Edit(pnpm-workspace.yaml)",
       "Edit(.npmrc)",
-      "Edit(.python-version)"
+      "Edit(.python-version)",
+      "Edit(**/versions.tf)",
+      "Edit(.tflint.hcl)",
+      "Edit(.checkov.yaml)",
+      "Edit(.terraform.lock.hcl)"
     ]
   },
   "sandbox": {
@@ -67,7 +71,11 @@
         "./.prettierignore",
         "./pnpm-workspace.yaml",
         "./.npmrc",
-        "./.python-version"
+        "./.python-version",
+        "./versions.tf",
+        "./.tflint.hcl",
+        "./.checkov.yaml",
+        "./.terraform.lock.hcl"
       ]
     }
   }

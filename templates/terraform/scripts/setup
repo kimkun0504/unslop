@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+required=$(sed -n 's/^terraform = "\(.*\)"$/\1/p' mise.toml)
+actual=$(terraform version -json 2>/dev/null | jq -r '.terraform_version' || true)
+[ "$actual" = "$required" ] || { echo "Terraform $required required (found ${actual:-none}); run: mise install" >&2; exit 1; }
+command -v tflint >/dev/null || { echo "tflint missing; run: mise install" >&2; exit 1; }
+command -v uv >/dev/null || { echo "uv missing; run: mise install" >&2; exit 1; }
+if [ -f .terraform.lock.hcl ]; then
+  terraform init -backend=false -input=false -lockfile=readonly >/dev/null
+else
+  terraform init -backend=false -input=false >/dev/null
+  echo "created .terraform.lock.hcl; commit it so every run uses the same provider builds" >&2
+fi
+tflint --init >/dev/null
