@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+scripts/check-comments
+scripts/check-diff
+terraform fmt -check -recursive -diff
+terraform validate -no-color
+tflint --recursive --format compact
+terraform test -no-color

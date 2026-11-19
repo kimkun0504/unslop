@@ -19,6 +19,7 @@ case "$rel" in
   build.gradle.kts|*/build.gradle.kts|settings.gradle.kts|gradle/*|build-logic/*|gradle.properties|gradlew|gradlew.bat|config/*) block "$rel" ;;
   go.mod|go.sum|*/go.mod|*/go.sum|.golangci.y*ml|.custom-gcl.yml|.go-arch-lint.yml) block "$rel" ;;
   pyproject.toml|*/pyproject.toml|uv.lock|.importlinter|ruff.toml|.python-version|lefthook.yml) block "$rel" ;;
+  versions.tf|*/versions.tf|.tflint.hcl|.checkov.yaml|.terraform.lock.hcl) block "$rel" ;;
   mise.toml|mise.lock|renovate.json|.hadolint.yaml|.gitleaks.toml|.semgrep*|*.rego|Dockerfile|*/Dockerfile|.squawk.toml|atlas.hcl|flyway.toml) block "$rel" ;;
   migrations/*|*/migrations/*) [ -e "$f" ] && block "$rel" ;;
 esac

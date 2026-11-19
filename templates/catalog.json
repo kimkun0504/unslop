@@ -4,7 +4,10 @@
       "name": "python",
       "title": "Python",
       "kind": "service",
-      "toolchain": { "python": "3.13", "uv": "0.13.9" },
+      "toolchain": {
+        "python": "3.13",
+        "uv": "0.13.9"
+      },
       "gates": {
         "format": "ruff format",
         "lint": "ruff (ALL rules)",
@@ -21,7 +24,10 @@
       "name": "ts-react",
       "title": "TypeScript + React",
       "kind": "web",
-      "toolchain": { "node": "22", "pnpm": "12.21.0" },
+      "toolchain": {
+        "node": "22",
+        "pnpm": "12.21.0"
+      },
       "gates": {
         "format": "prettier",
         "lint": "typescript-eslint strict-type-checked, jsx-a11y strict, react-hooks",
@@ -39,7 +45,10 @@
       "name": "go",
       "title": "Go",
       "kind": "service",
-      "toolchain": { "go": "1.27.4", "golangci-lint": "2.15.0" },
+      "toolchain": {
+        "go": "1.27.4",
+        "golangci-lint": "2.15.0"
+      },
       "gates": {
         "format": "gofumpt, goimports",
         "lint": "golangci-lint (all linters)",
@@ -56,7 +65,12 @@
       "name": "kotlin-spring",
       "title": "Kotlin + Spring Boot",
       "kind": "service",
-      "toolchain": { "java": "21", "gradle": "9.9.1", "kotlin": "2.4.21", "spring-boot": "4.1.2" },
+      "toolchain": {
+        "java": "21",
+        "gradle": "9.9.1",
+        "kotlin": "2.4.21",
+        "spring-boot": "4.1.2"
+      },
       "gates": {
         "format": "ktlint via spotless",
         "lint": "detekt (all rules) + syntax guard for println, TODO and !!",
@@ -67,6 +81,28 @@
         "mutation": "PIT STRONGER, 100% killed",
         "dead-code": "detekt unused rules",
         "supply-chain": "Gradle version catalog"
+      }
+    },
+    {
+      "name": "terraform",
+      "title": "Terraform on AWS",
+      "kind": "infrastructure",
+      "toolchain": {
+        "terraform": "1.17.2",
+        "tflint": "0.66.0",
+        "aws-provider": "~> 6.73"
+      },
+      "gates": {
+        "format": "terraform fmt",
+        "lint": "tflint (terraform preset all + AWS ruleset)",
+        "types": "terraform validate, typed and validated variables",
+        "architecture": "root module composes single-purpose modules",
+        "tests": "terraform test with mocked providers",
+        "coverage": "every validation and secure default asserted",
+        "mutation": null,
+        "dead-code": "tflint terraform_unused_declarations",
+        "supply-chain": "provider lockfile, pinned provider and plugin versions",
+        "security": "checkov"
       }
     }
   ]

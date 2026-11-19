@@ -1,0 +1,12 @@
+framework:
+  - terraform
+compact: true
+quiet: true
+download-external-modules: false
+skip-check:
+  # CKV_AWS_18 access logging needs a dedicated log bucket; add one per system and remove this skip.
+  - CKV_AWS_18
+  # CKV2_AWS_62 event notifications need a consumer; add them where a workflow reacts to uploads.
+  - CKV2_AWS_62
+  # CKV_AWS_144 cross-region replication is a disaster-recovery decision recorded per system.
+  - CKV_AWS_144
