@@ -9,5 +9,5 @@ description: Interview the human and write SPEC.md with numbered, testable accep
 2. Never fill a gap with a guess. Each open question stays in an `Open questions` section until the human answers it.
 3. Write SPEC.md with these sections: Goal, Users, Acceptance criteria, Data, Errors, Non-goals, Open questions.
 4. Each acceptance criterion is numbered (`AC-1`, `AC-2`), observable from outside the code, and checkable by one automated test. Rewrite any criterion that says "fast", "clean", "robust" or "user-friendly" into a measurable one.
-5. Record every architectural choice the spec forces as a decision in `docs/decisions/` using the existing template, with a Confirmation line naming the check that enforces it.
+5. Record every architectural choice the spec forces as a new file in `docs/decisions/`, numbered after the last one, using the template there (or the structure of `.unslop/decisions/` in an adopted repository), with status `proposed` and a Confirmation line naming the check that enforces it. Existing records cannot be edited; a human accepts the new one in review.
 6. Show the spec to the human and wait for approval before writing code.

@@ -94,3 +94,21 @@ def test_formatting_is_required_only_where_it_was_kept(tmp_path: Path, monkeypat
     assert "tidy.txt: was formatted before this change and is not now" in output
     assert "new.txt: new file is not formatted" in output
     assert "messy.txt" not in output
+
+
+def test_a_broken_tool_is_not_mistaken_for_a_clean_result(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    report = ".unslop/out/tsc.txt"
+    broken = {"name": "tsc", "format": "tsc", "report": report, "run": f"echo 'tsc: not found' >&2; exit 127 > {report}; : > {report}; exit 127"}
+    with pytest.raises(adopted.BrokenCheckError, match="exit code 127"):
+        adopted.collect(broken)
+    clean = {"name": "tsc", "format": "tsc", "report": report, "run": f": > {report}"}
+    assert adopted.collect(clean) == []
+    found = {"name": "tsc", "format": "tsc", "report": report, "run": f"echo 'a.ts(1,1): error TS1: x' > {report}; exit 2"}
+    assert [f.rule for f in adopted.collect(found)] == ["TS1"]
+    invalid = {"name": "lint", "format": "sarif", "report": ".unslop/out/lint.sarif", "run": "printf 'oops' > .unslop/out/lint.sarif"}
+    with pytest.raises(adopted.BrokenCheckError, match="not valid JSON"):
+        adopted.collect(invalid)
+    missing = {"name": "lint", "format": "sarif", "report": ".unslop/out/none.sarif", "run": "true"}
+    with pytest.raises(adopted.BrokenCheckError, match="wrote no report"):
+        adopted.collect(missing)

@@ -26,11 +26,11 @@ if [ -f "$base_config" ]; then
     }
   }' > .unslop/config/tsconfig.json
   checks=$(jq --arg run "$run" '. + [{name: "tsc", format: "tsc", report: ".unslop/out/tsc.txt",
-    run: "\($run) tsc -p .unslop/config/tsconfig.json --pretty false > .unslop/out/tsc.txt || true"}]' <<<"$checks")
+    run: "\($run) tsc -p .unslop/config/tsconfig.json --pretty false > .unslop/out/tsc.txt"}]' <<<"$checks")
 fi
 if compgen -G 'eslint.config.*' >/dev/null || compgen -G '.eslintrc*' >/dev/null; then
   checks=$(jq --arg run "$run" '. + [{name: "eslint", format: "eslint", report: ".unslop/out/eslint.json",
-    run: "\($run) eslint . --format json --output-file .unslop/out/eslint.json || true"}]' <<<"$checks")
+    run: "\($run) eslint . --format json --output-file .unslop/out/eslint.json"}]' <<<"$checks")
 fi
 format='[]'
 if has prettier; then

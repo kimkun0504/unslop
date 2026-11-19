@@ -39,4 +39,9 @@ cases() {
   printf 'export const double = (value: number): number => value * 2;\n' > src/double.ts
   printf 'import { expect, test } from "vitest";\nimport { double } from "./double";\n\ntest("doubles", () => {\n  expect(double(2)).toBe(4);\n});\n' > src/double.test.ts
   expect_pass "clean, tested new code"
+  rm node_modules/.bin/tsc
+  printf '#!/bin/sh\necho "tsc: cannot start" >&2\nexit 1\n' > node_modules/.bin/tsc
+  chmod +x node_modules/.bin/tsc
+  expect_fail "a check whose tool cannot start" "instead of trusting an empty result"
+  ln -sf ../typescript/bin/tsc node_modules/.bin/tsc
 }

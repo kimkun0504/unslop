@@ -14,7 +14,7 @@ Installed by `sudo ./install/install.sh system`. Applies to every repository on 
 |---|---|---|---|
 | M1 | Secrets cannot be read: `.env*`, `~/.ssh`, `~/.aws`, `~/.kube`, gcloud, Docker, npm, PyPI and netrc credentials, `*.pem`, `*.key` | `permissions.deny` Read rules plus `sandbox.filesystem.denyRead` | Boundary for shell, tripwire for the Read tool |
 | M2 | Credential environment variables are hidden from shell commands: `GITHUB_TOKEN`, `GH_TOKEN`, `NPM_TOKEN`, AWS keys, `DATABASE_URL`, `PGPASSWORD` | `sandbox.credentials.envVars` deny | Boundary |
-| M3 | Shell commands run sandboxed, may write only to the project and package caches, and may reach only package registries and GitHub | `sandbox` with `failIfUnavailable`, `allowUnsandboxedCommands: false`, `network.strictAllowlist` | Boundary |
+| M3 | Shell commands run sandboxed, may write only to the project and the toolchain caches of every template stack, and may reach only those stacks' package registries and GitHub | `sandbox` with `failIfUnavailable`, `allowUnsandboxedCommands: false`, `network.strictAllowlist` | Boundary |
 | M4 | Claude's own configuration cannot be changed: `~/.claude`, `.claude/`, `.mcp.json`, git hooks and git config | Edit deny rules, sandbox `denyWrite`, `protect-paths.sh` | Boundary |
 | M5 | No bypass mode | `disableBypassPermissionsMode: "disable"` | Boundary |
 | M6 | Project MCP servers are not auto-enabled | `enableAllProjectMcpServers: false` | Boundary |
@@ -33,15 +33,15 @@ Switched on by `.claude/unslop.json`, which every template project contains. Fil
 
 | ID | Guardrail | Mechanism | Strength |
 |---|---|---|---|
-| P1 | Guardrail files are read-only for Claude: build files, lockfiles, lint and type configs, `scripts/`, CI, `CLAUDE.md`, decision records, Dockerfiles | Project deny rules, sandbox `denyWrite`, `protect-paths.sh` | Boundary |
-| P2 | Applied migrations cannot be edited; new ones can be added | `protect-paths.sh` | Gate |
+| P1 | Guardrail files are read-only for Claude: build files, lockfiles, lint and type configs, `scripts/`, CI, `CLAUDE.md`, Dockerfiles | Project deny rules, sandbox `denyWrite`, `protect-paths.sh` | Boundary |
+| P2 | Applied migrations and existing decision records cannot be edited; new ones can be added | `protect-paths.sh` | Gate |
 | P3 | Tests can be locked for an implementation phase: `touch .claude/tests.locked` | `protect-paths.sh` | Gate |
 | P4 | Claude cannot stop while `scripts/fast-check` fails | Stop hook `stop-gate.sh` | Gate |
 | P5 | The stop check never fails silently: three identical failures or twenty in a session end the session with a visible reason | `stop-gate.sh` | Gate |
 | P6 | Committed work is still checked; only an exact state that already passed is skipped | `stop-gate.sh` fingerprint of HEAD, diff and untracked files | Gate |
 | P7 | No code comments in any language | `scripts/check-comments` (tree-sitter parsers for 300+ languages) | Gate |
 | P8 | No new suppressions or skipped tests: `eslint-disable`, `@ts-expect-error`, `# noqa`, `# type: ignore`, `//nolint`, `@Suppress`, `.skip`, `.only`, `@Disabled`, `t.Skip` and more | `scripts/check-diff` | Gate |
-| P9 | Existing tests cannot be changed or deleted without the `tests-reviewed` label | `scripts/check-diff` | Gate |
+| P9 | Existing tests cannot be changed, deleted or renamed without the `tests-reviewed` label, in every template's test layout | `scripts/check-diff` | Gate |
 | P10 | Per-stack quality gates: format, lint, types, architecture, tests, coverage, mutation, dead code, supply chain | `scripts/fast-check`, `scripts/verify`, `scripts/mutation`; see the [stack matrix](../README.md#stacks) | Gate |
 
 ## 2a. Adopted repositories

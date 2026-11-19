@@ -4,7 +4,7 @@
 
 Run `/unslop-spec`. Claude interviews you until the goal, inputs, outputs, data, errors, limits and non-goals are concrete, then writes `SPEC.md` with numbered acceptance criteria (`AC-1`, `AC-2`), each checkable by one automated test. Open questions stay listed until you answer them. Nothing gets built before you approve the spec.
 
-Architectural choices the spec forces go into `docs/decisions/` as MADR records. Each has a Confirmation line naming the check that enforces it.
+Architectural choices the spec forces go into `docs/decisions/` as new MADR records with status `proposed`. Each has a Confirmation line naming the check that enforces it. Claude can add records but not edit existing ones; you accept a record by merging the pull request that adds it.
 
 ## 2. Build one criterion at a time
 

@@ -4,7 +4,7 @@ What unslop does not yet guarantee, so nothing here is mistaken for a promise.
 
 | Area | Limit | Mitigation |
 |---|---|---|
-| macOS | The hooks have run only on Linux. They avoid GNU-only features, but macOS bash 3.2 and BSD tools are untested. | Run `bash tests/hooks/run.sh` on your Mac after cloning; it should report 145 passed. |
+| macOS | The hooks have run only on Linux. They avoid GNU-only features, but macOS bash 3.2 and BSD tools are untested. | Run `bash tests/hooks/run.sh` on your Mac after cloning; it should end with `0 failed`. |
 | Sandbox and ruleset | Configuration rather than code, so nothing here tests them. | Run `/sandbox` in Claude Code, and try a direct push to `main` once the ruleset is applied. |
 | Shell command guard | Matches text. A command hidden in a variable (`G=git; $G push --force`) gets past it. | The sandbox, the missing credentials and the ruleset are the real boundary; the guard catches ordinary mistakes. |
 | Read tool | Deny rules on the Read tool match paths, not file contents opened by scripts. | Shell scripts run sandboxed with `denyRead` on credential folders. |
@@ -19,6 +19,7 @@ What unslop does not yet guarantee, so nothing here is mistaken for a promise.
 | Cloud sessions | Claude Code on the web does not load repository hooks or permission rules. | CI and the ruleset still apply to every pull request. |
 | `allowManagedHooksOnly` | Left off, because turning it on disables `/goal`. A project could add its own hooks. | Project hooks cannot remove the managed hooks, which always run. |
 | Adopted repositories | Architecture rules, mutation testing and dead-code checks are not adopted, because they depend on a layout the repository may not have. detekt runs without type resolution, so its type-aware rules are inactive; the Kotlin guard covers `println`, `TODO` and `!!`. | Add architecture rules per repository once the layers exist, or move the code into a template project. |
+| Adopted coverage | Changed lines in files the coverage tool does not measure, such as code outside the configured source folder, are not checked. | Keep new code inside the measured source folders, or widen the source in `.unslop/adopt.json`. |
 | Adopted baselines | Counts are per file and rule, so renaming a file with findings makes them look new. A file that is deleted and recreated loses its allowance. | A human runs `scripts/rebaseline` in the pull request that renames the file. |
 | Large repositories | `fast-check` in an adopted repository lints the whole repository and runs every test, which can exceed the end-of-session check's 240-second limit. | Narrow the test command in `.unslop/adopt.json` to a fast subset; CI still runs the full suite. |
 | Planned standards | Several standards in [standards.md](standards.md) are marked Planned: API contract linting, migration linting in a database template, OpenTelemetry, container and IaC templates, Web Vitals budgets. | Each will land as a template or gate with its own CI proof. |

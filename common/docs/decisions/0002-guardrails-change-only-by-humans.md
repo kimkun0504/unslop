@@ -12,7 +12,7 @@ Agents under pressure to finish weaken the checks instead of fixing the code: th
 
 ## Decision Outcome
 
-Lint, type, test, build and CI configuration, the `scripts/` folder, `.claude/`, `CLAUDE.md`, dependency manifests, lockfiles and this folder are guardrail files. Agents cannot write them. A change to them comes from a human in a reviewed pull request.
+Lint, type, test, build and CI configuration, the `scripts/` folder, `.claude/`, `CLAUDE.md`, dependency manifests, lockfiles and the accepted records in this folder are guardrail files. Agents cannot write them. A change to them comes from a human in a reviewed pull request. An agent may add a new record with status `proposed`; it takes effect when a human merges it.
 
 Existing tests are guardrails too. An agent adds tests but does not modify or delete existing ones; a human applies the `tests-reviewed` label when a test change is intended.
 

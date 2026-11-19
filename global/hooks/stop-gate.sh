@@ -12,6 +12,7 @@ cd "$root" || halt "stop-gate: project dir missing"
 git rev-parse --git-dir >/dev/null 2>&1 || halt "stop-gate: not a git repository; work NOT verified"
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/claude-stop-gate"
 mkdir -p "$state_dir"
+find "$state_dir" -type f -mtime +14 -exec rm -f {} + 2>/dev/null || true
 ok_file="$state_dir/$sid.ok"
 fail_file="$state_dir/$sid.fail"
 total_file="$state_dir/$sid.total"

@@ -34,9 +34,9 @@ class Finding:
         return f"  {self.path}:{self.line}: [{self.rule}] {self.message}"
 
 
-class MissingReportError(Exception):
-    def __init__(self, name: str, report: Path) -> None:
-        super().__init__(f"{name}: the command wrote no report to {report}")
+class BrokenCheckError(Exception):
+    def __init__(self, name: str, problem: str) -> None:
+        super().__init__(f"{name}: {problem}; fix the command in .unslop/adopt.json instead of trusting an empty result")
 
 
 def relative(raw: str) -> str:
@@ -149,11 +149,20 @@ def collect(check: Json) -> list[Finding]:
     report = Path(text(check.get("report")))
     report.parent.mkdir(parents=True, exist_ok=True)
     report.unlink(missing_ok=True)
+    name = text(check.get("name"))
     result = shell(text(check.get("run")))
     if not report.is_file():
         sys.stderr.write(result.stdout + result.stderr)
-        raise MissingReportError(text(check.get("name")), report)
-    return list(PARSERS[text(check.get("format"))](report.read_text()))
+        raise BrokenCheckError(name, f"the command wrote no report to {report}")
+    content = report.read_text()
+    if not content.strip() and result.returncode != 0 and result.stderr.strip():
+        sys.stderr.write(result.stderr[-4000:])
+        raise BrokenCheckError(name, f"the command failed with exit code {result.returncode} and an empty report")
+    try:
+        return list(PARSERS[text(check.get("format"))](content))
+    except json.JSONDecodeError as error:
+        sys.stderr.write(result.stderr[-4000:])
+        raise BrokenCheckError(name, f"{report} is not valid JSON ({error.msg})") from error
 
 
 def counts(findings: list[Finding]) -> dict[str, int]:
@@ -279,7 +288,7 @@ def main(argv: list[str]) -> int:
         return 2
     try:
         return commands[argv[0]]()
-    except MissingReportError as failure:
+    except BrokenCheckError as failure:
         sys.stderr.write(f"{failure}\n")
         return 1
 
