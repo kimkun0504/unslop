@@ -12,6 +12,10 @@
       "low": 100,
       "break": 100
     },
-    "test-runner": "mtp"
+    "test-runner": "mtp",
+    "mutate": [
+      "**/*.cs",
+      "!src/App.Api/Program.cs"
+    ]
   }
 }

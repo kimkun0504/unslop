@@ -26,7 +26,10 @@ public sealed class MoneyTests
     }
 
     [Fact]
-    public void RejectsNull() => Assert.Throws<ArgumentNullException>(() => Money.Parse(null!));
+    public void RejectsNull() =>
+        Assert.Equal(
+            ["raw", "other"],
+            [Assert.Throws<ArgumentNullException>(() => Money.Parse(null!)).ParamName, Assert.Throws<ArgumentNullException>(() => Money.Zero.Plus(null!)).ParamName]);
 
     [Fact]
     public void RendersCentsWithTwoDigits() =>
