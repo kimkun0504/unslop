@@ -125,6 +125,26 @@
         "supply-chain": "provider lockfile, pinned provider and plugin versions",
         "security": "checkov"
       }
+    },
+    {
+      "name": "rust",
+      "title": "Rust",
+      "kind": "service",
+      "toolchain": {
+        "rust": "1.100.0",
+        "edition": "2024"
+      },
+      "gates": {
+        "format": "rustfmt",
+        "lint": "clippy all, pedantic, nursery, cargo and restriction lints (unwrap, expect, panic, indexing, print, arithmetic) denied; #[allow] denied",
+        "types": "rustc with unsafe_code forbidden",
+        "architecture": "workspace crates; clippy.toml bans I/O in the domain crate",
+        "tests": "cargo test + proptest + binary integration tests",
+        "coverage": "100% lines (cargo-llvm-cov)",
+        "mutation": "cargo-mutants, none missed",
+        "dead-code": "rustc unused lints denied",
+        "supply-chain": "Cargo.lock --locked, cargo-deny advisories, licenses, bans, sources"
+      }
     }
   ]
 }
