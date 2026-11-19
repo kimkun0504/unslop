@@ -1,0 +1,23 @@
+module App
+  module Cli
+    interface _Output
+      def puts: (String line) -> untyped
+    end
+
+    class Application
+      EXIT_OK: Integer
+      EXIT_USAGE: Integer
+      USAGE: String
+
+      @out: _Output
+      @err: _Output
+
+      def initialize: (_Output out, _Output err) -> void
+      def run: (Array[String] arguments) -> Integer
+
+      private
+
+      def refuse: (String message) -> Integer
+    end
+  end
+end

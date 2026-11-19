@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+require_relative "../lib/app"
+
+exit(App::Cli::Application.new($stdout, $stderr).run(ARGV))

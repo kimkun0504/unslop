@@ -1,0 +1,7 @@
+module App
+  module Domain
+    class InvalidAmount < ArgumentError
+      def self.from: (String raw) -> InvalidAmount
+    end
+  end
+end

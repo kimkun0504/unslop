@@ -56,7 +56,15 @@
       "Edit(deptrac.yaml)",
       "Edit(phpunit.xml.dist)",
       "Edit(infection.json5)",
-      "Edit(.php-cs-fixer.dist.php)"
+      "Edit(.php-cs-fixer.dist.php)",
+      "Edit(Gemfile)",
+      "Edit(Gemfile.lock)",
+      "Edit(.ruby-version)",
+      "Edit(.rubocop.yml)",
+      "Edit(Steepfile)",
+      "Edit(.mutant.yml)",
+      "Edit(.rspec)",
+      "Edit(spec/spec_helper.rb)"
     ]
   },
   "sandbox": {
@@ -116,7 +124,15 @@
         "./deptrac.yaml",
         "./phpunit.xml.dist",
         "./infection.json5",
-        "./.php-cs-fixer.dist.php"
+        "./.php-cs-fixer.dist.php",
+        "./Gemfile",
+        "./Gemfile.lock",
+        "./.ruby-version",
+        "./.rubocop.yml",
+        "./Steepfile",
+        "./.mutant.yml",
+        "./.rspec",
+        "./spec/spec_helper.rb"
       ]
     }
   }

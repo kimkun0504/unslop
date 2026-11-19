@@ -1,0 +1,17 @@
+module App
+  module Domain
+    class Tier
+      STANDARD: Tier
+      SILVER: Tier
+      GOLD: Tier
+      SILVER_FROM_CENTS: Integer
+      GOLD_FROM_CENTS: Integer
+
+      attr_reader name: String
+      attr_reader percent_off: Integer
+
+      def initialize: (String name, Integer percent_off) -> void
+      def self.for_subtotal: (Money subtotal) -> Tier
+    end
+  end
+end

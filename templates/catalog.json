@@ -185,6 +185,26 @@
         "dead-code": "PHPStan unused and dead-code rules",
         "supply-chain": "composer.lock, composer validate --strict, composer audit"
       }
+    },
+    {
+      "name": "ruby",
+      "title": "Ruby",
+      "kind": "service",
+      "toolchain": {
+        "ruby": "4.0.10",
+        "bundler": "4"
+      },
+      "gates": {
+        "format": "RuboCop layout cops, autocorrected",
+        "lint": "RuboCop with every cop enabled, plus rubocop-performance and rubocop-rspec",
+        "types": "Steep strict against RBS signatures in sig/",
+        "architecture": "local RuboCop guards: no I/O, clock or randomness in the domain, no domain dependency on the CLI, output only through injected streams",
+        "tests": "RSpec, random order, monkey patching off, own deprecation warnings raise",
+        "coverage": "SimpleCov, 100% lines and branches",
+        "mutation": "mutant, no surviving mutations",
+        "dead-code": "RuboCop Lint unused and unreachable cops",
+        "supply-chain": "Gemfile.lock in frozen mode, bundle-audit"
+      }
     }
   ]
 }
