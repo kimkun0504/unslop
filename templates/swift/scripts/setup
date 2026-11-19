@@ -15,7 +15,7 @@ esac
 if [ ! -x .tools/swiftlint ]; then
   mkdir -p .tools
   curl -fsSL --retry 3 -o .tools/swiftlint.zip "$release/$asset"
-  uv run --quiet --no-project python - .tools/swiftlint.zip "$sum" <<'PY'
+  uv run --quiet --no-project --python 3.13 python - .tools/swiftlint.zip "$sum" <<'PY'
 import hashlib
 import sys
 import zipfile

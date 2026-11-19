@@ -20,7 +20,7 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: "0.13.9"
-      - run: uv run --no-project --with tree-sitter-language-pack==1.25.0 --with pytest==9.2.0 pytest -q tests/guard
+      - run: uv run --no-project --python 3.13 --with tree-sitter-language-pack==1.25.0 --with pytest==9.2.0 pytest -q tests/guard
   python-template:
     runs-on: ubuntu-24.04
     steps:

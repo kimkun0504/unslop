@@ -3,4 +3,4 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 scripts/fast-check
 swift test --quiet --enable-code-coverage
-uv run --quiet --no-project python tools/guard/coverage.py "$(swift test --show-codecov-path)"
+uv run --quiet --no-project --python 3.13 python tools/guard/coverage.py "$(swift test --show-codecov-path)"

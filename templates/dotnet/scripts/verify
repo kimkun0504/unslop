@@ -10,7 +10,7 @@ if ! find TestResults -name '*cobertura*.xml' | grep -q .; then
   find . -path ./node_modules -prune -o \( -name '*cobertura*' -o -name '*.coverage*' \) -print >&2
   exit 1
 fi
-find TestResults -name '*cobertura*.xml' -print0 | xargs -0 uv run --quiet --no-project python -c '
+find TestResults -name '*cobertura*.xml' -print0 | xargs -0 uv run --quiet --no-project --python 3.13 python -c '
 import sys
 import xml.etree.ElementTree as ET
 
