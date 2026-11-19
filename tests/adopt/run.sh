@@ -13,7 +13,8 @@ source "$repo/tests/adopt/$fixture.sh"
 build_legacy
 git add -A
 git commit -qm legacy
-"$repo/bin/unslop" adopt "${fixture%%-*}" "$work"
+unslop() { uv run --quiet --project "$repo" unslop "$@"; }
+unslop init --profile "${fixture%%-*}"
 git add -A
 git commit -qm "Adopt unslop"
 failures=0
@@ -22,7 +23,7 @@ reset() {
   git clean -fdq -e node_modules -e .venv -e .gradle -e build -e target -e .terraform
 }
 expect_fail() {
-  if scripts/fast-check > "$work/../out-$fixture.txt" 2>&1; then
+  if unslop check > "$work/../out-$fixture.txt" 2>&1; then
     echo "MISSED: $1"
     failures=$((failures + 1))
   elif grep -q -- "$2" "$work/../out-$fixture.txt"; then
@@ -35,7 +36,7 @@ expect_fail() {
   reset
 }
 expect_pass() {
-  if scripts/fast-check > "$work/../out-$fixture.txt" 2>&1; then
+  if unslop check > "$work/../out-$fixture.txt" 2>&1; then
     echo "passed: $1"
   else
     echo "FALSE ALARM: $1"

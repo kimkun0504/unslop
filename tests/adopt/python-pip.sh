@@ -29,5 +29,5 @@ cases() {
   printf 'from pathlib import Path\n\nfrom legacy.dates import year\n\n\ndef test_year():\n    assert year("2026-11-19") == 2026\n\n\ndef test_year_from_file(tmp_path: Path) -> None:\n    source = tmp_path / "d.txt"\n    _ = source.write_text("2025-01-02")\n    assert year(source.read_text()) == 2025\n' > tests/test_dates.py
   expect_pass "a test appended to an existing file with its import"
   printf 'from legacy.dates import year\n\n\ndef test_year():\n    assert year("2026-11-19") > 0\n' > tests/test_dates.py
-  expect_fail "a weakened existing test" "existing tests modified"
+  expect_fail "a weakened existing test" "existing tests were modified"
 }

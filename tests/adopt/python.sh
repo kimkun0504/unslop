@@ -32,9 +32,9 @@ cases() {
   printf 'def f( x ):\n    return x\n' > src/legacy/ugly.py
   expect_fail "unformatted new file" "new file is not formatted"
   printf 'import pytest\n\n\n@pytest.mark.skip\ndef test_later() -> None:\n    assert True\n' > tests/test_later.py
-  expect_fail "skipped test" "check-diff"
+  expect_fail "skipped test" "new skip or suppression"
   printf 'from legacy.calc import add\n\ndef test_add():\n    assert add(1, 2) == 4\n' > tests/test_calc.py
-  expect_fail "edited existing test" "existing tests modified"
+  expect_fail "edited existing test" "existing tests were modified"
   sed -i 's/return a+b/return a + b/' src/legacy/calc.py
   expect_pass "touching a covered legacy line"
 }

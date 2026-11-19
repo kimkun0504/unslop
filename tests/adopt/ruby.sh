@@ -15,7 +15,7 @@ cases() {
   printf 'def triple(value)\n  value * 3\nend\n' > lib/triple.rb
   expect_fail "untested new code" "every changed line must be covered"
   printf 'RSpec.describe "later" do\n  it "waits" do\n    skip "later"\n  end\nend\n' > spec/later_spec.rb
-  expect_fail "skipped spec" "check-diff"
+  expect_fail "skipped spec" "new skip or suppression"
   printf 'module Twice\n  def self.of(value)\n    value * 2\n  end\nend\n' > lib/twice.rb
   printf "require_relative '../lib/twice'\n\nRSpec.describe Twice do\n  it 'doubles' do\n    expect(described_class.of(2)).to eq(4)\n  end\nend\n" > spec/twice_spec.rb
   expect_pass "clean, tested new code"

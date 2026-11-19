@@ -6,18 +6,57 @@
 
 AI coding agents copy what they see and stop when they think they are done. Instructions in a `CLAUDE.md` are followed most of the time; checks that fail the build are followed every time. unslop turns engineering standards into those checks, for Claude Code and for every pull request.
 
+## Add it to a repository
+
+Requirements: `git`, `jq` (included in macOS 15 and later) and [`uv`](https://docs.astral.sh/uv/).
+
+```bash
+cd ~/code/my-service
+uvx --from git+https://github.com/kimkun0504/unslop@v0.1.0 unslop init
+```
+
+`unslop init` detects the stack, records today's lint and type findings as a baseline so only new code has to meet the bar, checks that the gate passes, and adds four files:
+
+| File | What it is |
+|---|---|
+| `unslop.toml` | The profile, the pinned unslop version and the time budget for the end-of-turn check |
+| `.unslop/baseline.json` | Findings that existed on day one, counted per file and rule |
+| `.claude/settings.json` | Turns on the unslop Claude Code plugin for this repository and makes build files, lockfiles, CI and the unslop files read-only for Claude |
+| `.github/workflows/unslop.yml` | Runs the same check on every pull request |
+
+Commit them on a branch and open a pull request. The next time you open Claude Code in the repository and trust the folder, the plugin installs itself. You can also install the plugin for yourself with `/plugin install unslop --marketplace kimkun0504/unslop`. Installed that way it runs in every repository you open: it blocks force pushes, hook bypasses and edits to Claude's own settings everywhere, and switches the rest on only where `unslop.toml` or a template's `.claude/unslop.json` exists. Once the repository is on GitHub, `unslop ruleset --apply` blocks merging until the check passes.
+
+`unslop check` runs everything: no comments on added lines, no new suppressions or skipped tests, existing tests left alone, no lint or type finding beyond the baseline, formatted files stay formatted, tests pass, and every changed line is covered. Claude cannot end a turn while it fails. See [Adopting an existing repository](docs/adopting.md).
+
+## Start a new project
+
+```bash
+uvx --from git+https://github.com/kimkun0504/unslop@v0.1.0 unslop new python ~/code/my-app
+cd ~/code/my-app
+scripts/setup
+scripts/verify
+```
+
+A template is a small working app in the house style with the strictest gates for its stack and the plugin already turned on. `unslop list` shows every template and its gates.
+
+## Turn it off
+
+| To stop | Do this |
+|---|---|
+| unslop in one repository | Delete `unslop.toml`; the hooks go quiet there. Remove the other three files to clean up |
+| The plugin for yourself | `/plugin disable unslop@unslop` in Claude Code |
+| The optional machine layer | `sudo ./install/install.sh uninstall-system` from a clone of this repository |
+
 ## What you get
 
 | Layer | Applies to | What it does | Details |
 |---|---|---|---|
-| **Machine** | Every repository on your computer | Hides secrets and credentials, sandboxes shell commands behind a network allowlist, blocks history rewrites, hook bypasses and infrastructure or database mutations | [Guardrails §1](docs/guardrails.md#1-machine-layer) |
-| **Project** | Projects created from a template or adopted with `unslop adopt` | Makes build and lint configs read-only for the agent, bans comments and suppressions, protects existing tests, and refuses to let the agent stop while checks fail | [Guardrails §2](docs/guardrails.md#2-project-layer) |
-| **CI and GitHub** | Every pull request | Runs the same checks plus mutation testing and audits; the ruleset blocks merging until they pass | [Guardrails §3](docs/guardrails.md#3-ci-and-github-layer) |
-| **Claude profile** | Your Claude Code sessions | A ten-line `CLAUDE.md`, a read-only reviewer agent, and skills for specs, migrations and long runs | [Guardrails §4](docs/guardrails.md#4-claude-profile-layer) |
+| **Plugin** | Repositories with `unslop.toml` or a template | Makes build and lint configs read-only for the agent, blocks history rewrites and hook bypasses, and refuses to let the agent stop while the check fails. Adds a reviewer agent and the `/unslop:spec`, `/unslop:long-run` and `/unslop:migration` skills | [Guardrails §2](docs/guardrails.md#2-project-layer) |
+| **CI and GitHub** | Every pull request | Runs the same check; the ruleset blocks merging until it passes | [Guardrails §3](docs/guardrails.md#3-ci-and-github-layer) |
+| **Machine**, optional | Every repository on your computer | Hides secrets and credentials, sandboxes shell commands behind a network allowlist, and makes the plugin's hooks impossible to switch off | [Guardrails §1](docs/guardrails.md#1-machine-layer) |
+| **Claude profile**, optional | Your Claude Code sessions | A ten-line `CLAUDE.md` with working rules | [Guardrails §4](docs/guardrails.md#4-claude-profile-layer) |
 
-## Quick start
-
-Requirements: `git`, `jq` (included in macOS 15 and later), `perl` and [`uv`](https://docs.astral.sh/uv/).
+The machine and profile layers need a clone of this repository:
 
 ```bash
 git clone https://github.com/kimkun0504/unslop ~/Desktop/unslop
@@ -28,42 +67,11 @@ bash tests/install/run.sh
 sudo ./install/install.sh system
 ```
 
-The `user` step only adds a profile to Claude Code. The `system` step applies the machine layer to every Claude Code session on the computer, in every repository, so install it once you have tried the profile. The project layer switches on only in repositories that contain `.claude/unslop.json`. `./install/install.sh check` shows what is installed.
-
-To switch it off, each step has an uninstall that restores the file it replaced and keeps anything you edited since:
-
-```bash
-sudo ./install/install.sh uninstall-system
-./install/install.sh uninstall-user
-```
-
-To switch off one project, delete its `.claude/unslop.json`.
-
-Then start a project:
-
-```bash
-~/Desktop/unslop/bin/unslop new python ~/code/my-app
-cd ~/code/my-app
-scripts/setup
-scripts/verify
-gh api -X POST repos/OWNER/REPO/rulesets --input .github/rulesets/main.json
-```
-
-`unslop new` and `unslop adopt` put your GitHub handle in `CODEOWNERS` and your name in the decision records. They read `UNSLOP_OWNER` and `UNSLOP_OWNER_NAME`, falling back to `gh` and your git config.
-
-Or bring an existing repository under the same guardrails, with its current findings recorded as a baseline so only new code has to meet the bar:
-
-```bash
-~/Desktop/unslop/bin/unslop adopt python ~/code/my-service
-```
-
-See [Adopting an existing repository](docs/adopting.md).
-
-In Claude Code, run `/unslop-spec` to write the spec, then `/unslop-long-run` for an unattended build. See [the workflow guide](docs/workflow.md).
+`sudo ./install/install.sh system` applies to every Claude Code session on the computer, so add it once you have tried unslop in a repository. `./install/install.sh check` shows what is installed, and `uninstall-system` and `uninstall-user` restore the files they replaced.
 
 ## Stacks
 
-Every template ships a small working feature in the house style and passes the same contract: strict formatting, linting and types, enforced architecture boundaries, no comments, 100% coverage and, where a maintained tool exists, every mutant killed. Each is proven in CI by scaffolding a fresh project and planting violations that must be caught.
+Every template ships a small working feature in the house style and passes the same contract: strict formatting, linting and types, enforced architecture boundaries, no comments, 100% coverage and, where a maintained tool exists, every mutant killed. Each is proven in CI by scaffolding a fresh project and planting violations that must be caught. Every profile for existing repositories is proven the same way against a sample legacy repository.
 
 <!-- stacks:start -->
 | Template | Format | Lint and types | Architecture | Tests | Mutation | Adopt profile |
@@ -96,41 +104,56 @@ Every template ships a small working feature in the house style and passes the s
 | `swift` | Swift: Package.swift | swift format, when the project has a .swift-format | SwiftLint defect rules on top of the project's config, compiler warnings with complete strict concurrency | swift test with llvm-cov |
 <!-- stacks:end -->
 
-The tables are generated from [`templates/catalog.json`](templates/catalog.json), which also lists every gate per template; run `bin/unslop list` to see it in the terminal. Adopt profiles bring the same checks to an existing repository; see [Adopting an existing repository](docs/adopting.md). To add one, follow [Adding a stack](docs/adding-a-stack.md).
+The tables are generated from [`templates/catalog.json`](templates/catalog.json); `unslop list` shows the same in the terminal. To add a stack, follow [Adding a stack](docs/adding-a-stack.md).
 
 Every template has the same commands:
 
 | Command | Runs | Used by |
 |---|---|---|
 | `scripts/setup` | Installs locked dependencies, checks the pinned toolchain | You, CI |
-| `scripts/fast-check` | Format, lint, types, comments, architecture, suppressions, tests | The end-of-session check |
+| `scripts/fast-check` | Format, lint, types, comments, architecture, suppressions, tests | The end-of-turn check |
 | `scripts/verify` | `fast-check` plus coverage and the build | CI |
 | `scripts/mutation` | Mutation testing; every mutant must be killed | CI |
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `unslop init [--profile NAME]` | Add unslop to the current repository and record the baseline |
+| `unslop check [--base REF]` | Run every gate against the changes since the base branch |
+| `unslop setup` | Install the repository's dependencies the way the profile expects |
+| `unslop baseline` | Record the current findings as the baseline. For humans, after fixing old findings; Claude is blocked from running it |
+| `unslop plan` | Print the exact commands each gate runs |
+| `unslop ruleset [--apply]` | Print or apply the GitHub branch ruleset |
+| `unslop new TEMPLATE DIR` | Start a new project from a template |
+| `unslop list` | Show templates, their gates and the profiles for existing repositories |
 
 ## Documentation
 
 | Read | To learn |
 |---|---|
+| [Adopting an existing repository](docs/adopting.md) | Baselines, ratchets, changed-line coverage, and how to tune the commands |
 | [Guardrail catalog](docs/guardrails.md) | Every guardrail, its mechanism, and how hard it is to get around |
 | [Engineering standards](docs/standards.md) | The architecture, domain, API, data, testing, security and delivery standards, and which ones a tool enforces today |
 | [Workflow](docs/workflow.md) | Spec first, test first, long unattended runs, what to do when a guardrail blocks Claude |
-| [Adopting an existing repository](docs/adopting.md) | Baselines, ratchets and changed-line coverage for code that already exists |
 | [Adding a stack](docs/adding-a-stack.md) | The template contract and how a new stack is proven |
+| [Releasing](docs/releasing.md) | Tagging a version, and publishing to PyPI |
 | [Known limits](docs/limits.md) | What is not yet guaranteed |
 
 ## Repository layout
 
 ```text
-global/            machine and profile layer: managed settings, hooks, CLAUDE.md, reviewer agent, skills
-install/           installer for the machine and profile layers
-common/            files every project gets: decision records, check scripts, comment checker, settings
+src/unslop/        the unslop command: init, check, baseline, new and the per-stack profiles
+plugin/            the Claude Code plugin: hooks, reviewer agent, skills
+action.yml         the GitHub Action the generated workflow uses
 templates/         one folder per stack, plus catalog.json
-adopt/             files and per-stack profiles for adopting an existing repository
-bin/unslop         new, adopt and list
-tests/             hook tests, guard tests, the stack contract check, adoption fixtures
+common/            files every new project gets: decision records, check scripts, comment checker, settings
+global/            the optional machine layer and Claude profile
+install/           installer for the machine and profile layers
+tests/             package tests, hook tests, the stack contract check, adoption fixtures
 docs/              the documentation above
 ```
 
 ## Changing the guardrails
 
-Edit this repository in a pull request and let `self-test` pass. Then rerun `sudo ./install/install.sh system` and `./install/install.sh user`. To allow another network host for sandboxed commands, add it to `sandbox.network.allowedDomains` in `global/managed-settings.json`.
+Edit this repository in a pull request and let `self-test` pass, then release a new version (see [Releasing](docs/releasing.md)). Repositories move to it by updating the version in `unslop.toml`, `.claude/settings.json` and `.github/workflows/unslop.yml` together; `unslop check` refuses to run when they disagree. To allow another network host for sandboxed commands, add it to `sandbox.network.allowedDomains` in `global/managed-settings.json`.

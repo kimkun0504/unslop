@@ -12,15 +12,59 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - run: shellcheck global/hooks/*.sh tests/hooks/run.sh tests/contract/*.sh tests/adopt/run.sh install/install.sh common/scripts/* bin/unslop templates/*/scripts/* adopt/shared/scripts/* adopt/shared/.unslop/guard/fetch adopt/profiles/*/detect adopt/profiles/elixir/files/.unslop/guard/elixir_test adopt/profiles/swift/files/.unslop/guard/swift_coverage
+      - run: shellcheck plugin/hooks/*.sh plugin/bin/unslop tests/hooks/run.sh tests/contract/*.sh tests/adopt/run.sh install/install.sh common/scripts/* bin/unslop templates/*/scripts/* src/unslop/data/elixir/guard/elixir_test src/unslop/data/swift/guard/swift_coverage
       - run: find tests/adopt -name "*.sh" ! -name run.sh -exec shellcheck -s bash {} +
-      - run: jq empty global/managed-settings.json common/.claude/settings.json common/.github/rulesets/main.json
-      - run: tests/hooks/run.sh
-      - run: tests/contract/check.sh
+      - run: jq empty global/managed-settings.json common/.claude/settings.json common/.github/rulesets/main.json plugin/hooks/hooks.json plugin/.claude-plugin/plugin.json .claude-plugin/marketplace.json src/unslop/data/ruleset.json
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: "0.13.9"
+      - run: tests/hooks/run.sh
+      - run: tests/contract/check.sh
       - run: uv run --no-project --python 3.13 --with tree-sitter-language-pack==1.25.0 --with pytest==9.2.0 pytest -q tests/guard
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - run: uv sync --locked
+      - run: uv run ruff format --check src tests/package
+      - run: uv run ruff check src tests/package
+      - run: uv run basedpyright
+      - run: uv run pytest -q
+      - run: uv build
+      - name: the built wheel scaffolds a project and lists the catalog
+        run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          uv venv "$RUNNER_TEMP/wheel"
+          uv pip install --python "$RUNNER_TEMP/wheel" dist/*.whl
+          UNSLOP_OWNER=ci "$RUNNER_TEMP/wheel/bin/unslop" new python "$RUNNER_TEMP/scaffold"
+          test -x "$RUNNER_TEMP/scaffold/scripts/fast-check"
+          jq -e '.enabledPlugins["unslop@unslop"]' "$RUNNER_TEMP/scaffold/.claude/settings.json"
+          "$RUNNER_TEMP/wheel/bin/unslop" list | grep -q 'unslop init --profile'
+  action:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - run: bash tests/adopt/run.sh python
+      - uses: ./
+        with:
+          working-directory: ${{ runner.temp }}/adopt-python
+      - name: the action fails on a planted comment
+        run: |
+          cd "$RUNNER_TEMP/adopt-python"
+          printf 'x = 1  # note\n' > src/legacy/note.py
+          if uv tool run --python 3.13 --from "$GITHUB_WORKSPACE" unslop check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: comment"; exit 1; fi
+          grep -q "comments are forbidden" "$RUNNER_TEMP/neg.txt"
   python-template:
     runs-on: ubuntu-24.04
     steps:
@@ -488,7 +532,7 @@ jobs:
       - run: bash tests/hooks/run.sh
       - run: bash tests/install/run.sh
       - run: bash tests/contract/check.sh
-      - run: adopt/shared/.unslop/guard/fetch phpstan
+      - run: bin/unslop fetch phpstan
       - run: |
           git config --global user.name ci
           git config --global user.email ci@example.com

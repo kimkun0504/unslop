@@ -55,17 +55,12 @@ The template ships one small feature that shows the house style end to end: inpu
 ## Proving it
 
 1. Add the template and its catalog entry. Mention it in the README stack table.
-2. Add a job to `.github/workflows/self-test.yml` that scaffolds the template with `bin/unslop new`, runs `scripts/setup`, `scripts/verify` and `scripts/mutation` (if any), and plants violations: a comment, a suppression, a banned call, a layer violation and a behaviour change. Each must be caught by the check meant to catch it.
+2. Add a job to `.github/workflows/self-test.yml` that scaffolds the template with `bin/unslop new` (the `unslop` command run from this checkout), runs `scripts/setup`, `scripts/verify` and `scripts/mutation` (if any), and plants violations: a comment, a suppression, a banned call, a layer violation and a behaviour change. Each must be caught by the check meant to catch it.
 3. While iterating, push to a branch named `scratch/<template>`. The `probe` job in `.github/workflows/scratch.yml` takes the template from the branch name, scaffolds it, runs the catalog entry's `autofix` command and prints its changes as a patch, then runs every script and records a `RESULT` line for each without failing, so work in progress sends no failure notifications. Add the toolchain setup step for the new stack to that job.
 4. Run `tests/contract/check.sh` locally, open a pull request and merge only when every self-test job is green.
 
-## Adding an adopt profile
+## Adding a profile for existing repositories
 
-An adopt profile brings a stack's checks to an existing repository. It lives in `adopt/profiles/<name>/`:
+A profile brings a stack's checks to an existing repository. It is a function in `src/unslop/profiles.py` that runs inside the repository and returns a plan: the setup command, format commands that read a file on standard input and print it formatted, ratcheted checks with their report format (one of the parsers in `src/unslop/findings.py`), and the test command with its coverage report. Reports go under `.unslop/out/`. Strict tool configuration that never changes goes in `src/unslop/data/<name>/config/`, helper scripts in `src/unslop/data/<name>/guard/`; both are copied into `.unslop/out/` on each run. Configuration that depends on the repository is written by the profile with `write_config`.
 
-| Path | Purpose |
-|---|---|
-| `detect` | Runs inside the repository and prints `.unslop/adopt.json`: the setup command, format commands that read a file on stdin and print it formatted, ratcheted checks with their report format (`sarif`, `pyright`, `eslint`, `tsc` or `lines`), and the test command with its coverage report |
-| `files/` | Copied into the repository: strict tool configuration under `.unslop/config/` and `.github/workflows/unslop.yml` with a job named `unslop` |
-
-Add the profile to the `adopt` section of `templates/catalog.json`, regenerate the README tables with `tests/contract/stacks-table.sh`, and add a fixture in `tests/adopt/<name>.sh` (or `<name>-<variant>.sh`) with a `build_legacy` function that creates a messy repository and a `cases` function that plants new violations with `expect_fail` and clean work with `expect_pass`. Add the fixture to the `adopt` matrix in `.github/workflows/self-test.yml`.
+Register the function in `PROFILES` and its marker files in `MARKERS`, add the toolchain setup to `action.yml`, add the profile to the `adopt` section of `templates/catalog.json`, and regenerate the README tables with `tests/contract/stacks-table.sh`. Add a case to `tests/package/test_profiles.py`, and a fixture in `tests/adopt/<name>.sh` (or `<name>-<variant>.sh`) with a `build_legacy` function that creates a messy repository and a `cases` function that plants new violations with `expect_fail` and clean work with `expect_pass`. Add the fixture to the `adopt` matrix in `.github/workflows/self-test.yml`.

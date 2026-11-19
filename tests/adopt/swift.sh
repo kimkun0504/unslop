@@ -17,7 +17,7 @@ cases() {
   printf 'public func triple(_ value: Int) -> Int {\n    value * 3\n}\n' > Sources/Legacy/Triple.swift
   expect_fail "untested new code" "every changed line must be covered"
   printf 'import Testing\n\n@Test(.disabled("later")) func later() {}\n' > Tests/LegacyTests/LaterTests.swift
-  expect_fail "disabled test" "check-diff"
+  expect_fail "disabled test" "new skip or suppression"
   printf 'public func twice(_ value: Int) -> Int {\n    value * 2\n}\n' > Sources/Legacy/Twice.swift
   printf 'import Legacy\nimport Testing\n\n@Test func doubles() {\n    #expect(twice(2) == 4)\n}\n' > Tests/LegacyTests/TwiceTests.swift
   expect_pass "clean, tested new code"

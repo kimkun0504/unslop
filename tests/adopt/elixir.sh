@@ -19,7 +19,7 @@ cases() {
   printf 'defmodule Legacy.QuadTest do\n  use ExUnit.Case\n\n  test "quads" do\n    assert Legacy.Quad.of(1) == 4\n  end\nend\n' > test/quad_test.exs
   expect_fail "unformatted new file" "new file is not formatted"
   printf 'defmodule Legacy.LaterTest do\n  use ExUnit.Case\n\n  @tag :skip\n  test "later" do\n    assert true\n  end\nend\n' > test/later_test.exs
-  expect_fail "skipped test" "check-diff"
+  expect_fail "skipped test" "new skip or suppression"
   printf 'defmodule Legacy.Twice do\n  def of(value), do: value * 2\nend\n' > lib/twice.ex
   printf 'defmodule Legacy.TwiceTest do\n  use ExUnit.Case\n\n  test "doubles" do\n    assert Legacy.Twice.of(2) == 4\n  end\nend\n' > test/twice_test.exs
   expect_pass "clean, tested new code"

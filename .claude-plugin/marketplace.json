@@ -1,0 +1,14 @@
+{
+  "name": "unslop",
+  "owner": {
+    "name": "Kun Kim"
+  },
+  "description": "unslop: guardrails that make AI slop fail the build, in any stack.",
+  "plugins": [
+    {
+      "name": "unslop",
+      "source": "./plugin",
+      "description": "Guardrails that make AI slop fail the build, in any stack."
+    }
+  ]
+}

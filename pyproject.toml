@@ -1,0 +1,72 @@
+[project]
+name = "unslop-cli"
+dynamic = ["version"]
+description = "Make AI slop fail the build: ratcheting lint, type, comment, test and coverage gates for Claude Code, in any stack."
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Kun Kim" }]
+keywords = ["claude-code", "lint", "ratchet", "guardrails", "ci"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "diff-cover==11.0.1",
+    "tree-sitter-language-pack==1.25.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/kimkun0504/unslop"
+Issues = "https://github.com/kimkun0504/unslop/issues"
+
+[project.scripts]
+unslop = "unslop.cli:main"
+unslop-cli = "unslop.cli:main"
+
+[dependency-groups]
+dev = [
+    "basedpyright==1.40.2",
+    "pytest==9.0.1",
+    "ruff==0.17.4",
+]
+
+[build-system]
+requires = ["hatchling==1.28.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/unslop/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "templates", "common", "README.md", "pyproject.toml"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/unslop"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"templates" = "unslop/templates"
+"common" = "unslop/common"
+
+[tool.ruff]
+line-length = 120
+src = ["src", "tests/package"]
+extend-exclude = ["src/unslop/data"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = ["D", "CPY001", "COM812", "ISC001", "S310", "S603", "S607", "T201", "FBT001", "FBT002"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PLR2004", "INP001", "ANN", "ARG001"]
+
+[tool.basedpyright]
+include = ["src"]
+exclude = ["src/unslop/data"]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/package"]
