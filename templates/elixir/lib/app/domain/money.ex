@@ -19,7 +19,7 @@ defmodule App.Domain.Money do
     if Regex.match?(canonical_pattern(), canonical) do
       {:ok, %__MODULE__{cents: canonical |> String.replace(".", "") |> String.to_integer()}}
     else
-      {:error, %InvalidAmount{raw: raw}}
+      {:error, InvalidAmount.exception(raw: raw)}
     end
   end
 
