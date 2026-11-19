@@ -176,3 +176,44 @@ jobs:
           if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: public bucket"; exit 1; fi
           grep -q "all public access must be blocked" "$RUNNER_TEMP/neg.txt" && echo "caught: public bucket by terraform test"
           git checkout -- .
+  java-spring-template:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c
+        with:
+          gradle-version: "9.9.1"
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          bin/unslop new java-spring "$RUNNER_TEMP/java"
+          cd "$RUNNER_TEMP/java"
+          scripts/setup
+          expect_fail() {
+            printf '%s\n' "$2" > "$3"
+            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
+            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
+            echo "caught: $1 by $4"
+            rm -f "$3"
+            git checkout -- .
+          }
+          Q=src/main/java/com/example/app/quote
+          expect_fail "comment" 'package com.example.app.quote; final class Note {} // note' "$Q/Note.java" "comments are forbidden"
+          expect_fail "System.out" 'package com.example.app.quote; final class Shout { static void say() { System.out.println("x"); } }' "$Q/Shout.java" "SystemOut"
+          expect_fail "null return" 'package com.example.app.quote; final class Maybe { static String maybe() { return null; } }' "$Q/Maybe.java" "NullAway"
+          expect_fail "suppression" 'package com.example.app.quote; @SuppressWarnings("unused") final class Quiet {}' "$Q/Quiet.java" "check-diff"
+          sed -i 's/SILVER(5)/SILVER(6)/' "$Q/Tier.java"
+          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
+          grep -q "FAILED" "$RUNNER_TEMP/neg.txt" && echo "caught: behaviour change by a failing test"
+          git checkout -- .
+          scripts/verify
+          scripts/mutation

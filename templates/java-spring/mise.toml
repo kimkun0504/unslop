@@ -1,0 +1,4 @@
+[tools]
+java = "temurin-25"
+gradle = "9.9.1"
+uv = "0.13.9"
