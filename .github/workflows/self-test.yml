@@ -15,11 +15,11 @@ jobs:
       - run: shellcheck plugin/hooks/*.sh plugin/bin/unslop tests/hooks/run.sh tests/contract/*.sh tests/adopt/run.sh install/install.sh common/scripts/* bin/unslop templates/*/scripts/* src/unslop/data/elixir/guard/elixir_test src/unslop/data/swift/guard/swift_coverage
       - run: find tests/adopt -name "*.sh" ! -name run.sh -exec shellcheck -s bash {} +
       - run: jq empty global/managed-settings.json common/.claude/settings.json common/.github/rulesets/main.json plugin/hooks/hooks.json plugin/.claude-plugin/plugin.json .claude-plugin/marketplace.json src/unslop/data/ruleset.json
-      - run: tests/hooks/run.sh
-      - run: tests/contract/check.sh
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: "0.13.9"
+      - run: tests/hooks/run.sh
+      - run: tests/contract/check.sh
       - run: uv run --no-project --python 3.13 --with tree-sitter-language-pack==1.25.0 --with pytest==9.2.0 pytest -q tests/guard
   package:
     runs-on: ubuntu-24.04
