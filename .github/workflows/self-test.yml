@@ -217,3 +217,38 @@ jobs:
           git checkout -- .
           scripts/verify
           scripts/mutation
+  rust-template:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
+        with:
+          tool: cargo-deny@0.21.0,cargo-llvm-cov@0.9.1,cargo-mutants@27.1.0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - run: |
+          git config --global user.name ci
+          git config --global user.email ci@example.com
+          bin/unslop new rust "$RUNNER_TEMP/rs"
+          cd "$RUNNER_TEMP/rs"
+          scripts/setup
+          expect_fail() {
+            printf '%s\n' "$2" >> "$3"
+            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
+            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
+            echo "caught: $1 by $4"
+            git checkout -- .
+          }
+          expect_fail "comment" '// note' crates/app/src/lib.rs "comments are forbidden"
+          expect_fail "allow attribute" $'\n#[allow(clippy::unwrap_used)]\npub const fn quiet() {}' crates/domain/src/lib.rs "check-diff"
+          expect_fail "println" $'\n#[must_use]\npub fn noisy() -> u8 {\n    println!("x");\n    1\n}' crates/app/src/lib.rs "use of \`println!\`"
+          expect_fail "domain I/O" $'\n#[must_use]\npub fn leak() -> String {\n    std::fs::read_to_string("x").unwrap_or_default()\n}' crates/domain/src/lib.rs "disallowed method"
+          sed -i 's/Self::Silver => 5,/Self::Silver => 6,/' crates/domain/src/pricing.rs
+          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
+          grep -q "FAILED" "$RUNNER_TEMP/neg.txt" && echo "caught: behaviour change by a failing test"
+          git checkout -- .
+          scripts/verify
+          scripts/mutation

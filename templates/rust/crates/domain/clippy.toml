@@ -1,0 +1,13 @@
+disallowed-methods = [
+  { path = "std::io::stdout", reason = "the domain does no I/O" },
+  { path = "std::io::stderr", reason = "the domain does no I/O" },
+  { path = "std::io::stdin", reason = "the domain does no I/O" },
+  { path = "std::fs::read_to_string", reason = "the domain does no I/O" },
+  { path = "std::env::var", reason = "configuration is read at the edge" },
+  { path = "std::time::SystemTime::now", reason = "pass time in as a value" },
+]
+disallowed-types = [
+  { path = "std::fs::File", reason = "the domain does no I/O" },
+  { path = "std::net::TcpStream", reason = "the domain does no I/O" },
+  { path = "std::process::Command", reason = "the domain does no I/O" },
+]

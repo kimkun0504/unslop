@@ -35,7 +35,13 @@
       "Edit(**/versions.tf)",
       "Edit(.tflint.hcl)",
       "Edit(.checkov.yaml)",
-      "Edit(.terraform.lock.hcl)"
+      "Edit(.terraform.lock.hcl)",
+      "Edit(**/Cargo.toml)",
+      "Edit(Cargo.lock)",
+      "Edit(**/clippy.toml)",
+      "Edit(deny.toml)",
+      "Edit(rust-toolchain.toml)",
+      "Edit(rustfmt.toml)"
     ]
   },
   "sandbox": {
@@ -75,7 +81,13 @@
         "./versions.tf",
         "./.tflint.hcl",
         "./.checkov.yaml",
-        "./.terraform.lock.hcl"
+        "./.terraform.lock.hcl",
+        "./Cargo.toml",
+        "./Cargo.lock",
+        "./deny.toml",
+        "./rust-toolchain.toml",
+        "./rustfmt.toml",
+        "./crates/domain/clippy.toml"
       ]
     }
   }

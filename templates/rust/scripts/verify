@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+scripts/fast-check
+cargo deny --locked check
+cargo llvm-cov --workspace --locked --ignore-filename-regex '/main\.rs$' --fail-under-lines 100
+cargo build --workspace --locked --release
