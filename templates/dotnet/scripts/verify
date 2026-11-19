@@ -2,5 +2,22 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 scripts/fast-check
-dotnet test App.slnx --no-build -p:CollectCoverage=true -p:Threshold=100 -p:ThresholdType=line%2Cbranch -p:ThresholdStat=total -p:Exclude='[*]Program'
+find . -name '*.cobertura.xml' -path '*TestResults*' -print0 | xargs -0 uv run --quiet --no-project python -c '
+import sys
+import xml.etree.ElementTree as ET
+
+reports = sys.argv[1:]
+if len(reports) < 2:
+    sys.exit(f"coverage: expected a report per test project, found {len(reports)}")
+short = []
+for path in reports:
+    root = ET.parse(path).getroot()
+    lines, branches = float(root.get("line-rate", "0")), float(root.get("branch-rate", "0"))
+    has_branches = int(root.get("branches-valid", "0")) > 0
+    if lines < 1 or (has_branches and branches < 1):
+        short.append(f"{path}: lines {lines:.2%}, branches {branches:.2%}")
+if short:
+    sys.exit("coverage below 100%:\n" + "\n".join(short))
+print(f"coverage: 100% lines and branches in {len(reports)} reports")
+'
 dotnet build App.slnx --no-restore --configuration Release
