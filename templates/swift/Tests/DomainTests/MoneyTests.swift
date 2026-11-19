@@ -35,7 +35,7 @@ struct MoneyTests {
         #expect(try #require(Money(cents: cents)).lessPercent(percent).cents == expected)
     }
 
-    @Test(arguments: [(0, "0.00"), (5, "0.05"), (1250, "12.50"), (10_000, "100.00")])
+    @Test(arguments: [(0, "0.00"), (5, "0.05"), (1_250, "12.50"), (10_000, "100.00")])
     func renders(cents: Int, rendered: String) throws {
         #expect(try #require(Money(cents: cents)).rendered == rendered)
     }
