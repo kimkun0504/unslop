@@ -34,7 +34,7 @@ index-strategy = "first-index"
 required-version = ">=0.17,<0.18"
 target-version = "py313"
 line-length = 100
-src = ["src", "tests", "tools"]
+src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -54,11 +54,12 @@ ban-relative-imports = "all"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "PLR2004"]
+"tools/guard/**" = ["INP001"]
 
 [tool.basedpyright]
 typeCheckingMode = "all"
 pythonVersion = "3.13"
-include = ["src", "tests", "tools"]
+include = ["src", "tests"]
 reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.pytest]

@@ -15,6 +15,10 @@ jobs:
       - run: shellcheck global/hooks/*.sh tests/hooks/run.sh install/install.sh common/scripts/* bin/unslop
       - run: jq empty global/managed-settings.json common/.claude/settings.json common/.github/rulesets/main.json
       - run: tests/hooks/run.sh
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
+      - run: uv run --no-project --with tree-sitter-language-pack==1.25.0 --with pytest==9.2.0 pytest -q tests/guard
   python-template:
     runs-on: ubuntu-24.04
     steps:
@@ -44,6 +48,9 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: 22
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
       - run: |
           git config --global user.name ci
           git config --global user.email ci@example.com
@@ -65,6 +72,9 @@ jobs:
         with:
           version: v2.15.0
           install-only: true
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
       - run: |
           git config --global user.name ci
           git config --global user.email ci@example.com

@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 pnpm -s typecheck
 pnpm -s lint
+scripts/check-comments
 pnpm -s format:check
 scripts/check-diff
 pnpm -s knip

@@ -26,6 +26,9 @@ jobs:
         with:
           version: v2.15.0
           install-only: true
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: "0.13.9"
       - run: scripts/setup
       - run: scripts/verify
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...
