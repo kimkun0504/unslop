@@ -1,23 +1,27 @@
 RSpec.describe App::Domain::Quote do
-  {
-    [] => '0.00 standard 0.00',
-    ['99.99'] => '99.99 standard 99.99',
-    %w[60 40] => '100.00 silver 95.00',
-    ['499.99'] => '499.99 silver 474.99',
-    ['500'] => '500.00 gold 450.00'
-  }.each do |lines, expected|
-    it "quotes #{lines.inspect} as #{expected}" do
-      quote = described_class.of(*lines)
-      expect("#{quote.subtotal.render} #{quote.tier.name} #{quote.total.render}").to eq(expected)
+  describe '.of' do
+    {
+      [] => '0.00 standard 0.00',
+      ['99.99'] => '99.99 standard 99.99',
+      %w[60 40] => '100.00 silver 95.00',
+      ['499.99'] => '499.99 silver 474.99',
+      ['500'] => '500.00 gold 450.00'
+    }.each do |lines, expected|
+      it "quotes #{lines.inspect} as #{expected}" do
+        quote = described_class.of(*lines)
+        expect("#{quote.subtotal.render} #{quote.tier.name} #{quote.total.render}").to eq(expected)
+      end
+    end
+
+    it 'reports the first malformed line' do
+      expect { described_class.of('1', 'x', 'y') }
+        .to raise_error(App::Domain::InvalidAmount, 'expected a non-negative amount like 12 or 12.50, got "x"')
     end
   end
 
-  it 'reports the first malformed line' do
-    expect { described_class.of('1', 'x', 'y') }
-      .to raise_error(App::Domain::InvalidAmount, 'expected a non-negative amount like 12 or 12.50, got "x"')
-  end
-
-  it 'is frozen' do
-    expect(described_class.of('1')).to be_frozen
+  describe '#initialize' do
+    it 'freezes the quote' do
+      expect(described_class.of('1')).to be_frozen
+    end
   end
 end

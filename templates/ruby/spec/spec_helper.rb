@@ -24,6 +24,7 @@ Warning[:performance] = true
 Warning.singleton_class.prepend(RaiseOnOwnWarnings)
 
 require_relative '../lib/app'
+require_relative 'support/recording_output'
 
 RSpec.configure do |config|
   config.disable_monkey_patching!

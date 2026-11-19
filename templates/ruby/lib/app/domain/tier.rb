@@ -1,6 +1,7 @@
 module App
   module Domain
     Tier = Data.define(:name, :percent_off)
+    public_constant :Tier
 
     class Tier
       STANDARD = new(name: 'standard', percent_off: 0)
