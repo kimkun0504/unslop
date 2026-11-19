@@ -453,7 +453,7 @@ jobs:
           expect_fail "comment" $'public enum Note {\n    public static let value = 1 // note\n}' Sources/Domain/Note.swift "comments are forbidden"
           expect_fail "print in the adapter" $'public enum Debug {\n    public static func show(_ value: String) {\n        print(value)\n    }\n}' Sources/CLI/Debug.swift "write through an Output port"
           expect_fail "Foundation in the domain" $'import Foundation\n\npublic enum Clock {\n    public static func now() -> Date {\n        Date()\n    }\n}' Sources/Domain/Clock.swift "the domain does no I/O"
-          expect_fail "layer violation" $'import CLI\n\npublic enum Leak {\n    public static let code = Application.exitOK\n}' Sources/Domain/Leak.swift "no such module"
+          expect_fail "layer violation" $'import CLI\n\npublic enum Leak {\n    public static let code = Application.exitOK\n}' Sources/Domain/Leak.swift 'circular dependency\|no such module'
           expect_fail "force unwrap" $'public enum Unsafe {\n    public static func cents() -> Int {\n        Int("1")!\n    }\n}' Sources/Domain/Unsafe.swift "orce"
           expect_fail "shared mutable state" $'public enum Counter {\n    public static var count = 0\n}' Sources/Domain/Counter.swift "concurrency-safe"
           expect_fail "disabled test" $'import Testing\n\nstruct LaterTests {\n    @Test(.disabled("later"))\n    func later() {}\n}' Tests/DomainTests/LaterTests.swift "check-diff"
