@@ -4,7 +4,7 @@ What unslop does not yet guarantee, so nothing here is mistaken for a promise.
 
 | Area | Limit | Mitigation |
 |---|---|---|
-| macOS | The hooks have run only on Linux. They avoid GNU-only features, but macOS bash 3.2 and BSD tools are untested. | Run `bash tests/hooks/run.sh` on your Mac after cloning; it should end with `0 failed`. |
+| macOS | The hooks, the installer, the contract check and the Python template run on macOS with its stock bash 3.2 and BSD tools in CI. The other templates are tested only on Linux. | Run `bash tests/hooks/run.sh` and `bash tests/install/run.sh` on your Mac after cloning; both should end with `0 failed`. |
 | Sandbox and ruleset | Configuration rather than code, so nothing here tests them. | Run `/sandbox` in Claude Code, and try a direct push to `main` once the ruleset is applied. |
 | Shell command guard | Matches text. A command hidden in a variable (`G=git; $G push --force`) gets past it. | The sandbox, the missing credentials and the ruleset are the real boundary; the guard catches ordinary mistakes. |
 | Read tool | Deny rules on the Read tool match paths, not file contents opened by scripts. | Shell scripts run sandboxed with `denyRead` on credential folders. |
@@ -20,7 +20,7 @@ What unslop does not yet guarantee, so nothing here is mistaken for a promise.
 | Ruby and Elixir supply chain | Bundler and Hex have no minimum release age, unlike the uv and pnpm templates. | The lockfile is installed in frozen mode and `bundle-audit` runs in CI; Renovate can add a release-age delay. |
 | Terraform mutation | No maintained mutation tool exists for Terraform. | Every secure default and input validation is asserted in `terraform test`, and checkov scans the plan. |
 | Where templates were built | Python, TypeScript, Go and Rust were built and tested locally and in CI. Kotlin, Java, Terraform, .NET, PHP, Ruby, Elixir and Swift could only be built in CI, because their package registries are blocked in the build session. | Every template is proven the same way in CI: scaffold, verify, mutation and planted violations. |
-| Cloud sessions | Claude Code on the web does not load repository hooks or permission rules. | CI and the ruleset still apply to every pull request. |
+| Cloud sessions | Claude Code on the web never reads the machine layer. Repository hooks and permission rules are meant to come with the clone, but sessions whose project root is not the repository skip them silently. | CI and the ruleset still apply to every pull request. |
 | `allowManagedHooksOnly` | Left off, because turning it on disables `/goal`. A project could add its own hooks. | Project hooks cannot remove the managed hooks, which always run. |
 | Adopted repositories | Architecture rules, mutation testing and dead-code checks are not adopted, because they depend on a layout the repository may not have. detekt runs without type resolution, so its type-aware rules are inactive; the Kotlin guard covers `println`, `TODO` and `!!`. | Add architecture rules per repository once the layers exist, or move the code into a template project. |
 | Adopted formatting | .NET and PHP have no formatter that reads standard input, so their profiles leave formatting to the project. Swift formatting runs only when the repository has a `.swift-format`, so a project's own style is never replaced by swift-format's defaults. | Keep the project's formatter in its own CI step. |

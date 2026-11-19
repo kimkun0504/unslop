@@ -23,9 +23,21 @@ Requirements: `git`, `jq` (included in macOS 15 and later), `perl` and [`uv`](ht
 git clone https://github.com/kimkun0504/unslop ~/Desktop/unslop
 cd ~/Desktop/unslop
 bash tests/hooks/run.sh
-sudo ./install/install.sh system
+bash tests/install/run.sh
 ./install/install.sh user
+sudo ./install/install.sh system
 ```
+
+The `user` step only adds a profile to Claude Code. The `system` step applies the machine layer to every Claude Code session on the computer, in every repository, so install it once you have tried the profile. The project layer switches on only in repositories that contain `.claude/unslop.json`. `./install/install.sh check` shows what is installed.
+
+To switch it off, each step has an uninstall that restores the file it replaced and keeps anything you edited since:
+
+```bash
+sudo ./install/install.sh uninstall-system
+./install/install.sh uninstall-user
+```
+
+To switch off one project, delete its `.claude/unslop.json`.
 
 Then start a project:
 
@@ -84,7 +96,7 @@ Every template ships a small working feature in the house style and passes the s
 | `swift` | Swift: Package.swift | swift format, when the project has a .swift-format | SwiftLint defect rules on top of the project's config, compiler warnings with complete strict concurrency | swift test with llvm-cov |
 <!-- stacks:end -->
 
-The tables are generated from [`templates/catalog.json`](templates/catalog.json), which also lists every gate per template; run `bin/unslop list` to see it in the terminal. Adopt profiles bring the same checks to an existing repository; see [Adopting an existing repository](docs/adopting.md).  To add one, follow [Adding a stack](docs/adding-a-stack.md).
+The tables are generated from [`templates/catalog.json`](templates/catalog.json), which also lists every gate per template; run `bin/unslop list` to see it in the terminal. Adopt profiles bring the same checks to an existing repository; see [Adopting an existing repository](docs/adopting.md). To add one, follow [Adding a stack](docs/adding-a-stack.md).
 
 Every template has the same commands:
 
