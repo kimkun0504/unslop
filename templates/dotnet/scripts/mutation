@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-dotnet stryker
+log=$(mktemp)
+trap 'rm -f "$log"' EXIT
+dotnet stryker | tee "$log"
+grep -Eq 'final mutation score is 100(\.0+)? ?%' "$log" || { echo "mutation: Stryker did not report a 100% score" >&2; exit 1; }
