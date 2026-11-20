@@ -45,7 +45,7 @@ jobs:
           UNSLOP_OWNER=ci "$RUNNER_TEMP/wheel/bin/unslop" new python "$RUNNER_TEMP/scaffold"
           test -x "$RUNNER_TEMP/scaffold/scripts/fast-check"
           jq -e '.enabledPlugins["unslop@unslop"]' "$RUNNER_TEMP/scaffold/.claude/settings.json"
-          "$RUNNER_TEMP/wheel/bin/unslop" list | grep -q 'unslop init --profile'
+          "$RUNNER_TEMP/wheel/bin/unslop" list | grep -q 'unslop init --stack'
   action:
     runs-on: ubuntu-24.04
     steps:
@@ -55,13 +55,13 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
         with:
           version: "0.13.9"
-      - run: bash tests/adopt/run.sh python
+      - run: bash tests/adopt/run.sh python-web
       - uses: ./
         with:
-          working-directory: ${{ runner.temp }}/adopt-python
+          working-directory: ${{ runner.temp }}/adopt-python-web
       - name: the action fails on a planted comment
         run: |
-          cd "$RUNNER_TEMP/adopt-python"
+          cd "$RUNNER_TEMP/adopt-python-web"
           printf 'x = 1  # note\n' > src/legacy/note.py
           if uv tool run --python 3.13 --from "$GITHUB_WORKSPACE" unslop check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: comment"; exit 1; fi
           grep -q "comments are forbidden" "$RUNNER_TEMP/neg.txt"
@@ -550,7 +550,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        fixture: [python, python-pip, typescript, go, jvm-maven, jvm-gradle, terraform, rust, dotnet, php, ruby, elixir, swift]
+        fixture: [python, python-pip, python-web, typescript, go, jvm-maven, jvm-gradle, terraform, rust, dotnet, php, ruby, elixir, swift]
     container: ${{ matrix.fixture == 'swift' && 'swift:6.4.2-noble' || '' }}
     steps:
       - if: matrix.fixture == 'swift'
@@ -562,7 +562,7 @@ jobs:
         with:
           version: "0.13.9"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
-        if: matrix.fixture == 'typescript'
+        if: matrix.fixture == 'typescript' || matrix.fixture == 'python-web'
         with:
           node-version: lts/*
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5

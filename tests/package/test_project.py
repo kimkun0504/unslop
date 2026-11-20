@@ -5,11 +5,11 @@ import pytest
 
 from conftest import commit, write
 from unslop import __version__, cli, footprint, gitops, project
-from unslop.project import Config, ConfigError
+from unslop.project import Config, ConfigError, Stack
 
 
 def test_config_round_trips(repo: Path) -> None:
-    config = Config("python", "1.2.3", 300, {"tests": 'pytest -q -k "fast"'})
+    config = Config([Stack("python", ".", {"tests": 'pytest -q -k "fast"'})], "1.2.3", 300)
     project.save(config)
     assert project.load() == config
 
@@ -17,7 +17,8 @@ def test_config_round_trips(repo: Path) -> None:
 @pytest.mark.parametrize(
     ("content", "problem"),
     [
-        ('profile = "python"\n', "string `version` and `profile`"),
+        ('profile = "python"\n', "string `version`"),
+        ('version = "1"\n', "string `profile` or"),
         ('version = "1"\nprofile = "python"\nfast_check_seconds = "x"\n', "whole number"),
         ('version = "1"\nprofile = "python"\ncommands = 3\n', "must be a table"),
         ('version = "1"\nprofile = "python"\n[commands]\nlint = "x"\n', "accepts string values"),
@@ -36,7 +37,7 @@ def test_missing_config_points_at_init(repo: Path) -> None:
 
 
 def test_version_mismatch_is_refused(repo: Path) -> None:
-    project.save(Config("python", "0.0.1"))
+    project.save(Config([Stack("python")], "0.0.1"))
     with pytest.raises(ConfigError, match=r"pins version 0\.0\.1"):
         _ = cli.loaded()
 
@@ -75,13 +76,13 @@ def test_unknown_base_is_an_error(repo: Path) -> None:
 
 
 def test_guard_config_flags_config_change_and_baseline_growth(repo: Path) -> None:
-    project.save(Config("python"))
+    project.save(Config([Stack("python")]))
     project.write_baseline({"ruff": {"a.py::E1": 1}})
     commit(repo, "adopt")
     since = gitops.git("rev-parse", "HEAD").strip()
     assert cli.guard_config(since) == []
     project.write_baseline({"ruff": {"a.py::E1": 2, "b.py::E2": 1}})
-    project.save(Config("python", commands={"tests": "true"}))
+    project.save(Config([Stack("python", ".", {"tests": "true"})]))
     assert cli.guard_config(since) == [
         "unslop.toml changed",
         "baseline grew: ruff a.py::E1",
@@ -90,7 +91,7 @@ def test_guard_config_flags_config_change_and_baseline_growth(repo: Path) -> Non
 
 
 def test_shrinking_the_baseline_is_fine(repo: Path) -> None:
-    project.save(Config("python"))
+    project.save(Config([Stack("python")]))
     project.write_baseline({"ruff": {"a.py::E1": 2}})
     commit(repo, "adopt")
     since = gitops.git("rev-parse", "HEAD").strip()
@@ -103,7 +104,7 @@ def test_settings_enable_the_plugin_and_protect_existing_files(repo: Path) -> No
     write(repo / "web/package.json", "{}")
     write(repo / ".claude/settings.json", json.dumps({"permissions": {"deny": ["Read(.env)"]}, "model": "opus"}))
     commit(repo, "legacy")
-    footprint.write_settings("9.9.9")
+    footprint.write_settings("9.9.9", ["."])
     written = json.loads((repo / ".claude/settings.json").read_text())
     assert written["model"] == "opus"
     assert written["enabledPlugins"] == {"unslop@unslop": True}
@@ -116,9 +117,9 @@ def test_settings_enable_the_plugin_and_protect_existing_files(repo: Path) -> No
 
 
 def test_settings_merge_is_idempotent(repo: Path) -> None:
-    footprint.write_settings(__version__)
+    footprint.write_settings(__version__, ["."])
     first = (repo / ".claude/settings.json").read_text()
-    footprint.write_settings(__version__)
+    footprint.write_settings(__version__, ["."])
     assert (repo / ".claude/settings.json").read_text() == first
 
 

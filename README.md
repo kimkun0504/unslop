@@ -12,14 +12,14 @@ Requirements: `git`, `jq` (included in macOS 15 and later) and [`uv`](https://do
 
 ```bash
 cd ~/code/my-service
-uvx --from git+https://github.com/kimkun0504/unslop@v0.1.0 unslop init
+uvx --from git+https://github.com/kimkun0504/unslop@v0.2.0 unslop init
 ```
 
-`unslop init` detects the stack, records today's lint and type findings as a baseline so only new code has to meet the bar, checks that the gate passes, and adds four files:
+`unslop init` detects the stacks, including a front end in a subfolder beside a back end, records today's lint and type findings as a baseline so only new code has to meet the bar, checks that the gate passes, and adds four files:
 
 | File | What it is |
 |---|---|
-| `unslop.toml` | The profile, the pinned unslop version and the time budget for the end-of-turn check |
+| `unslop.toml` | The stacks and their folders, the pinned unslop version and the time budget for the end-of-turn check |
 | `.unslop/baseline.json` | Findings that existed on day one, counted per file and rule |
 | `.claude/settings.json` | Turns on the unslop Claude Code plugin for this repository and makes build files, lockfiles, CI and the unslop files read-only for Claude |
 | `.github/workflows/unslop.yml` | Runs the same check on every pull request |
@@ -31,7 +31,7 @@ Commit them on a branch and open a pull request. The next time you open Claude C
 ## Start a new project
 
 ```bash
-uvx --from git+https://github.com/kimkun0504/unslop@v0.1.0 unslop new python ~/code/my-app
+uvx --from git+https://github.com/kimkun0504/unslop@v0.2.0 unslop new python ~/code/my-app
 cd ~/code/my-app
 scripts/setup
 scripts/verify
@@ -119,7 +119,7 @@ Every template has the same commands:
 
 | Command | What it does |
 |---|---|
-| `unslop init [--profile NAME]` | Add unslop to the current repository and record the baseline |
+| `unslop init [--stack PROFILE[:FOLDER]]…` | Add unslop to the current repository and record the baseline; stacks are detected when left out |
 | `unslop check [--base REF]` | Run every gate against the changes since the base branch |
 | `unslop setup` | Install the repository's dependencies the way the profile expects |
 | `unslop baseline` | Record the current findings as the baseline. For humans, after fixing old findings; Claude is blocked from running it |

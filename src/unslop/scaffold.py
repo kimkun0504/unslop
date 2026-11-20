@@ -137,5 +137,5 @@ def listing() -> str:
         lines += [f"    {key}: {value}" for key, value in gates.items()]
         lines.append("")
     profiles = [text(item.get("name")) for item in objects(catalog().get("adopt"))]
-    lines.append(f"profiles for existing repositories (unslop init --profile): {' '.join(profiles)}")
+    lines.append(f"profiles for existing repositories (unslop init --stack): {' '.join(profiles)}")
     return "\n".join(lines)

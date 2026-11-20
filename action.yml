@@ -16,6 +16,9 @@ inputs:
 runs:
   using: composite
   steps:
+    - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+      with:
+        version: "0.13.9"
     - id: read
       shell: bash
       working-directory: ${{ inputs.working-directory }}
@@ -23,64 +26,62 @@ runs:
         BASE_INPUT: ${{ inputs.base }}
         BASE_REF: ${{ github.base_ref }}
         DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        PREFIX: ${{ inputs.working-directory }}
       run: |
-        profile=$(sed -n 's/^profile *= *"\([^"]*\)".*/\1/p' unslop.toml 2>/dev/null | head -n 1)
-        [ -n "$profile" ] || { echo "::error::no profile in unslop.toml; run unslop init first"; exit 1; }
+        [ -f unslop.toml ] || { echo "::error::no unslop.toml; run unslop init first"; exit 1; }
+        uv tool install --quiet --python 3.13 --force "$GITHUB_ACTION_PATH"
+        unslop toolchains --prefix "$PREFIX" >> "$GITHUB_OUTPUT"
         base=${BASE_INPUT:-${BASE_REF:-${DEFAULT_BRANCH:-main}}}
-        echo "profile=$profile" >> "$GITHUB_OUTPUT"
         echo "base=origin/${base#origin/}" >> "$GITHUB_OUTPUT"
-    - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
-      with:
-        version: "0.13.9"
-    - if: steps.read.outputs.profile == 'typescript'
+    - if: contains(steps.read.outputs.profiles, ' typescript ')
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
       with:
-        node-version-file: ${{ hashFiles('.node-version') != '' && '.node-version' || hashFiles('.nvmrc') != '' && '.nvmrc' || '' }}
-        node-version: ${{ hashFiles('.node-version', '.nvmrc') == '' && 'lts/*' || '' }}
-    - if: steps.read.outputs.profile == 'jvm'
+        node-version-file: ${{ steps.read.outputs.node_file }}
+        node-version: ${{ steps.read.outputs.node_file == '' && 'lts/*' || '' }}
+    - if: contains(steps.read.outputs.profiles, ' jvm ')
       uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
       with:
         distribution: temurin
         java-version: "21"
-    - if: steps.read.outputs.profile == 'jvm'
+    - if: contains(steps.read.outputs.profiles, ' jvm ')
       uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c
-    - if: steps.read.outputs.profile == 'go'
+    - if: contains(steps.read.outputs.profiles, ' go ')
       uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
       with:
-        go-version-file: go.mod
-    - if: steps.read.outputs.profile == 'dotnet'
+        go-version-file: ${{ steps.read.outputs.go_file }}
+    - if: contains(steps.read.outputs.profiles, ' dotnet ')
       uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73
       with:
         dotnet-version: "10.0.x"
-    - if: steps.read.outputs.profile == 'php'
+    - if: contains(steps.read.outputs.profiles, ' php ')
       uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
       with:
         php-version: "8.4"
         coverage: pcov
         tools: composer:v2
-    - if: steps.read.outputs.profile == 'ruby'
+    - if: contains(steps.read.outputs.profiles, ' ruby ')
       uses: ruby/setup-ruby@f9c4492e86def3e644ab32a0ef185eda5b0c20d0
       with:
-        ruby-version: ${{ hashFiles('.ruby-version') != '' && '.ruby-version' || 'ruby' }}
-    - if: steps.read.outputs.profile == 'elixir'
+        ruby-version: ${{ steps.read.outputs.ruby_file != '' && steps.read.outputs.ruby_file || 'ruby' }}
+    - if: contains(steps.read.outputs.profiles, ' elixir ')
       uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
       with:
-        version-file: .tool-versions
+        version-file: ${{ steps.read.outputs.beam_file }}
         version-type: strict
-    - if: steps.read.outputs.profile == 'rust'
+    - if: contains(steps.read.outputs.profiles, ' rust ')
       shell: bash
       run: rustup show active-toolchain || rustup toolchain install stable --profile minimal
-    - if: steps.read.outputs.profile == 'rust'
+    - if: contains(steps.read.outputs.profiles, ' rust ')
       uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
       with:
         tool: cargo-llvm-cov@0.9.1
-    - if: steps.read.outputs.profile == 'terraform'
+    - if: contains(steps.read.outputs.profiles, ' terraform ')
       uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
       with:
         terraform_wrapper: false
-    - if: steps.read.outputs.profile == 'terraform'
+    - if: contains(steps.read.outputs.profiles, ' terraform ')
       uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337
-    - if: steps.read.outputs.profile == 'swift'
+    - if: contains(steps.read.outputs.profiles, ' swift ')
       shell: bash
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
     - shell: bash
@@ -90,6 +91,5 @@ runs:
         UNSLOP_CONFIG_REVIEWED: ${{ contains(github.event.pull_request.labels.*.name, 'unslop-reviewed') && '1' || '' }}
         BASE: ${{ steps.read.outputs.base }}
       run: |
-        uv tool install --quiet --python 3.13 --force "$GITHUB_ACTION_PATH"
         unslop setup
         unslop check --base "$BASE"

@@ -7,10 +7,10 @@ Templates start clean. An existing repository has years of findings, so turning 
 1. On a clean branch of your repository:
 
    ```bash
-   uvx --from git+https://github.com/kimkun0504/unslop@v0.1.0 unslop init
+   uvx --from git+https://github.com/kimkun0504/unslop@v0.2.0 unslop init
    ```
 
-   `init` picks the profile from the files it finds; pass `--profile NAME` when a repository has more than one stack. It installs dependencies with `unslop setup`, records the baseline, runs `unslop check` once, and sets the end-of-turn time budget to twice that run plus a minute, between 240 and 1700 seconds.
+   `init` finds the stacks from the files it sees: one at the repository root, plus any top-level folder with a different stack, such as a React app in `web/` beside a Python API. To choose yourself, pass `--stack PROFILE[:FOLDER]` once per stack, for example `--stack python --stack typescript:web`. It installs dependencies with `unslop setup`, records the baseline, runs `unslop check` once, and sets the end-of-turn time budget to twice that run plus a minute, between 240 and 1700 seconds.
 2. Review `git status`: four new or changed files, listed below. Commit, push and open a pull request.
 3. Open Claude Code in the repository and accept the folder trust prompt. The unslop plugin installs from the marketplace named in `.claude/settings.json`; `/plugin` lists it.
 4. After the pull request merges, require the check:
@@ -25,7 +25,7 @@ If detection guessed wrong, `init` stops and says why. Override the command in `
 
 | Path | What it is | Who can change it |
 |---|---|---|
-| `unslop.toml` | The profile, the pinned unslop version, the time budget, and any command overrides | A human, with the `unslop-reviewed` label |
+| `unslop.toml` | The stacks and their folders, the pinned unslop version, the time budget, and any command overrides | A human, with the `unslop-reviewed` label |
 | `.unslop/baseline.json` | Findings that existed at adoption, counted per file and rule | A human, with `unslop baseline`; growth needs the `unslop-reviewed` label |
 | `.claude/settings.json` | Turns the plugin on and denies Claude edits to the files below. Merged into any settings you already have | A human |
 | `.github/workflows/unslop.yml` | The `unslop` CI job | A human |
@@ -54,7 +54,7 @@ When Claude fixes a recorded finding, the check says so. A human locks the impro
 `unslop plan` prints the exact commands each gate runs. To change one, add a `[commands]` table to `unslop.toml`:
 
 ```toml
-version = "0.1.0"
+version = "0.2.0"
 profile = "python"
 fast_check_seconds = 300
 
@@ -64,7 +64,29 @@ tests = "uv run pytest -q tests/unit --cov=src --cov-report=xml:.unslop/out/cove
 coverage = ".unslop/out/coverage.xml"
 ```
 
-`setup`, `tests` and `coverage` can be overridden. An empty `coverage` turns changed-line coverage off. Changes to `unslop.toml` need the `unslop-reviewed` label on the pull request.
+`setup`, `tests` and `coverage` can be overridden. With several stacks, put the overrides in a `[stack.commands]` table after the stack they belong to. An empty `coverage` turns changed-line coverage off. Changes to `unslop.toml` need the `unslop-reviewed` label on the pull request.
+
+## Several stacks in one repository
+
+Each stack runs in its own folder with its own tools, and its findings are recorded under its own name in the baseline, such as `web:eslint`. `unslop.toml` lists them:
+
+```toml
+version = "0.2.0"
+fast_check_seconds = 240
+
+[[stack]]
+profile = "python"
+path = "."
+
+[[stack]]
+profile = "typescript"
+path = "web"
+
+[stack.commands]
+tests = "npx --no-install vitest run --coverage.enabled --coverage.reporter=cobertura --coverage.reportsDirectory=.unslop/out"
+```
+
+The `[stack.commands]` table after a stack overrides that stack's commands. Build files and lockfiles inside each stack's folder, such as `web/package-lock.json`, are protected the same way as the ones at the root. The CI action sets up every toolchain the stacks need.
 
 ## Upgrading
 
@@ -76,4 +98,4 @@ The table of profiles, what each detects and which tools it runs is generated fr
 
 ## Limits
 
-Architecture rules and mutation testing are not adopted, because they depend on a layout the repository may not have. One profile per repository. See [Known limits](limits.md) for these and the other gaps.
+Architecture rules and mutation testing are not adopted, because they depend on a layout the repository may not have. Two stacks of the same kind need separate folders. See [Known limits](limits.md) for these and the other gaps.

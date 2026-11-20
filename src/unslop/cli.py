@@ -8,10 +8,10 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from unslop import __version__, comments, diffcheck, footprint, gitops, profiles, project, ratchet, scaffold
+from unslop import __version__, comments, diffcheck, footprint, gitops, profiles, project, ratchet, scaffold, stacks
 from unslop.fetch import FetchError, fetch
 from unslop.profiles import DetectError, Plan
-from unslop.project import Config, ConfigError
+from unslop.project import Config, ConfigError, Stack
 from unslop.ratchet import BrokenCheckError
 from unslop.scaffold import ScaffoldError
 
@@ -36,25 +36,7 @@ def enabled(*names: str) -> bool:
     return any(os.environ.get(name) == "1" for name in names)
 
 
-def resolve(config: Config) -> Plan:
-    plan = profiles.plan(config.profile, self_command())
-    for note in plan["notes"]:
-        print(f"note: {note}", file=sys.stderr)
-    if "setup" in config.commands:
-        plan["setup"] = config.commands["setup"]
-    if "tests" in config.commands:
-        plan["tests"] = {"run": config.commands["tests"]}
-    if "coverage" in config.commands and "tests" in plan:
-        coverage = config.commands["coverage"]
-        if coverage:
-            plan["tests"]["coverage"] = coverage
-        else:
-            _ = plan["tests"].pop("coverage", None)
-    return plan
-
-
 def loaded() -> Config:
-    project.prepare_out()
     config = project.load()
     if config.version != __version__:
         message = (
@@ -106,20 +88,34 @@ def gates(since: str) -> bool:
     return ok
 
 
+def check_stack(stack: Stack, since: str, changed: list[str], touched: ratchet.Touched) -> bool:
+    baseline = project.read_baseline()
+    with project.inside(stack.path):
+        project.prepare_out()
+        plan = stacks.resolve(stack, self_command())
+        files = ratchet.local_files(changed, stack.path)
+        results = [ratchet.formatted(rule, since, files) for rule in plan["format"]]
+        for item in plan["checks"]:
+            found = ratchet.collect(item, stack.path)
+            key = stack.key(item["name"])
+            results.append(ratchet.ratchet(key, found, baseline.get(key, {}), touched))
+        if "tests" in plan:
+            results.append(ratchet.run_tests(plan["tests"], since, stack.path))
+    return all(results)
+
+
 def run_check(base: str) -> int:
     config = loaded()
     since = gitops.diff_base(base)
     if not gates(since):
         return 1
-    plan = resolve(config)
-    baseline = project.read_baseline()
-    results = [ratchet.formatted(rule, since) for rule in plan["format"]]
+    changed = gitops.changed_files(since)
     touched = gitops.added_lines(since)
-    for item in plan["checks"]:
-        found = ratchet.collect(item)
-        results.append(ratchet.ratchet(item["name"], found, baseline.get(item["name"], {}), touched))
-    if "tests" in plan:
-        results.append(ratchet.tested(plan["tests"], since))
+    results: list[bool] = []
+    for stack in config.stacks:
+        if len(config.stacks) > 1:
+            print(f"== {stack.label}", flush=True)
+        results.append(check_stack(stack, since, changed, touched))
     if all(results):
         print("unslop: all checks pass")
         return 0
@@ -127,42 +123,51 @@ def run_check(base: str) -> int:
 
 
 def run_setup() -> int:
-    plan = resolve(loaded())
-    setup = plan.get("setup", "")
-    if not setup:
-        return 0
-    print(f"$ {setup}", flush=True)
-    return subprocess.run(["bash", "-c", setup], check=False).returncode
+    for stack in loaded().stacks:
+        with project.inside(stack.path):
+            project.prepare_out()
+            setup = stacks.resolve(stack, self_command()).get("setup", "")
+            if not setup:
+                continue
+            print(f"$ {setup}" if stack.path == "." else f"$ (in {stack.path}) {setup}", flush=True)
+            code = subprocess.run(["bash", "-c", setup], check=False).returncode
+        if code != 0:
+            return code
+    return 0
 
 
 def record_baseline() -> int:
-    plan = resolve(loaded())
     baseline: dict[str, dict[str, int]] = {}
-    for item in plan["checks"]:
-        found = ratchet.collect(item)
-        baseline[item["name"]] = ratchet.counts(found)
-        print(f"{item['name']}: recorded {len(found)} findings")
+    for stack in loaded().stacks:
+        with project.inside(stack.path):
+            project.prepare_out()
+            plan = stacks.resolve(stack, self_command())
+            for item in plan["checks"]:
+                found = ratchet.collect(item, stack.path)
+                key = stack.key(item["name"])
+                baseline[key] = ratchet.counts(found)
+                print(f"{key}: recorded {len(found)} findings")
     project.write_baseline(baseline)
     print(f"wrote {project.BASELINE}")
     return 0
 
 
-def choose_profile(requested: str | None) -> str:
-    if requested:
-        return requested
-    guesses = profiles.guess()
-    if len(guesses) == 1:
-        return guesses[0]
-    found = ", ".join(guesses) if guesses else "none"
-    message = f"pass --profile; detected: {found}; available: {', '.join(sorted(profiles.PROFILES))}"
-    raise UsageError(message)
+def choose_stacks(requested: list[str]) -> list[Stack]:
+    chosen = [stacks.parse(argument) for argument in requested]
+    if not chosen:
+        return stacks.discover()
+    paths = [stack.path for stack in chosen]
+    if len(set(paths)) != len(paths):
+        message = "two --stack options name the same folder; give each stack its own folder"
+        raise UsageError(message)
+    return chosen
 
 
 def budget(elapsed: float) -> int:
     return max(MIN_SECONDS, min(MAX_SECONDS, int(elapsed) * 2 + 60))
 
 
-def run_init(requested: str | None, skip_setup: bool) -> int:
+def run_init(requested: list[str], skip_setup: bool) -> int:
     os.chdir(gitops.toplevel())
     if project.CONFIG.exists():
         message = "unslop.toml already exists; this repository is already set up"
@@ -173,19 +178,21 @@ def run_init(requested: str | None, skip_setup: bool) -> int:
     if not gitops.clean():
         message = "commit or stash your changes first, so the unslop change is reviewable on its own"
         raise UsageError(message)
-    config = Config(choose_profile(requested))
-    profiles.plan(config.profile, self_command())
+    config = Config(choose_stacks(requested))
+    for stack in config.stacks:
+        with project.inside(stack.path):
+            _ = profiles.plan(stack.profile, self_command())
     project.save(config)
-    footprint.write_settings(config.version)
-    footprint.write_workflow(config.version, config.profile)
-    print(f"set up unslop {config.version} with the {config.profile} profile")
+    footprint.write_settings(config.version, [stack.path for stack in config.stacks])
+    footprint.write_workflow(config.version, config.profiles)
+    print(f"set up unslop {config.version} for {', '.join(stack.label for stack in config.stacks)}")
     if not skip_setup and run_setup() != 0:
-        print("setup failed: fix [commands] setup in unslop.toml, then run `unslop setup` and `unslop baseline`")
+        print("setup failed: override the setup command in unslop.toml, then run `unslop setup` and `unslop baseline`")
         return 1
     _ = record_baseline()
     started = time.monotonic()
     if run_check("origin/main") != 0:
-        print("check fails against the new baseline; usually [commands] tests in unslop.toml needs adjusting")
+        print("check fails against the new baseline; usually the tests command in unslop.toml needs adjusting")
         return 1
     elapsed = time.monotonic() - started
     config.fast_check_seconds = budget(elapsed)
@@ -235,8 +242,33 @@ def run_list() -> int:
     return 0
 
 
+TOOLCHAIN_FILES = {
+    "node": ("typescript", (".node-version", ".nvmrc")),
+    "ruby": ("ruby", (".ruby-version",)),
+    "go": ("go", ("go.mod",)),
+    "beam": ("elixir", (".tool-versions",)),
+}
+
+
+def run_toolchains(prefix: str) -> int:
+    config = project.load()
+    print(f"profiles= {' '.join(sorted(set(config.profiles)))} ")
+    for tool, (profile, names) in TOOLCHAIN_FILES.items():
+        candidates = [
+            Path(prefix) / stack.path / name for stack in config.stacks if stack.profile == profile for name in names
+        ]
+        found = next((path for path in candidates if path.is_file()), None)
+        print(f"{tool}_file={Path(os.path.normpath(found)).as_posix() if found else ''}")
+    return 0
+
+
 def run_plan() -> int:
-    print(json.dumps(resolve(loaded()), indent=2))
+    plans: dict[str, Plan] = {}
+    for stack in loaded().stacks:
+        with project.inside(stack.path):
+            project.prepare_out()
+            plans[stack.label] = stacks.resolve(stack, self_command())
+    print(json.dumps(plans, indent=2))
     return 0
 
 
@@ -245,7 +277,14 @@ def parser() -> argparse.ArgumentParser:
     _ = root.add_argument("--version", action="version", version=f"unslop {__version__}")
     commands = root.add_subparsers(dest="command", required=True)
     init = commands.add_parser("init", help="add unslop to this repository and record the baseline")
-    _ = init.add_argument("--profile", choices=sorted(profiles.PROFILES))
+    _ = init.add_argument(
+        "--stack",
+        action="append",
+        default=[],
+        metavar="PROFILE[:FOLDER]",
+        help="a stack to check, such as python or typescript:web; repeat for each one. Detected when left out",
+    )
+    _ = init.add_argument("--profile", dest="stack", action="append", help=argparse.SUPPRESS)
     _ = init.add_argument("--skip-setup", action="store_true", help="skip installing dependencies")
     check = commands.add_parser("check", help="run every gate against the changes since the base branch")
     _ = check.add_argument("--base", default="origin/main")
@@ -260,12 +299,14 @@ def parser() -> argparse.ArgumentParser:
     _ = new.add_argument("template")
     _ = new.add_argument("directory")
     _ = commands.add_parser("list", help="show templates, their gates and profiles for existing repositories")
+    chains = commands.add_parser("toolchains", help="print the toolchains CI needs, for the GitHub Action")
+    _ = chains.add_argument("--prefix", default=".")
     return root
 
 
 def dispatch(arguments: argparse.Namespace) -> int:
     handlers: dict[str, Callable[[], int]] = {
-        "init": lambda: run_init(arguments.profile, arguments.skip_setup),
+        "init": lambda: run_init(arguments.stack, arguments.skip_setup),
         "check": lambda: run_check(arguments.base),
         "setup": run_setup,
         "baseline": record_baseline,
@@ -274,6 +315,7 @@ def dispatch(arguments: argparse.Namespace) -> int:
         "plan": run_plan,
         "new": lambda: run_new(arguments.template, arguments.directory),
         "list": run_list,
+        "toolchains": lambda: run_toolchains(arguments.prefix),
     }
     return handlers[arguments.command]()
 
@@ -281,7 +323,7 @@ def dispatch(arguments: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     arguments = parser().parse_args(argv)
     try:
-        if arguments.command not in {"init", "fetch", "ruleset", "new", "list"}:
+        if arguments.command not in {"init", "fetch", "ruleset", "new", "list", "toolchains"}:
             os.chdir(gitops.toplevel())
         return dispatch(arguments)
     except (
