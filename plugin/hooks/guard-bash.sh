@@ -25,7 +25,7 @@ has 'minimum.?release.?age|exclude-newer' && deny "release-age gate change"
 has '(^|[ /=<])\.env(\.[A-Za-z0-9_-]+)?( |$|;|\|)' && ! has '\.env\.example' && deny "reading or writing .env secrets"
 root=${CLAUDE_PROJECT_DIR:-}
 if [ -n "$root" ] && { [ -f "$root/unslop.toml" ] || [ -f "$root/.claude/unslop.json" ]; }; then
-  has '(^|[ ;&|(/])unslop +(baseline|init)( |$|[);&|])|scripts/rebaseline' && deny "only a human records the baseline"
+  has '(^|[ ;&|(/])unslop +(baseline|init|upgrade)( |$|[);&|])|scripts/rebaseline' && deny "only a human records the baseline or changes the unslop setup"
   has 'claude +plugins? +(disable|uninstall|remove)|plugins? +marketplace +remove' && deny "the unslop plugin stays enabled in this repository"
 fi
 exit 0

@@ -239,7 +239,7 @@ done
 expect 0 "stack folder: source edit" protect-paths.sh "$(edit_in "$toml/web/src/app.ts")"
 expect 0 "other folder: lockfile not in a stack" protect-paths.sh "$(edit_in "$toml/fixtures/package-lock.json")"
 printf 'version = "0.1.0"\nprofile = "python"\nfast_check_seconds = 30\n' >"$toml/unslop.toml"
-for c in "unslop baseline" "uvx unslop init" "/opt/plugin/bin/unslop baseline" "scripts/rebaseline" "claude plugin disable unslop@unslop" "claude plugin uninstall unslop" "claude plugin marketplace remove unslop"; do
+for c in "unslop baseline" "uvx unslop init" "unslop upgrade" "/opt/plugin/bin/unslop baseline" "scripts/rebaseline" "claude plugin disable unslop@unslop" "claude plugin uninstall unslop" "claude plugin marketplace remove unslop"; do
   expect 2 "toml: block $c" guard-bash.sh "$(bash_in "$c")"
 done
 expect 0 "toml: check allowed" guard-bash.sh "$(bash_in "unslop check")"
