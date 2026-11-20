@@ -44,7 +44,7 @@ def diff_base(ref: str | None = None) -> str:
             message = f"no merge base with {target}; use a full clone (fetch-depth: 0)"
             raise GitError(message)
         return merge
-    if ref is not None or has_origin():
+    if has_origin():
         message = f"cannot resolve {target}; fetch it, or pass --base with the branch to compare against"
         raise GitError(message)
     if Path(MARKER).is_file():

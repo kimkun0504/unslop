@@ -68,11 +68,11 @@ def test_diff_base_is_the_root_commit_for_templates(repo: Path) -> None:
     assert gitops.diff_base() == root
 
 
-def test_unknown_base_is_an_error(repo: Path) -> None:
+def test_a_repository_without_a_remote_falls_back_to_its_history(repo: Path) -> None:
     write(repo / "app.py", "x = 1\n")
     commit(repo, "root")
-    with pytest.raises(gitops.GitError, match="cannot resolve origin/develop"):
-        _ = gitops.diff_base("origin/develop")
+    root = gitops.git("rev-parse", "HEAD").strip()
+    assert gitops.diff_base("origin/develop") == root
 
 
 def test_guard_config_flags_config_change_and_baseline_growth(repo: Path) -> None:
