@@ -1,6 +1,6 @@
 {
   "name": "unslop",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Guardrails that make AI slop fail: protected build and CI files, a shell tripwire, and a stop gate that runs `unslop check` before Claude finishes.",
   "author": {
     "name": "Kun Kim"

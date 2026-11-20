@@ -4,7 +4,17 @@ halt() { printf '{"continue":false,"stopReason":"%s"}\n' "$1"; exit 0; }
 trap 'halt "stop-gate: internal error; work NOT verified"' ERR
 command -v jq >/dev/null 2>&1 || halt "stop-gate: jq missing; work NOT verified"
 input=$(cat)
-root="${CLAUDE_PROJECT_DIR:-}"
+worktree_root() {
+  local cwd top
+  cwd=$(printf '%s' "$1" | jq -r '.cwd // empty' 2>/dev/null) || cwd=""
+  [ -n "$cwd" ] && [ -d "$cwd" ] || return 0
+  top=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || top=""
+  if [ -n "$top" ] && { [ -f "$top/unslop.toml" ] || [ -f "$top/.claude/unslop.json" ]; }; then
+    printf '%s\n' "$top"
+  fi
+}
+root=$(worktree_root "$input")
+[ -n "$root" ] || root="${CLAUDE_PROJECT_DIR:-}"
 [ -n "$root" ] || exit 0
 here=$(cd "$(dirname "$0")" && pwd)
 machine=${UNSLOP_MACHINE_HOOKS:-/usr/local/lib/claude-guard}

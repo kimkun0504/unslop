@@ -13,7 +13,26 @@ PLUGIN = f"unslop@{MARKETPLACE}"
 SETTINGS = Path(".claude/settings.json")
 WORKFLOW = Path(".github/workflows/unslop.yml")
 CHECKOUT = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-ALWAYS = ("unslop.toml", ".unslop", ".claude", ".github", "CLAUDE.md", "AGENTS.md")
+ALWAYS_FILES = (
+    "unslop.toml",
+    "CLAUDE.md",
+    "AGENTS.md",
+    ".mcp.json",
+    ".claude/settings.json",
+    ".claude/settings.local.json",
+    ".claude/CLAUDE.md",
+)
+ALWAYS_FOLDERS = (
+    ".unslop",
+    ".github",
+    ".claude/rules",
+    ".claude/skills",
+    ".claude/commands",
+    ".claude/agents",
+    ".claude/output-styles",
+    ".claude/workflows",
+    ".claude/hooks",
+)
 PROTECTED = (
     "CODEOWNERS",
     "package.json",
@@ -127,16 +146,17 @@ def protected_files(folders: list[str]) -> list[str]:
 
 def deny_rules(folders: list[str]) -> tuple[list[str], list[str]]:
     files = protected_files(folders)
-    edits = [
-        f"Edit({name}/**)" if not Path(name).suffix and name.startswith(".") else f"Edit({name})" for name in ALWAYS
-    ]
+    edits = [f"Edit({name})" for name in ALWAYS_FILES] + [f"Edit({name}/**)" for name in ALWAYS_FOLDERS]
     edits += [f"Edit({path})" for path in files]
-    writes = [f"./{name}" for name in ALWAYS] + [f"./{path}" for path in files]
+    writes = [f"./{name}" for name in (*ALWAYS_FILES, *ALWAYS_FOLDERS)] + [f"./{path}" for path in files]
     return edits, writes
 
 
+RETIRED = frozenset({"Edit(.claude/**)", "./.claude"})
+
+
 def merged(existing: list[object], extra: list[str]) -> list[str]:
-    values = [str(item) for item in existing]
+    values = [str(item) for item in existing if str(item) not in RETIRED]
     return values + [item for item in extra if item not in values]
 
 
@@ -202,6 +222,7 @@ def workflow(version: str, profiles: list[str]) -> str:
             "name: unslop",
             "on:",
             "  pull_request:",
+            "    types: [opened, synchronize, reopened, labeled, unlabeled]",
             "  push:",
             f"    branches: [{default_branch()}]",
             "permissions:",

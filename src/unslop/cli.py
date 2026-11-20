@@ -261,6 +261,9 @@ TOOLCHAIN_FILES = {
     "ruby": ("ruby", (".ruby-version",)),
     "go": ("go", ("go.mod",)),
     "beam": ("elixir", (".tool-versions",)),
+    "java": ("jvm", (".java-version", ".sdkmanrc")),
+    "dotnet": ("dotnet", ("global.json",)),
+    "php": ("php", (".php-version",)),
 }
 
 

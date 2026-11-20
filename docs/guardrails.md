@@ -15,7 +15,7 @@ Optional. Installed by `sudo ./install/install.sh system`. Applies to every repo
 | M1 | Secrets cannot be read: `.env*`, `~/.ssh`, `~/.aws`, `~/.kube`, gcloud, Docker, npm, PyPI and netrc credentials, `*.pem`, `*.key` | `permissions.deny` Read rules plus `sandbox.filesystem.denyRead` | Boundary for shell, tripwire for the Read tool |
 | M2 | Credential environment variables are hidden from shell commands: `GITHUB_TOKEN`, `GH_TOKEN`, `NPM_TOKEN`, AWS keys, `DATABASE_URL`, `PGPASSWORD` | `sandbox.credentials.envVars` deny | Boundary |
 | M3 | Shell commands run sandboxed, may write only to the project and the toolchain caches of every template stack, and may reach only those stacks' package registries and GitHub | `sandbox` with `failIfUnavailable`, `allowUnsandboxedCommands: false`, `network.strictAllowlist` | Boundary |
-| M4 | Claude's own configuration cannot be changed: `~/.claude`, `.claude/`, `.mcp.json`, git hooks and git config | Edit deny rules, sandbox `denyWrite`, `protect-paths.sh` | Boundary |
+| M4 | Claude's own configuration cannot be changed: `~/.claude`, the settings, rules, skills, commands, agents and hooks in `.claude/`, `.mcp.json`, git hooks and git config. Worktrees that Claude Code creates in `.claude/worktrees/` stay editable, with the same rules applied inside each one | Edit deny rules, sandbox `denyWrite`, `protect-paths.sh` | Boundary |
 | M5 | No bypass mode | `disableBypassPermissionsMode: "disable"` | Boundary |
 | M6 | Project MCP servers are not auto-enabled | `enableAllProjectMcpServers: false` | Boundary |
 | M7 | Hook bypasses blocked: `--no-verify`, `commit -n`, `HUSKY=0`, `core.hooksPath` | `guard-bash.sh` | Tripwire |

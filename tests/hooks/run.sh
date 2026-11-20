@@ -277,6 +277,44 @@ expect 0 "toml stop: budget from unslop.toml" stop-gate.sh "$(stop_in t3)"
 if grep -q 'exceeded 5s' "$work/out" && grep -q 'unslop.toml' "$work/out"; then tally ok; else tally no "toml stop: budget not read from unslop.toml"; fi
 hooks=$saved
 
+tree_repo="$work/trees"
+mkdir -p "$tree_repo"
+git -C "$tree_repo" init -q
+printf 'version = "0.1.0"\nprofile = "python"\n' >"$tree_repo/unslop.toml"
+git -C "$tree_repo" add -A
+git -C "$tree_repo" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -qm init
+git -C "$tree_repo" worktree add -q "$tree_repo/.claude/worktrees/feat" -b feat 2>/dev/null
+mkdir -p "$tree_repo/.claude/worktrees/feat/src"
+export CLAUDE_PROJECT_DIR="$tree_repo"
+expect 0 "worktree: source edit allowed" protect-paths.sh "$(edit_in "$tree_repo/.claude/worktrees/feat/src/app.py")"
+expect 0 "worktree: new file allowed" protect-paths.sh "$(edit_in "$tree_repo/.claude/worktrees/feat/tests/test_new.py")"
+expect 2 "worktree: build file blocked" protect-paths.sh "$(edit_in "$tree_repo/.claude/worktrees/feat/pyproject.toml")"
+expect 2 "worktree: its unslop.toml blocked" protect-paths.sh "$(edit_in "$tree_repo/.claude/worktrees/feat/unslop.toml")"
+expect 2 "worktree: its claude settings blocked" protect-paths.sh "$(edit_in "$tree_repo/.claude/worktrees/feat/.claude/settings.json")"
+expect 2 "main: claude settings still blocked" protect-paths.sh "$(edit_in "$tree_repo/.claude/settings.json")"
+expect 0 "main: subagent memory allowed" protect-paths.sh "$(edit_in "$tree_repo/.claude/agent-memory/reviewer/MEMORY.md")"
+expect 2 "worktree cwd: baseline command blocked" guard-bash.sh "$(jq -cn --arg c "unslop baseline" --arg d "$tree_repo/.claude/worktrees/feat" '{tool_name:"Bash",cwd:$d,tool_input:{command:$c}}')"
+plain_tree="$work/plain-trees"
+mkdir -p "$plain_tree"
+git -C "$plain_tree" init -q
+export CLAUDE_PROJECT_DIR="$plain_tree"
+expect 0 "plain worktree: source edit allowed" protect-paths.sh "$(edit_in "$plain_tree/.claude/worktrees/x/src/app.py")"
+expect 2 "plain: claude settings blocked" protect-paths.sh "$(edit_in "$plain_tree/.claude/settings.json")"
+copy2="$work/plugin-copy2"
+cp -R "$hooks/.." "$copy2"
+cat >"$copy2/bin/unslop" <<'SH'
+#!/usr/bin/env bash
+pwd >"$UNSLOP_TEST_LOG"
+SH
+chmod +x "$copy2/bin/unslop"
+export UNSLOP_TEST_LOG="$work/ran-in"
+export CLAUDE_PROJECT_DIR="$tree_repo"
+saved=$hooks
+hooks="$copy2/hooks"
+expect 0 "worktree stop: gate runs" stop-gate.sh "$(jq -cn --arg d "$tree_repo/.claude/worktrees/feat/src" '{session_id:"wt1",stop_hook_active:false,cwd:$d}')"
+if [ "$(cat "$work/ran-in" 2>/dev/null)" = "$(cd "$tree_repo/.claude/worktrees/feat" && pwd -P)" ]; then tally ok; else tally no "worktree stop: check ran in $(cat "$work/ran-in" 2>/dev/null) instead of the worktree"; fi
+hooks=$saved
+
 nojq="$work/nojq"
 mkdir -p "$nojq"
 for t in bash cat tr sed grep git dirname mktemp printf; do p=$(command -v "$t") && ln -sf "$p" "$nojq/$t"; done

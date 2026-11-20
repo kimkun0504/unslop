@@ -16,7 +16,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+    - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
       with:
         version: "0.13.9"
     - id: read
@@ -42,7 +42,8 @@ runs:
       uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
       with:
         distribution: temurin
-        java-version: "21"
+        java-version-file: ${{ steps.read.outputs.java_file }}
+        java-version: ${{ steps.read.outputs.java_file == '' && '21' || '' }}
     - if: contains(steps.read.outputs.profiles, ' jvm ')
       uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c
     - if: contains(steps.read.outputs.profiles, ' go ')
@@ -52,15 +53,17 @@ runs:
     - if: contains(steps.read.outputs.profiles, ' dotnet ')
       uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73
       with:
-        dotnet-version: "10.0.x"
+        global-json-file: ${{ steps.read.outputs.dotnet_file }}
+        dotnet-version: ${{ steps.read.outputs.dotnet_file == '' && '10.0.x' || '' }}
     - if: contains(steps.read.outputs.profiles, ' php ')
       uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
       with:
-        php-version: "8.4"
+        php-version-file: ${{ steps.read.outputs.php_file != '' && steps.read.outputs.php_file || '.php-version' }}
+        php-version: ${{ steps.read.outputs.php_file == '' && '8.4' || '' }}
         coverage: pcov
         tools: composer:v2
     - if: contains(steps.read.outputs.profiles, ' ruby ')
-      uses: ruby/setup-ruby@f9c4492e86def3e644ab32a0ef185eda5b0c20d0
+      uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18
       with:
         ruby-version: ${{ steps.read.outputs.ruby_file != '' && steps.read.outputs.ruby_file || 'ruby' }}
     - if: contains(steps.read.outputs.profiles, ' elixir ')

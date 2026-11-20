@@ -14,8 +14,8 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
 ]
 dependencies = [
-    "diff-cover==11.0.1",
-    "tree-sitter-language-pack==1.25.0",
+    "diff-cover==11.0.4",
+    "tree-sitter-language-pack==1.25.2",
 ]
 
 [project.urls]
@@ -29,12 +29,12 @@ unslop-cli = "unslop.cli:main"
 [dependency-groups]
 dev = [
     "basedpyright==1.40.2",
-    "pytest==9.0.1",
-    "ruff==0.17.4",
+    "pytest==9.2.0",
+    "ruff==0.17.6",
 ]
 
 [build-system]
-requires = ["hatchling==1.28.0"]
+requires = ["hatchling==1.33.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]

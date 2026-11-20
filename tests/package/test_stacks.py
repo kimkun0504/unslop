@@ -128,3 +128,12 @@ def test_settings_protect_build_files_inside_stack_folders(repo: Path) -> None:
     assert "Edit(web/eslint.config.js)" in deny
     assert "Edit(web/src/app.ts)" not in deny
     assert "Edit(fixtures/package-lock.json)" not in deny
+
+
+def test_settings_leave_claude_worktrees_editable(repo: Path) -> None:
+    write(repo / "a.txt", "a\n")
+    commit(repo, "root")
+    footprint.write_settings("1.0.0", ["."])
+    deny = json.loads((repo / ".claude/settings.json").read_text())["permissions"]["deny"]
+    assert "Edit(.claude/**)" not in deny
+    assert {"Edit(.claude/settings.json)", "Edit(.claude/skills/**)", "Edit(.mcp.json)"} <= set(deny)

@@ -7,7 +7,7 @@ Templates start clean. An existing repository has years of findings, so turning 
 1. On a clean branch of your repository:
 
    ```bash
-   uvx --from git+https://github.com/kimkun0504/unslop@v0.3.0 unslop init
+   uvx --from git+https://github.com/kimkun0504/unslop@v0.3.1 unslop init
    ```
 
    `init` finds the stacks from the files it sees: one at the repository root, plus any top-level folder with a different stack, such as a React app in `web/` beside a Python API. To choose yourself, pass `--stack PROFILE[:FOLDER]` once per stack, for example `--stack python --stack typescript:web`. It installs dependencies with `unslop setup`, records the baseline, runs `unslop check` once, and sets the end-of-turn time budget to twice that run plus a minute, between 240 and 1700 seconds.
@@ -32,7 +32,7 @@ If detection guessed wrong, `init` stops and says why. Override the command in `
 
 Reports, generated tool configs and helper scripts go in `.unslop/out/`, which ignores itself in git. Nothing existing is overwritten; `init` stops if `unslop.toml` or the workflow already exists.
 
-`.claude/settings.json` denies Claude edits to `unslop.toml`, `.unslop/`, `.claude/`, `.github/`, `CLAUDE.md`, `AGENTS.md`, and the build files and lockfiles your repository actually has, such as `pyproject.toml`, `package.json` or `go.mod`.
+`.claude/settings.json` denies Claude edits to `unslop.toml`, `.unslop/`, Claude's own configuration in `.claude/` (settings, rules, skills, commands, agents, hooks), `.github/`, `CLAUDE.md`, `AGENTS.md`, `.mcp.json`, and the build files and lockfiles your repository actually has, such as `pyproject.toml`, `package.json` or `go.mod`.
 
 ## What `unslop check` enforces
 
@@ -54,7 +54,7 @@ When Claude fixes a recorded finding, the check says so. A human locks the impro
 `unslop plan` prints the exact commands each gate runs. To change one, add a `[commands]` table to `unslop.toml`:
 
 ```toml
-version = "0.3.0"
+version = "0.3.1"
 profile = "python"
 fast_check_seconds = 300
 
@@ -71,7 +71,7 @@ coverage = ".unslop/out/coverage.xml"
 Each stack runs in its own folder with its own tools, and its findings are recorded under its own name in the baseline, such as `web:eslint`. `unslop.toml` lists them:
 
 ```toml
-version = "0.3.0"
+version = "0.3.1"
 fast_check_seconds = 240
 
 [[stack]]
@@ -93,7 +93,7 @@ The `[stack.commands]` table after a stack overrides that stack's commands. Buil
 Run `upgrade` from the version you want, on a branch:
 
 ```bash
-uvx --from git+https://github.com/kimkun0504/unslop@v0.3.0 unslop upgrade
+uvx --from git+https://github.com/kimkun0504/unslop@v0.3.1 unslop upgrade
 ```
 
 It moves the three pins together: the version in `unslop.toml`, the plugin's marketplace `ref` in `.claude/settings.json`, and the action in `.github/workflows/unslop.yml`, resolved to the tag's commit. It refuses a version that is not tagged yet. Open the pull request with the `unslop-reviewed` label, since `unslop.toml` changes. After it merges, `/plugin update unslop@unslop` in Claude Code picks up the new plugin.
