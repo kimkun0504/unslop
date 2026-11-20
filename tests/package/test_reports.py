@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from conftest import commit, write
-from unslop import findings, ratchet
+from unslop import findings, gitops, ratchet
 from unslop.fetch import FetchError, catalog
 from unslop.findings import Finding
 
@@ -113,16 +113,17 @@ def test_formatting_ratchet(repo: Path) -> None:
     write(repo / "messy.txt", "C\n")
     write(repo / "new.txt", "D\n")
     rule: ratchet.FormatRule = {"name": "lower", "glob": ["*.txt"], "run": "tr A-Z a-z"}
-    assert not ratchet.formatted(rule, since)
+    files = ratchet.local_files(gitops.changed_files(since), ".")
+    assert not ratchet.formatted(rule, since, files)
     write(repo / "tidy.txt", "b\n")
     write(repo / "new.txt", "d\n")
-    assert ratchet.formatted(rule, since)
+    assert ratchet.formatted(rule, since, files)
 
 
 def test_tests_must_write_a_coverage_report(repo: Path) -> None:
-    assert ratchet.tested({"run": "true"}, "HEAD")
-    assert not ratchet.tested({"run": "false"}, "HEAD")
-    assert not ratchet.tested({"run": "true", "coverage": ".unslop/out/none.xml"}, "HEAD")
+    assert ratchet.run_tests({"run": "true"}, "HEAD", ".")
+    assert not ratchet.run_tests({"run": "false"}, "HEAD", ".")
+    assert not ratchet.run_tests({"run": "true", "coverage": ".unslop/out/none.xml"}, "HEAD", ".")
 
 
 def test_fetch_catalog_is_pinned() -> None:

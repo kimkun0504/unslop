@@ -45,11 +45,11 @@ def diff_base(ref: str = "origin/main") -> str:
 
 
 def untracked() -> list[str]:
-    return git("ls-files", "--others", "--exclude-standard").splitlines()
+    return git("ls-files", "--full-name", "--others", "--exclude-standard", ":/").splitlines()
 
 
 def tracked_and_untracked() -> list[str]:
-    return git("ls-files", "--cached", "--others", "--exclude-standard").splitlines()
+    return git("ls-files", "--full-name", "--cached", "--others", "--exclude-standard", ":/").splitlines()
 
 
 def changed_files(since: str) -> list[str]:

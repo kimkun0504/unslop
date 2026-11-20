@@ -115,14 +115,18 @@ PROTECTED = (
 )
 
 
-def protected_files() -> list[str]:
-    return sorted(
-        path for path in gitops.tracked_and_untracked() if any(fnmatch.fnmatchcase(path, p) for p in PROTECTED)
-    )
+def guarded(path: str, folders: list[str]) -> bool:
+    relative = [path] + [path.removeprefix(f"{folder}/") for folder in folders if path.startswith(f"{folder}/")]
+    return any(fnmatch.fnmatchcase(candidate, pattern) for candidate in relative for pattern in PROTECTED)
 
 
-def deny_rules() -> tuple[list[str], list[str]]:
-    files = protected_files()
+def protected_files(folders: list[str]) -> list[str]:
+    nested = [folder for folder in folders if folder != "."]
+    return sorted(path for path in gitops.tracked_and_untracked() if guarded(path, nested))
+
+
+def deny_rules(folders: list[str]) -> tuple[list[str], list[str]]:
+    files = protected_files(folders)
     edits = [
         f"Edit({name}/**)" if not Path(name).suffix and name.startswith(".") else f"Edit({name})" for name in ALWAYS
     ]
@@ -136,12 +140,12 @@ def merged(existing: list[object], extra: list[str]) -> list[str]:
     return values + [item for item in extra if item not in values]
 
 
-def settings(version: str) -> dict[str, object]:
+def settings(version: str, folders: list[str]) -> dict[str, object]:
     current: dict[str, object] = {}
     if SETTINGS.is_file():
         loaded: object = json.loads(SETTINGS.read_text())
         current = cast("dict[str, object]", loaded) if isinstance(loaded, dict) else {}
-    edits, writes = deny_rules()
+    edits, writes = deny_rules(folders)
     marketplaces = cast("dict[str, object]", current.get("extraKnownMarketplaces") or {})
     marketplaces[MARKETPLACE] = {"source": {"source": "github", "repo": REPOSITORY, "ref": f"v{version}"}}
     plugins = cast("dict[str, object]", current.get("enabledPlugins") or {})
@@ -161,9 +165,9 @@ def settings(version: str) -> dict[str, object]:
     }
 
 
-def write_settings(version: str) -> None:
+def write_settings(version: str, folders: list[str]) -> None:
     SETTINGS.parent.mkdir(parents=True, exist_ok=True)
-    _ = SETTINGS.write_text(json.dumps(settings(version), indent=2) + "\n")
+    _ = SETTINGS.write_text(json.dumps(settings(version, folders), indent=2) + "\n")
 
 
 def action_ref(version: str) -> str:
@@ -189,9 +193,9 @@ def default_branch() -> str:
 SWIFT_IMAGE = "swift:6.4.2-noble"
 
 
-def workflow(version: str, profile: str) -> str:
+def workflow(version: str, profiles: list[str]) -> str:
     ref = action_ref(version)
-    container = [f"    container: {SWIFT_IMAGE}"] if profile == "swift" else []
+    container = [f"    container: {SWIFT_IMAGE}"] if "swift" in profiles else []
     prepare = ["      - run: apt-get update -qq && apt-get install -y -qq git curl > /dev/null"] if container else []
     return "\n".join(
         [
@@ -222,9 +226,9 @@ def workflow(version: str, profile: str) -> str:
     )
 
 
-def write_workflow(version: str, profile: str) -> None:
+def write_workflow(version: str, profiles: list[str]) -> None:
     WORKFLOW.parent.mkdir(parents=True, exist_ok=True)
-    _ = WORKFLOW.write_text(workflow(version, profile))
+    _ = WORKFLOW.write_text(workflow(version, profiles))
 
 
 def ruleset() -> str:

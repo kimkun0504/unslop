@@ -232,6 +232,13 @@ for p in unslop.toml .unslop/baseline.json .unslop/out/config/ruff.toml .github/
   expect 2 "toml: $p" protect-paths.sh "$(edit_in "$toml/$p")"
 done
 expect 0 "toml: src edit" protect-paths.sh "$(edit_in "$toml/src/app.py")"
+printf 'version = "0.1.0"\n\n[[stack]]\nprofile = "python"\npath = "."\n\n[[stack]]\nprofile = "typescript"\npath = "web"\n' >"$toml/unslop.toml"
+for p in web/package-lock.json web/eslint.config.js web/vite.config.ts web/.prettierrc web/package.json; do
+  expect 2 "stack folder: $p" protect-paths.sh "$(edit_in "$toml/$p")"
+done
+expect 0 "stack folder: source edit" protect-paths.sh "$(edit_in "$toml/web/src/app.ts")"
+expect 0 "other folder: lockfile not in a stack" protect-paths.sh "$(edit_in "$toml/fixtures/package-lock.json")"
+printf 'version = "0.1.0"\nprofile = "python"\nfast_check_seconds = 30\n' >"$toml/unslop.toml"
 for c in "unslop baseline" "uvx unslop init" "/opt/plugin/bin/unslop baseline" "scripts/rebaseline" "claude plugin disable unslop@unslop" "claude plugin uninstall unslop" "claude plugin marketplace remove unslop"; do
   expect 2 "toml: block $c" guard-bash.sh "$(bash_in "$c")"
 done
@@ -243,7 +250,7 @@ expect 0 "plain: session start is silent" session-start.sh '{}'
 if [ -s "$work/out" ]; then tally no "plain: session start printed context"; else tally ok; fi
 export CLAUDE_PROJECT_DIR="$toml"
 expect 0 "toml: session start" session-start.sh '{}'
-if grep -q 'python profile' "$work/out" && grep -q 'bin/unslop check' "$work/out"; then tally ok; else tally no "toml: session context missing"; fi
+if grep -q 'unslop for python;' "$work/out" && grep -q 'bin/unslop check' "$work/out"; then tally ok; else tally no "toml: session context missing"; fi
 
 copy="$work/plugin-copy"
 cp -R "$hooks/.." "$copy"

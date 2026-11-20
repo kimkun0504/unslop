@@ -6,7 +6,7 @@ import pytest
 
 from conftest import commit, write
 from unslop import __version__, cli, project, scaffold
-from unslop.project import Config
+from unslop.project import Config, Stack
 
 
 def test_new_scaffolds_a_template_with_the_plugin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -31,7 +31,7 @@ def test_list_names_templates_and_profiles(capsys: pytest.CaptureFixture[str]) -
     assert cli.main(["list"]) == 0
     output = capsys.readouterr().out
     assert "ts-react" in output
-    assert "unslop init --profile" in output
+    assert "unslop init --stack" in output
     assert "typescript" in scaffold.listing()
 
 
@@ -51,7 +51,7 @@ def test_init_refuses_a_dirty_tree_or_an_existing_setup(repo: Path, capsys: pyte
     assert cli.main(["init"]) == 2
     assert "commit or stash" in capsys.readouterr().err
     (repo / "dirty.py").unlink()
-    project.save(Config("python"))
+    project.save(Config([Stack("python")]))
     commit(repo, "configured")
     assert cli.main(["init"]) == 2
     assert "already exists" in capsys.readouterr().err
@@ -61,16 +61,16 @@ def test_init_needs_a_profile_when_detection_is_ambiguous(repo: Path, capsys: py
     write(repo / "pyproject.toml", "[project]\n")
     write(repo / "package.json", "{}")
     commit(repo, "root")
-    assert cli.main(["init"]) == 2
-    assert "detected: typescript, python" in capsys.readouterr().err
+    assert cli.main(["init"]) == 1
+    assert "looks like typescript, python" in capsys.readouterr().err
 
 
 def test_plan_applies_command_overrides(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
     write(repo / "uv.lock", "")
-    project.save(Config("python", commands={"setup": "make deps", "tests": "make test", "coverage": ""}))
+    project.save(Config([Stack("python", ".", {"setup": "make deps", "tests": "make test", "coverage": ""})]))
     commit(repo, "root")
     assert cli.main(["plan"]) == 0
-    plan = json.loads(capsys.readouterr().out)
+    plan = json.loads(capsys.readouterr().out)["python"]
     assert plan["setup"] == "make deps"
     assert plan["tests"] == {"run": "make test"}
 

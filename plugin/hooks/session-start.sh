@@ -5,11 +5,11 @@ root=${CLAUDE_PROJECT_DIR:-}
 here=$(cd "$(dirname "$0")" && pwd)
 runner="$here/../bin/unslop"
 [ -x "$runner" ] || runner="$here/unslop"
-profile=$(sed -n 's/^profile *= *"\([^"]*\)".*/\1/p' "$root/unslop.toml" | head -n 1)
+profiles=$(sed -n 's/^ *profile *= *"\([^"]*\)".*/\1/p' "$root/unslop.toml" | sort -u | paste -sd, - | sed 's/,/, /g')
 cat <<TEXT
 # unslop
 
-This repository uses unslop with the ${profile:-unknown} profile. Existing code keeps the findings recorded in .unslop/baseline.json; new and changed code meets the full bar.
+This repository uses unslop for ${profiles:-an unknown stack}; unslop.toml lists which folder each stack covers. Existing code keeps the findings recorded in .unslop/baseline.json; new and changed code meets the full bar.
 
 - Run \`$runner check\` before you finish. The stop hook runs it too and will not let you stop while it fails. It rejects comments on lines you add, new suppressions or skipped tests, edits to existing tests, lint or type findings beyond the baseline, files that were formatted and no longer are, failing tests, and changed lines that no test covers.
 - When it names a finding, fix the code. Never move code to dodge a count, never add a suppression, and never write code comments; make the code say it.

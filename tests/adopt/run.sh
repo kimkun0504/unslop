@@ -14,7 +14,11 @@ build_legacy
 git add -A
 git commit -qm legacy
 unslop() { uv run --quiet --project "$repo" unslop "$@"; }
-unslop init --profile "${fixture%%-*}"
+init_arguments=(--profile "${fixture%%-*}")
+if declare -F stacks >/dev/null; then
+  read -r -a init_arguments <<<"$(stacks)"
+fi
+unslop init "${init_arguments[@]}"
 git add -A
 git commit -qm "Adopt unslop"
 failures=0
