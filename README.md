@@ -12,7 +12,7 @@ Requirements: `git`, `jq` (included in macOS 15 and later) and [`uv`](https://do
 
 ```bash
 cd ~/code/my-service
-uvx --from git+https://github.com/kimkun0504/unslop@v0.1.0 unslop init
+uvx --from git+https://github.com/kimkun0504/unslop@v0.2.0 unslop init
 ```
 
 `unslop init` detects the stacks, including a front end in a subfolder beside a back end, records today's lint and type findings as a baseline so only new code has to meet the bar, checks that the gate passes, and adds four files:
@@ -31,7 +31,7 @@ Commit them on a branch and open a pull request. The next time you open Claude C
 ## Start a new project
 
 ```bash
-uvx --from git+https://github.com/kimkun0504/unslop@v0.1.0 unslop new python ~/code/my-app
+uvx --from git+https://github.com/kimkun0504/unslop@v0.2.0 unslop new python ~/code/my-app
 cd ~/code/my-app
 scripts/setup
 scripts/verify
