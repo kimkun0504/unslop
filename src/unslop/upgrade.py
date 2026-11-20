@@ -27,16 +27,6 @@ def workflow_ref() -> str | None:
     return found.group(0).rsplit("@", 1)[1] if found else None
 
 
-def set_marketplace_ref(version: str) -> None:
-    settings = table(json.loads(footprint.SETTINGS.read_text()))
-    marketplaces = table(settings.get("extraKnownMarketplaces"))
-    marketplaces[footprint.MARKETPLACE] = {
-        "source": {"source": "github", "repo": footprint.REPOSITORY, "ref": f"v{version}"}
-    }
-    settings["extraKnownMarketplaces"] = marketplaces
-    _ = footprint.SETTINGS.write_text(json.dumps(settings, indent=2) + "\n")
-
-
 def set_workflow_ref(ref: str) -> None:
     content = footprint.WORKFLOW.read_text()
     updated, count = ACTION_LINE.subn(lambda match: f"{match.group(1)}{ref}", content)
@@ -60,9 +50,10 @@ def upgrade(version: str) -> list[str]:
         changes.append(f"unslop.toml: {config.version} -> {version}")
         config.version = version
         project.save(config)
-    if marketplace_ref() != f"v{version}":
-        changes.append(f"{footprint.SETTINGS}: plugin {marketplace_ref()} -> v{version}")
-        set_marketplace_ref(version)
+    before = footprint.SETTINGS.read_text()
+    footprint.write_settings(version, [stack.path for stack in config.stacks])
+    if footprint.SETTINGS.read_text() != before:
+        changes.append(f"{footprint.SETTINGS}: plugin pinned to v{version}, protected files refreshed")
     if workflow_ref() != ref:
         changes.append(f"{footprint.WORKFLOW}: action {workflow_ref()} -> {ref}")
         set_workflow_ref(ref)

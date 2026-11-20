@@ -11,7 +11,7 @@ from typing import NotRequired, TypedDict
 from unslop.findings import table
 from unslop.project import OUT
 
-RUFF = "uvx ruff@0.17.4"
+RUFF = "uvx ruff@0.17.6"
 CONFIG = ".unslop/out/config"
 GUARD = ".unslop/out/guard"
 UP = "../../.."
@@ -331,7 +331,7 @@ def terraform(unslop: str) -> Plan:
                 "name": "checkov",
                 "format": "sarif",
                 "report": ".unslop/out/results_sarif.sarif",
-                "run": "uvx --python 3.13 checkov==3.4.3 --directory . --framework terraform --skip-path .unslop"
+                "run": "uvx --python 3.13 checkov==3.4.6 --directory . --framework terraform --skip-path .unslop"
                 " --output sarif --output-file-path .unslop/out --soft-fail --quiet > /dev/null",
             },
         ],

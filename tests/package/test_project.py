@@ -68,11 +68,11 @@ def test_diff_base_is_the_root_commit_for_templates(repo: Path) -> None:
     assert gitops.diff_base() == root
 
 
-def test_unknown_base_is_an_error(repo: Path) -> None:
+def test_a_repository_without_a_remote_falls_back_to_its_history(repo: Path) -> None:
     write(repo / "app.py", "x = 1\n")
     commit(repo, "root")
-    with pytest.raises(gitops.GitError, match="cannot resolve"):
-        _ = gitops.diff_base("origin/develop")
+    root = gitops.git("rev-parse", "HEAD").strip()
+    assert gitops.diff_base("origin/develop") == root
 
 
 def test_guard_config_flags_config_change_and_baseline_growth(repo: Path) -> None:
@@ -141,3 +141,21 @@ def test_ruleset_requires_the_unslop_check() -> None:
     rules = json.loads(footprint.ruleset())
     checks = next(rule for rule in rules["rules"] if rule["type"] == "required_status_checks")
     assert checks["parameters"]["required_status_checks"] == [{"context": "unslop"}]
+
+
+def test_default_base_follows_the_remote_default_branch(tmp_path: Path, repo: Path) -> None:
+    write(repo / "app.py", "x = 1\n")
+    commit(repo, "root")
+    remote = tmp_path / "remote.git"
+    _ = gitops.git("init", "-q", "--bare", "-b", "master", str(remote))
+    _ = gitops.git("branch", "-m", "master")
+    _ = gitops.git("remote", "add", "origin", str(remote))
+    _ = gitops.git("push", "-q", "origin", "master")
+    _ = gitops.git("remote", "set-head", "origin", "master")
+    base = gitops.git("rev-parse", "HEAD").strip()
+    write(repo / "app.py", "x = 2\n")
+    commit(repo, "work")
+    assert gitops.default_ref() == "origin/master"
+    assert gitops.diff_base() == base
+    with pytest.raises(gitops.GitError, match="pass --base"):
+        _ = gitops.diff_base("origin/develop")

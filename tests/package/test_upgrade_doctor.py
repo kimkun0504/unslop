@@ -100,3 +100,16 @@ def test_doctor_reports_a_stale_plugin_and_uncommitted_baseline(adopted: Path, m
     assert "/plugin update" in doctor.plugin(project.load())[0].message
     (adopted / ".unslop/baseline.json").unlink()
     assert doctor.baseline()[0].level == "fail"
+
+
+def test_upgrade_retires_the_old_claude_folder_rule(adopted: Path) -> None:
+    settings = json.loads((adopted / ".claude/settings.json").read_text())
+    settings["permissions"]["deny"].append("Edit(.claude/**)")
+    settings["sandbox"]["filesystem"]["denyWrite"].append("./.claude")
+    write(adopted / ".claude/settings.json", json.dumps(settings))
+    commit(adopted, "old rules")
+    _ = upgrade.upgrade(__version__)
+    refreshed = json.loads((adopted / ".claude/settings.json").read_text())
+    assert "Edit(.claude/**)" not in refreshed["permissions"]["deny"]
+    assert "./.claude" not in refreshed["sandbox"]["filesystem"]["denyWrite"]
+    assert "Edit(.claude/settings.json)" in refreshed["permissions"]["deny"]

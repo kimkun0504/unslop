@@ -27,15 +27,25 @@ def has_origin() -> bool:
     return subprocess.run(["git", "remote", "get-url", "origin"], capture_output=True, check=False).returncode == 0
 
 
-def diff_base(ref: str = "origin/main") -> str:
-    if resolves(ref):
-        merge = git("merge-base", "HEAD", ref, check=False).strip()
+def default_ref() -> str:
+    head = git("symbolic-ref", "--quiet", "refs/remotes/origin/HEAD", check=False).strip()
+    candidates = [head.removeprefix("refs/remotes/")] if head else []
+    for candidate in [*candidates, "origin/main", "origin/master"]:
+        if resolves(candidate):
+            return candidate
+    return "origin/main"
+
+
+def diff_base(ref: str | None = None) -> str:
+    target = ref or default_ref()
+    if resolves(target):
+        merge = git("merge-base", "HEAD", target, check=False).strip()
         if not merge:
-            message = f"no merge base with {ref}; use a full clone (fetch-depth: 0)"
+            message = f"no merge base with {target}; use a full clone (fetch-depth: 0)"
             raise GitError(message)
         return merge
-    if ref != "origin/main" or has_origin():
-        message = f"cannot resolve {ref}; use a full clone (fetch-depth: 0)"
+    if has_origin():
+        message = f"cannot resolve {target}; fetch it, or pass --base with the branch to compare against"
         raise GitError(message)
     if Path(MARKER).is_file():
         adopted = git("log", "--diff-filter=A", "--format=%H", "-1", "--", MARKER, check=False).strip()

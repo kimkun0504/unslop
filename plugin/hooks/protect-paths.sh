@@ -31,6 +31,14 @@ case "$f" in
 esac
 rel=${f#"$root"/}
 case "$rel" in
+  .claude/worktrees/*/*)
+    tree=${rel#.claude/worktrees/}
+    root="$root/.claude/worktrees/${tree%%/*}"
+    rel=${f#"$root"/}
+    ;;
+esac
+case "$rel" in
+  .claude/agent-memory/*|.claude/agent-memory-local/*) ;;
   .claude/*|.mcp.json) block "$rel" ;;
 esac
 [ -f "$root/.claude/unslop.json" ] || [ -f "$root/unslop.toml" ] || exit 0

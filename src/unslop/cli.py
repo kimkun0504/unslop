@@ -118,7 +118,7 @@ def check_stack(stack: Stack, since: str, changed: list[str], touched: ratchet.T
     return all(results)
 
 
-def run_check(base: str) -> int:
+def run_check(base: str | None) -> int:
     config = loaded()
     since = gitops.diff_base(base)
     if not gates(since):
@@ -205,7 +205,7 @@ def run_init(requested: list[str], skip_setup: bool) -> int:
         return 1
     _ = record_baseline()
     started = time.monotonic()
-    if run_check("origin/main") != 0:
+    if run_check(None) != 0:
         print("check fails against the new baseline; usually the tests command in unslop.toml needs adjusting")
         return 1
     elapsed = time.monotonic() - started
@@ -261,6 +261,9 @@ TOOLCHAIN_FILES = {
     "ruby": ("ruby", (".ruby-version",)),
     "go": ("go", ("go.mod",)),
     "beam": ("elixir", (".tool-versions",)),
+    "java": ("jvm", (".java-version", ".sdkmanrc")),
+    "dotnet": ("dotnet", ("global.json",)),
+    "php": ("php", (".php-version",)),
 }
 
 
@@ -317,7 +320,7 @@ def parser() -> argparse.ArgumentParser:
     _ = init.add_argument("--profile", dest="stack", action="append", help=argparse.SUPPRESS)
     _ = init.add_argument("--skip-setup", action="store_true", help="skip installing dependencies")
     check = commands.add_parser("check", help="run every gate against the changes since the base branch")
-    _ = check.add_argument("--base", default="origin/main")
+    _ = check.add_argument("--base", default=None, help="branch to compare against; the default branch when left out")
     _ = commands.add_parser("setup", help="install the project's dependencies")
     _ = commands.add_parser("baseline", help="record current findings as the baseline (humans only)")
     rules = commands.add_parser("ruleset", help="print or apply the GitHub branch ruleset")

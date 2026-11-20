@@ -19,7 +19,7 @@ jobs:
           persist-credentials: false
       - if: github.ref_name == 'scratch/swift'
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
         with:
           version: "0.13.9"
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
         with:
           version: "0.13.9"
       - name: put Apple's bash 3.2 and the BSD tools first on PATH
@@ -84,7 +84,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
         with:
           version: "0.13.9"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
@@ -118,7 +118,7 @@ jobs:
           php-version: "8.4"
           coverage: pcov
           tools: composer:v2
-      - uses: ruby/setup-ruby@f9c4492e86def3e644ab32a0ef185eda5b0c20d0
+      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18
         if: matrix.fixture == 'ruby'
         with:
           ruby-version: "4.0.10"
