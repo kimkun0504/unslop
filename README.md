@@ -12,7 +12,7 @@ Requirements: `git`, `jq` (included in macOS 15 and later) and [`uv`](https://do
 
 ```bash
 cd ~/code/my-service
-uvx --from git+https://github.com/kimkun0504/unslop@v0.2.0 unslop init
+uvx --from git+https://github.com/kimkun0504/unslop@v0.3.0 unslop init
 ```
 
 `unslop init` detects the stacks, including a front end in a subfolder beside a back end, records today's lint and type findings as a baseline so only new code has to meet the bar, checks that the gate passes, and adds four files:
@@ -24,14 +24,14 @@ uvx --from git+https://github.com/kimkun0504/unslop@v0.2.0 unslop init
 | `.claude/settings.json` | Turns on the unslop Claude Code plugin for this repository and makes build files, lockfiles, CI and the unslop files read-only for Claude |
 | `.github/workflows/unslop.yml` | Runs the same check on every pull request |
 
-Commit them on a branch and open a pull request. The next time you open Claude Code in the repository and trust the folder, the plugin installs itself. You can also install the plugin for yourself with `/plugin install unslop --marketplace kimkun0504/unslop`. Installed that way it runs in every repository you open: it blocks force pushes, hook bypasses and edits to Claude's own settings everywhere, and switches the rest on only where `unslop.toml` or a template's `.claude/unslop.json` exists. Once the repository is on GitHub, `unslop ruleset --apply` blocks merging until the check passes.
+If something is off, `unslop doctor` says what and how to fix it. Commit them on a branch and open a pull request. The next time you open Claude Code in the repository and trust the folder, the plugin installs itself. You can also install the plugin for yourself with `/plugin install unslop --marketplace kimkun0504/unslop`. Installed that way it runs in every repository you open: it blocks force pushes, hook bypasses and edits to Claude's own settings everywhere, and switches the rest on only where `unslop.toml` or a template's `.claude/unslop.json` exists. Once the repository is on GitHub, `unslop ruleset --apply` blocks merging until the check passes.
 
 `unslop check` runs everything: no comments on added lines, no new suppressions or skipped tests, existing tests left alone, no lint or type finding beyond the baseline, formatted files stay formatted, tests pass, and every changed line is covered. Claude cannot end a turn while it fails. See [Adopting an existing repository](docs/adopting.md).
 
 ## Start a new project
 
 ```bash
-uvx --from git+https://github.com/kimkun0504/unslop@v0.2.0 unslop new python ~/code/my-app
+uvx --from git+https://github.com/kimkun0504/unslop@v0.3.0 unslop new python ~/code/my-app
 cd ~/code/my-app
 scripts/setup
 scripts/verify
@@ -124,6 +124,8 @@ Every template has the same commands:
 | `unslop setup` | Install the repository's dependencies the way the profile expects |
 | `unslop baseline` | Record the current findings as the baseline. For humans, after fixing old findings; Claude is blocked from running it |
 | `unslop plan` | Print the exact commands each gate runs |
+| `unslop doctor` | Explain what is missing for unslop to work here: tools, pins, the plugin, the ruleset |
+| `unslop upgrade` | Move `unslop.toml`, the plugin pin and the CI action to the version you run it with |
 | `unslop ruleset [--apply]` | Print or apply the GitHub branch ruleset |
 | `unslop new TEMPLATE DIR` | Start a new project from a template |
 | `unslop list` | Show templates, their gates and the profiles for existing repositories |
@@ -156,4 +158,4 @@ docs/              the documentation above
 
 ## Changing the guardrails
 
-Edit this repository in a pull request and let `self-test` pass, then release a new version (see [Releasing](docs/releasing.md)). Repositories move to it by updating the version in `unslop.toml`, `.claude/settings.json` and `.github/workflows/unslop.yml` together; `unslop check` refuses to run when they disagree. To allow another network host for sandboxed commands, add it to `sandbox.network.allowedDomains` in `global/managed-settings.json`.
+Edit this repository in a pull request and let `self-test` pass, then release a new version (see [Releasing](docs/releasing.md)). Repositories move to it with `unslop upgrade` run from the new version, which updates `unslop.toml`, `.claude/settings.json` and `.github/workflows/unslop.yml` together; `unslop check` refuses to run when they disagree. To allow another network host for sandboxed commands, add it to `sandbox.network.allowedDomains` in `global/managed-settings.json`.

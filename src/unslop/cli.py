@@ -8,12 +8,26 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from unslop import __version__, comments, diffcheck, footprint, gitops, profiles, project, ratchet, scaffold, stacks
+from unslop import (
+    __version__,
+    comments,
+    diffcheck,
+    doctor,
+    footprint,
+    gitops,
+    profiles,
+    project,
+    ratchet,
+    scaffold,
+    stacks,
+    upgrade,
+)
 from unslop.fetch import FetchError, fetch
 from unslop.profiles import DetectError, Plan
 from unslop.project import Config, ConfigError, Stack
 from unslop.ratchet import BrokenCheckError
 from unslop.scaffold import ScaffoldError
+from unslop.upgrade import UpgradeError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -262,6 +276,22 @@ def run_toolchains(prefix: str) -> int:
     return 0
 
 
+def run_upgrade() -> int:
+    changes = upgrade.upgrade(__version__)
+    if not changes:
+        print(f"already on unslop {__version__}")
+        return 0
+    print("\n".join(changes))
+    print("next: commit on a branch and open a pull request with the unslop-reviewed label")
+    return 0
+
+
+def run_doctor(online: bool) -> int:
+    results = doctor.diagnose(online)
+    print("\n".join(result.render() for result in results))
+    return 1 if any(result.level == "fail" for result in results) else 0
+
+
 def run_plan() -> int:
     plans: dict[str, Plan] = {}
     for stack in loaded().stacks:
@@ -299,6 +329,9 @@ def parser() -> argparse.ArgumentParser:
     _ = new.add_argument("template")
     _ = new.add_argument("directory")
     _ = commands.add_parser("list", help="show templates, their gates and profiles for existing repositories")
+    _ = commands.add_parser("upgrade", help="move unslop.toml, the plugin and the CI action to this unslop version")
+    health = commands.add_parser("doctor", help="explain what is missing for unslop to work here")
+    _ = health.add_argument("--offline", action="store_true", help="skip the checks that need GitHub")
     chains = commands.add_parser("toolchains", help="print the toolchains CI needs, for the GitHub Action")
     _ = chains.add_argument("--prefix", default=".")
     return root
@@ -316,6 +349,8 @@ def dispatch(arguments: argparse.Namespace) -> int:
         "new": lambda: run_new(arguments.template, arguments.directory),
         "list": run_list,
         "toolchains": lambda: run_toolchains(arguments.prefix),
+        "upgrade": run_upgrade,
+        "doctor": lambda: run_doctor(not arguments.offline),
     }
     return handlers[arguments.command]()
 
@@ -333,6 +368,7 @@ def main(argv: list[str] | None = None) -> int:
         FetchError,
         gitops.GitError,
         ScaffoldError,
+        UpgradeError,
         UsageError,
     ) as failure:
         print(f"unslop: {failure}", file=sys.stderr)

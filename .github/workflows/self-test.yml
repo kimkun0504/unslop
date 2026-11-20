@@ -59,6 +59,8 @@ jobs:
       - uses: ./
         with:
           working-directory: ${{ runner.temp }}/adopt-python-web
+      - name: doctor finds nothing missing on the fixture
+        run: cd "$RUNNER_TEMP/adopt-python-web" && uv tool run --python 3.13 --from "$GITHUB_WORKSPACE" unslop doctor --offline
       - name: the action fails on a planted comment
         run: |
           cd "$RUNNER_TEMP/adopt-python-web"
