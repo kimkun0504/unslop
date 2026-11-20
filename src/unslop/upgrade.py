@@ -5,6 +5,8 @@ from unslop import footprint, project
 from unslop.findings import table
 
 ACTION_LINE = re.compile(rf"(uses:\s*{re.escape(footprint.REPOSITORY)}@)\S+")
+BARE_TRIGGER = re.compile(r"^(\s*)pull_request:[ \t]*$(?!\n\1[ \t]+\S)", re.MULTILINE)
+LABEL_TYPES = "[opened, synchronize, reopened, labeled, unlabeled]"
 
 
 class UpgradeError(Exception):
@@ -36,6 +38,15 @@ def set_workflow_ref(ref: str) -> None:
     _ = footprint.WORKFLOW.write_text(updated)
 
 
+def rerun_on_labels() -> bool:
+    content = footprint.WORKFLOW.read_text()
+    types = f"  types: {LABEL_TYPES}"
+    updated, count = BARE_TRIGGER.subn(lambda found: f"{found.group(0)}\n{found.group(1)}{types}", content)
+    if count:
+        _ = footprint.WORKFLOW.write_text(updated)
+    return bool(count)
+
+
 def upgrade(version: str) -> list[str]:
     config = project.load()
     if not footprint.SETTINGS.is_file() or not footprint.WORKFLOW.is_file():
@@ -57,4 +68,6 @@ def upgrade(version: str) -> list[str]:
     if workflow_ref() != ref:
         changes.append(f"{footprint.WORKFLOW}: action {workflow_ref()} -> {ref}")
         set_workflow_ref(ref)
+    if rerun_on_labels():
+        changes.append(f"{footprint.WORKFLOW}: pull requests rerun when a label is added or removed")
     return changes

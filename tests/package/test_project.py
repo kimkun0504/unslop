@@ -128,11 +128,11 @@ def test_workflow_pins_the_action_and_adds_a_container_for_swift(repo: Path, mon
     commit_placeholder = write(repo / "a.txt", "a\n")
     assert commit_placeholder.exists()
     commit(repo, "root")
-    plain = footprint.workflow("1.0.0", "python")
+    plain = footprint.workflow("1.0.0", ["python"])
     assert "uses: kimkun0504/unslop@sha-for-1.0.0" in plain
     assert "branches: [main]" in plain
     assert "container" not in plain
-    swift = footprint.workflow("1.0.0", "swift")
+    swift = footprint.workflow("1.0.0", ["swift"])
     assert "container: swift:6.4.2-noble" in swift
     assert swift.index("apt-get") < swift.index("actions/checkout")
 
