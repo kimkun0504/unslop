@@ -78,7 +78,7 @@ def test_maven_builds_add_jacoco(repo: Path) -> None:
     write(repo / "pom.xml", "")
     plan = profiles.plan("jvm", "unslop")
     assert "jacoco" in plan.get("tests", {}).get("run", "")
-    assert "mutation" not in plan
+    assert plan.get("mutation") == {"tool": "pit", "runner": "mvn"}
 
 
 def test_python_dead_code_and_mutation_follow_the_installer(repo: Path) -> None:

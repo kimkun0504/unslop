@@ -52,6 +52,13 @@ def within(prefix: str, finding: Finding) -> Finding:
     return replace(finding, path=f"{prefix}/{finding.path}")
 
 
+def scoped(check: Check, files: list[str]) -> Check:
+    spaced = " ".join(shlex.quote(path) for path in files)
+    joined = shlex.quote(",".join(files))
+    command = check.get("scoped", check["run"]).replace("{files_csv}", joined).replace("{files}", spaced)
+    return {**check, "run": command}
+
+
 def local_files(changed: list[str], prefix: str) -> list[tuple[str, str]]:
     if prefix == ".":
         return [(path, path) for path in changed]
@@ -90,8 +97,14 @@ def report_growth(name: str, key: str, found: list[Finding], allowed: int, touch
 
 
 def ratchet(
-    name: str, found: list[Finding], recorded: dict[str, int], touched: dict[str, frozenset[int] | None]
+    name: str,
+    found: list[Finding],
+    recorded: dict[str, int],
+    touched: dict[str, frozenset[int] | None],
+    scope: set[str] | None = None,
 ) -> bool:
+    if scope is not None:
+        recorded = {key: amount for key, amount in recorded.items() if key.split("::", 1)[0] in scope}
     current = counts(found)
     grown = [key for key, amount in current.items() if amount > recorded.get(key, 0)]
     shrunk = sum(amount - current.get(key, 0) for key, amount in recorded.items() if current.get(key, 0) < amount)

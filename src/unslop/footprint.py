@@ -218,6 +218,7 @@ def workflow(version: str) -> str:
             f"    branches: [{default_branch()}]",
             "permissions:",
             "  contents: read",
+            "  pull-requests: write",
             "concurrency:",
             "  group: unslop-${{ github.ref }}",
             "  cancel-in-progress: true",

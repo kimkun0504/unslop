@@ -52,7 +52,23 @@ runs:
         UNSLOP_TESTS_REVIEWED: ${{ contains(github.event.pull_request.labels.*.name, 'tests-reviewed') && '1' || '' }}
         UNSLOP_CONFIG_REVIEWED: ${{ contains(github.event.pull_request.labels.*.name, 'unslop-reviewed') && '1' || '' }}
         UNSLOP_CI: "1"
+        UNSLOP_EVENT_ACTION: ${{ github.event.action }}
+        UNSLOP_PUSH_BEFORE: ${{ github.event.before }}
+        UNSLOP_PUSH_AFTER: ${{ github.event.after }}
         BASE: ${{ steps.read.outputs.base }}
       run: |
         unslop setup
         unslop check --base "$BASE"
+    - if: always() && github.event_name == 'pull_request'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPOSITORY: ${{ github.repository }}
+        NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        [ -f .unslop/out/stale-labels.txt ] || exit 0
+        while read -r label; do
+          gh api -X DELETE "repos/$REPOSITORY/issues/$NUMBER/labels/$label" >/dev/null 2>&1 \
+            || echo "::warning::could not remove the stale $label label; remove it by hand"
+        done < .unslop/out/stale-labels.txt

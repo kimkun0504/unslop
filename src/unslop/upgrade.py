@@ -47,6 +47,21 @@ def rerun_on_labels() -> bool:
     return bool(count)
 
 
+READ_ONLY = re.compile(r"^(?P<indent>[ \t]*)contents: read[ \t]*$", re.MULTILINE)
+
+
+def allow_label_edits() -> bool:
+    content = footprint.WORKFLOW.read_text()
+    if "pull-requests: write" in content:
+        return False
+    updated, count = READ_ONLY.subn(
+        lambda found: f"{found.group(0)}\n{found.group('indent')}pull-requests: write", content, 1
+    )
+    if count:
+        _ = footprint.WORKFLOW.write_text(updated)
+    return bool(count)
+
+
 def upgrade(version: str) -> list[str]:
     config = project.load()
     if not footprint.SETTINGS.is_file() or not footprint.WORKFLOW.is_file():
@@ -70,4 +85,6 @@ def upgrade(version: str) -> list[str]:
         set_workflow_ref(ref)
     if rerun_on_labels():
         changes.append(f"{footprint.WORKFLOW}: pull requests rerun when a label is added or removed")
+    if allow_label_edits():
+        changes.append(f"{footprint.WORKFLOW}: the check can remove a review label that new commits made stale")
     return changes

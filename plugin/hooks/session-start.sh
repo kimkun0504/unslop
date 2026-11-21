@@ -17,10 +17,11 @@ cat <<TEXT
 
 This repository uses unslop for ${profiles:-an unknown stack}; unslop.toml lists which folder each stack covers. Existing code keeps the findings recorded in .unslop/baseline.json; new and changed code meets the full bar.
 
-- Run \`$runner check --fast\` before you finish. The stop hook runs it too and will not let you stop while it fails. It rejects new suppressions or skipped tests, edits to existing tests, lint, type and dead-code findings beyond the baseline, copy-pasted code, and files that were formatted and no longer are. Run \`$runner check\` for the full check with tests and changed-line coverage, which CI runs on every pull request.
+- Run \`$runner check --fast\` before you finish. The stop hook runs it too and will not let you stop while it fails. It rejects new suppressions or skipped tests, edits to existing tests, lint, type and dead-code findings beyond the baseline, copy-pasted code, and files that were formatted and no longer are. Run \`$runner check\` for the full check with tests, changed-line coverage and mutation testing, which CI runs on every pull request.
 - When it names a finding, fix the code. Never move code to dodge a count and never add a suppression. $rule
 - Put new tests in new files, or append them after the last line of an existing test file. Do not edit or delete existing tests.
-- You may add or update dependencies in package.json, pyproject.toml, Gradle or Maven files and their lockfiles; the pull request then needs a human's unslop-reviewed label. Change nothing else in those files.
+- When a change grows past a few dozen lines, the stop hook asks for a design review: run the unslop:reviewer agent, then fix what it finds or say why a finding does not apply.
+- You may add or update dependencies in package.json, pyproject.toml, Gradle or Maven files and their lockfiles. Minor and patch updates need nothing more; a new package, a major version or a build-file change needs a human's unslop-reviewed label on the pull request. Change nothing else in those files.
 - Fixing old findings is welcome. Say so in your final message so a human can run \`unslop baseline\`.
 - You cannot edit unslop.toml, .unslop/, .claude/, CI workflows or tool configs. If you need a change there, say what and why in your final message; a human applies it.
 TEXT

@@ -1,10 +1,12 @@
 import json
 import os
+import shutil
+import subprocess
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from unslop.findings import table, text
+from unslop.findings import objects, table, text
 
 EXAMPLES = 3
 
@@ -53,4 +55,23 @@ def summary(days: int, repository: str | None) -> str:
         lines.append(f"{count:>5}  {key}")
         lines += examples[key]
     lines += ["", "For each rule, decide whether the blocks caught real slop or got in the way."]
+    return "\n".join(lines)
+
+
+def label_summary(limit: int) -> str:
+    gh = shutil.which("gh")
+    if gh is None:
+        return "label use: install the GitHub CLI (gh) to count review labels on merged pull requests"
+    command = [gh, "pr", "list", "--state", "merged", "--limit", str(limit), "--json", "number,labels"]
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        return f"label use: gh could not list pull requests: {result.stderr.strip()[:200]}"
+    pulls = objects(json.loads(result.stdout or "[]"))
+    if not pulls:
+        return "label use: no merged pull requests yet"
+    lines = [f"label use on the last {len(pulls)} merged pull requests:"]
+    for label in ("unslop-reviewed", "tests-reviewed"):
+        count = sum(1 for pull in pulls if label in {text(item.get("name")) for item in objects(pull.get("labels"))})
+        lines.append(f"  {label}: {count} ({count * 100 // len(pulls)}%)")
+    lines.append("  A label on most pull requests means reviews are becoming a formality.")
     return "\n".join(lines)

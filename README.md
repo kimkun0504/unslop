@@ -12,7 +12,7 @@ Requirements: `git`, `jq` (included in macOS 15 and later) and [`uv`](https://do
 
 ```bash
 cd ~/code/my-service
-uvx --from git+https://github.com/kimkun0504/unslop@v0.4.0 unslop init
+uvx --from git+https://github.com/kimkun0504/unslop@v0.5.0 unslop init
 ```
 
 `unslop init` detects the stacks, including a front end in a subfolder beside a back end, records today's lint and type findings as a baseline so only new code has to meet the bar, checks that the gate passes, and adds four files:
@@ -26,12 +26,12 @@ uvx --from git+https://github.com/kimkun0504/unslop@v0.4.0 unslop init
 
 If something is off, `unslop doctor` says what and how to fix it. Commit them on a branch and open a pull request. The next time you open Claude Code in the repository and trust the folder, the plugin installs itself. You can also install the plugin for yourself with `/plugin install unslop --marketplace kimkun0504/unslop`. Installed that way it runs in every repository you open: it blocks force pushes, hook bypasses and edits to Claude's own settings everywhere, and switches the rest on only where `unslop.toml` or a template's `.claude/unslop.json` exists. Once the repository is on GitHub, `unslop ruleset --apply` blocks merging until the check passes.
 
-`unslop check` runs everything: no comments on added lines, no new suppressions or skipped tests, existing tests left alone, no lint, type, dead-code or SQL finding beyond the baseline, no new copy-pasted code, formatted files stay formatted, tests pass, and every changed line is covered. Mutation testing of changed lines is one setting away. Claude cannot end a turn while `unslop check --fast` fails; that is the same check without tests, so it takes seconds, and CI runs the full one on every pull request. Claude may add dependencies, and the pull request then needs a human's `unslop-reviewed` label. The rules are settings in `unslop.toml`, and `unslop stats` shows how often each one blocked Claude. See [Adopting an existing repository](docs/adopting.md).
+`unslop check` runs everything: no comments on added lines, no new suppressions or skipped tests, existing tests left alone, no lint, type, dead-code or SQL finding beyond the baseline, no new copy-pasted code, formatted files stay formatted, tests pass, and every changed line is covered. CI also runs mutation testing on the changed lines, so tests that only execute code fail. Claude cannot end a turn while `unslop check --fast` fails; that is the same check without tests, so it takes seconds. When a change grows past 40 lines, a fresh reviewer agent checks it for what linters miss: more code than the task needs, abstractions nobody uses, reinvented helpers and plausible-but-wrong logic. Claude may update dependencies; a new package or a major version needs a human's `unslop-reviewed` label, and the label is withdrawn when later commits change what it approved. The rules are settings in `unslop.toml`, and `unslop stats` shows how often each one blocked Claude. See [Adopting an existing repository](docs/adopting.md).
 
 ## Start a new project
 
 ```bash
-uvx --from git+https://github.com/kimkun0504/unslop@v0.4.0 unslop new python ~/code/my-app
+uvx --from git+https://github.com/kimkun0504/unslop@v0.5.0 unslop new python ~/code/my-app
 cd ~/code/my-app
 scripts/setup
 scripts/verify
@@ -110,7 +110,7 @@ Every template has the same commands:
 | `unslop plan` | Print the exact commands each gate runs |
 | `unslop doctor` | Explain what is missing for unslop to work here: tools, pins, the plugin, the ruleset |
 | `unslop upgrade` | Move `unslop.toml`, the plugin pin and the CI action to the version you run it with, and baseline any checks the version adds |
-| `unslop stats [--days N] [--all]` | Count how often each guardrail blocked Claude, with recent examples |
+| `unslop stats [--days N] [--all] [--labels N]` | Count how often each guardrail blocked Claude, with recent examples, and how often review labels were used |
 | `unslop ruleset [--apply]` | Print or apply the GitHub branch ruleset |
 | `unslop new TEMPLATE DIR` | Start a new project from a template |
 | `unslop list` | Show templates, their gates and the profiles for existing repositories |

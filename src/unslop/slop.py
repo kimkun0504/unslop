@@ -10,9 +10,10 @@ from unslop.findings import objects, table, text
 from unslop.profiles import Check
 from unslop.project import OUT, Gates
 from unslop.ratchet import shell
+from unslop.tools import node_tool, python_tool
 
-JSCPD = "npx --yes jscpd@5.4.3"
-SQLFLUFF = "uvx sqlfluff@4.5.0"
+JSCPD = node_tool("jscpd")
+SQLFLUFF = python_tool("sqlfluff")
 DUPLICATION_FORMATS = "typescript,tsx,javascript,jsx,python,java,kotlin"
 DUPLICATION_IGNORED = (
     "**/node_modules/**",
@@ -72,7 +73,7 @@ def fragment(entry: object) -> str:
 
 
 def duplication(since: str) -> bool:
-    if shutil.which("npx") is None:
+    if shutil.which("npm") is None:
         print("duplication: skipped, Node.js is not installed")
         return True
     folder = OUT / "jscpd"

@@ -16,3 +16,10 @@ updates:
     groups:
       python:
         patterns: ["*"]
+  - package-ecosystem: npm
+    directory: "/src/unslop/data/tools/node"
+    schedule:
+      interval: weekly
+    groups:
+      node-tools:
+        patterns: ["*"]

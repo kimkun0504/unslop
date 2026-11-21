@@ -1,4 +1,5 @@
 import argparse
+import fnmatch
 import json
 import os
 import shlex
@@ -76,8 +77,9 @@ def gates(since: str, config: Config) -> list[str]:
         print("suppressions: new skip or suppression found")
         print("\n".join(f"  {problem.detail}" for problem in suppressed))
         failed.append("suppressions")
+    guards.mark_stale(since, [stack.path for stack in config.stacks])
     tampered = diffcheck.tampered_tests(since)
-    if tampered and not enabled(*TESTS_REVIEWED):
+    if tampered and not (guards.reviewed(guards.TESTS_REVIEWED) or enabled("CHECK_DIFF_ALLOW_TEST_CHANGES")):
         print("tests: existing tests were modified or deleted; a human must review (label tests-reviewed)")
         print("\n".join(f"  {problem.kind}: {problem.detail}" for problem in tampered))
         print("  new tests go in new files, or after the last line of an existing one with any new imports")
@@ -91,6 +93,36 @@ def gates(since: str, config: Config) -> list[str]:
     return failed
 
 
+def lint(
+    item: Check,
+    stack: Stack,
+    baseline: dict[str, dict[str, int]],
+    touched: ratchet.Touched,
+    scope: list[tuple[str, str]] | None,
+) -> tuple[str, bool]:
+    key = stack.key(item["name"])
+    if scope is None:
+        return f"lint:{key}", ratchet.ratchet(key, ratchet.collect(item, stack.path), baseline.get(key, {}), touched)
+    files = [
+        local
+        for _, local in scope
+        if any(fnmatch.fnmatchcase(Path(local).name, glob) for glob in item.get("files", []))
+    ]
+    if not files:
+        print(f"{key}: no changed files to check")
+        return f"lint:{key}", True
+    found = ratchet.collect(ratchet.scoped(item, files), stack.path)
+    within = {full for full, local in scope if local in files}
+    return f"lint:{key}", ratchet.ratchet(key, found, baseline.get(key, {}), touched, within)
+
+
+def scope_for(stack: Stack, config: Config, changed: list[str], *, fast: bool) -> list[tuple[str, str]] | None:
+    limit = config.gates.fast_scope_files
+    if not fast or (limit and len(gitops.git("ls-files", "--", ".").splitlines()) <= limit):
+        return None
+    return [(full, local) for full, local in ratchet.local_files(changed, stack.path) if Path(local).is_file()]
+
+
 def check_stack(
     stack: Stack, config: Config, since: str, touched: ratchet.Touched, *, fast: bool
 ) -> list[tuple[str, bool]]:
@@ -102,19 +134,22 @@ def check_stack(
         plan = stacks.resolve(stack, self_command())
         files = ratchet.local_files(changed, stack.path)
         results += [(f"format:{rule['name']}", ratchet.formatted(rule, since, files)) for rule in plan["format"]]
+        scope = scope_for(stack, config, changed, fast=fast)
+        if scope is not None:
+            print(f"{stack.label}: large stack, so the fast check lints only the {len(scope)} changed files")
         for item in plan["checks"]:
-            if item.get("kind") == "dead-code" and not config.gates.dead_code:
+            dead = item.get("kind") == "dead-code"
+            if dead and (not config.gates.dead_code or scope is not None):
                 continue
-            found = ratchet.collect(item, stack.path)
-            key = stack.key(item["name"])
-            results.append((f"lint:{key}", ratchet.ratchet(key, found, baseline.get(key, {}), touched)))
+            results.append(lint(item, stack, baseline, touched, scope if "scoped" in item else None))
         if fast:
             return results
         if "tests" in plan:
             passed = ratchet.run_tests(plan["tests"], since, stack.path, config.gates.coverage)
             results.append((f"tests:{stack.label}", passed))
         if config.gates.mutation and "mutation" in plan and all(passed for _, passed in results):
-            results.append((f"mutation:{stack.label}", mutation.run(plan["mutation"], since, stack.path)))
+            passed = mutation.run(plan["mutation"], since, stack.path, config.gates.mutation_seconds)
+            results.append((f"mutation:{stack.label}", passed))
     return results
 
 
@@ -129,9 +164,12 @@ def repository_checks(config: Config, since: str, touched: ratchet.Touched) -> l
     return results
 
 
-def record_result(failed: list[str]) -> None:
+def record_result(failed: list[str], since: str = "", config: Config | None = None) -> None:
     project.prepare_out()
-    _ = (project.OUT / "result.json").write_text(json.dumps({"failed": failed}) + "\n")
+    result: dict[str, object] = {"failed": failed}
+    if since and config is not None:
+        result |= {"base": since, "changed_lines": slop.diff_lines(since), "review_lines": config.gates.review_lines}
+    _ = (project.OUT / "result.json").write_text(json.dumps(result) + "\n")
 
 
 def run_check(base: str | None, *, fast: bool = False) -> int:
@@ -149,7 +187,7 @@ def run_check(base: str | None, *, fast: bool = False) -> int:
             print(f"== {stack.label}", flush=True)
         results += check_stack(stack, config, since, touched, fast=fast)
     failed = [name for name, passed in results if not passed]
-    record_result(failed)
+    record_result(failed, since, config)
     if failed:
         return 1
     print("unslop: all fast checks pass; tests and coverage run in CI" if fast else "unslop: all checks pass")
@@ -321,8 +359,11 @@ def run_doctor(online: bool) -> int:
     return 1 if any(result.level == "fail" for result in results) else 0
 
 
-def run_stats(days: int, *, everywhere: bool) -> int:
+def run_stats(days: int, *, everywhere: bool, labels: int = 0) -> int:
     print(events.summary(days, None if everywhere else str(gitops.toplevel())))
+    if labels:
+        print()
+        print(events.label_summary(labels))
     return 0
 
 
@@ -356,6 +397,9 @@ def parser() -> argparse.ArgumentParser:
     stats = commands.add_parser("stats", help="count how often each guardrail blocked Claude")
     _ = stats.add_argument("--days", type=int, default=14)
     _ = stats.add_argument("--all", action="store_true", help="every repository, not only this one")
+    _ = stats.add_argument(
+        "--labels", type=int, default=0, metavar="N", help="also count review labels on the last N merged pull requests"
+    )
     _ = commands.add_parser("setup", help="install the project's dependencies")
     _ = commands.add_parser("baseline", help="record current findings as the baseline (humans only)")
     rules = commands.add_parser("ruleset", help="print or apply the GitHub branch ruleset")
@@ -379,7 +423,7 @@ def dispatch(arguments: argparse.Namespace) -> int:
     handlers: dict[str, Callable[[], int]] = {
         "init": lambda: run_init(arguments.stack, arguments.skip_setup),
         "check": lambda: run_check(arguments.base, fast=arguments.fast),
-        "stats": lambda: run_stats(arguments.days, everywhere=arguments.all),
+        "stats": lambda: run_stats(arguments.days, everywhere=arguments.all, labels=arguments.labels),
         "setup": run_setup,
         "baseline": record_baseline,
         "ruleset": lambda: run_ruleset(arguments.apply),

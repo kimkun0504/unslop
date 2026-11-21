@@ -269,7 +269,11 @@ cp -R "$hooks/.." "$copy"
 cat >"$copy/bin/unslop" <<'SH'
 #!/usr/bin/env bash
 mkdir -p .unslop/out
-if [ "$1 $2" = "check --fast" ] && [ ! -f "$PWD/broken" ]; then echo '{"failed":[]}' >.unslop/out/result.json; exit 0; fi
+if [ "$1 $2" = "check --fast" ] && [ ! -f "$PWD/broken" ]; then
+  lines=$(cat "$PWD/size" 2>/dev/null || echo 3)
+  printf '{"failed":[],"base":"abc123","changed_lines":%s,"review_lines":40}\n' "$lines" >.unslop/out/result.json
+  exit 0
+fi
 echo '{"failed":["lint:ruff","duplication"]}' >.unslop/out/result.json
 exit 1
 SH
@@ -283,6 +287,21 @@ if grep -q 'unslop check failed' "$work/err"; then tally ok; else tally no "toml
 for gate in lint:ruff duplication; do
   if jq -e --arg g "$gate" 'select(.hook == "stop-gate" and .rule == $g)' "$XDG_STATE_HOME/unslop/events.jsonl" >/dev/null; then tally ok; else tally no "toml stop: $gate not logged"; fi
 done
+rm "$toml/broken"
+echo 120 >"$toml/size"
+printf 'one\n' >"$toml/feature.txt"
+expect 2 "toml stop: a large change gets one design review" stop-gate.sh "$(stop_in t4)"
+if grep -q 'unslop:reviewer' "$work/err" && grep -q 'abc123' "$work/err"; then tally ok; else tally no "toml stop: review request missing the agent or base"; fi
+expect 0 "toml stop: the same change is not reviewed twice" stop-gate.sh "$(stop_in t4 true)"
+printf 'two\n' >>"$toml/feature.txt"
+echo 130 >"$toml/size"
+expect 0 "toml stop: a small follow-up needs no new review" stop-gate.sh "$(stop_in t4 true)"
+printf 'three\n' >>"$toml/feature.txt"
+echo 175 >"$toml/size"
+expect 2 "toml stop: another large addition is reviewed again" stop-gate.sh "$(stop_in t4 true)"
+if jq -e 'select(.rule == "design review")' "$XDG_STATE_HOME/unslop/events.jsonl" >/dev/null; then tally ok; else tally no "toml stop: review not logged"; fi
+rm "$toml/size" "$toml/feature.txt"
+touch "$toml/broken"
 mkdir -p "$work/machine"
 printf '#!/usr/bin/env bash\nexit 0\n' >"$work/machine/stop-gate.sh"
 chmod +x "$work/machine/stop-gate.sh"

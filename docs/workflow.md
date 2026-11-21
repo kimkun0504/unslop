@@ -37,11 +37,13 @@ claude -p "/goal <same condition>" --permission-mode auto --max-turns 400 --max-
 
 Claude cannot edit lint or type configs, CI, `scripts/`, `CLAUDE.md` or decision records. When it needs a change there (a rule exception, a new script), it says what and why in its final message. You make the change yourself in a pull request, which CI and the ruleset then check.
 
-In an adopted repository Claude can add or update dependencies itself; the pull request then needs the `unslop-reviewed` label, which you add after reading the dependency diff. Template projects keep dependency files read-only.
+In an adopted repository Claude can add or update dependencies itself. Minor and patch updates pass on their own; a new package, a major version or a build-file change needs the `unslop-reviewed` label, which you add after reading what the job summary lists. If later commits change those files again, CI removes the label. Template projects keep dependency files read-only.
+
+When a change reaches 40 lines, Claude is asked to run the reviewer agent before it finishes. Its findings show up in the conversation; read them, since a model review can be wrong in both directions.
 
 If a pull request intentionally changes existing tests, add the `tests-reviewed` label so CI accepts it.
 
-To see which guardrails get in the way, run `unslop stats` after a week or two. It counts each rule's blocks in the repository and shows recent examples, so you can tell real catches from noise.
+To see which guardrails get in the way, run `unslop stats --labels 30` after a week or two. It counts each rule's blocks in the repository and shows recent examples, so you can tell real catches from noise.
 
 ## 5. Merging
 

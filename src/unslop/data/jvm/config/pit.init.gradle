@@ -1,0 +1,33 @@
+rootProject {
+    afterEvaluate { project ->
+        if (!project.plugins.hasPlugin("java")) {
+            return
+        }
+        project.tasks.register("unslopPitClasspath") {
+            dependsOn "testClasses"
+            def target = project.file(".unslop/out/pit/classpath.txt")
+            def pit = project.findProperty("unslopPitVersion")
+            def plugin = project.findProperty("unslopPitJunit5Version")
+            doLast {
+                def runtime = project.configurations.getByName("testRuntimeClasspath").resolvedConfiguration.resolvedArtifacts
+                def present = runtime.collect { "${it.moduleVersion.id.group}:${it.name}" } as Set
+                def engine = runtime.find { it.moduleVersion.id.group == "org.junit.platform" && it.name == "junit-platform-engine" }
+                def wanted = [
+                    project.dependencies.create("org.pitest:pitest-command-line:${pit}"),
+                    project.dependencies.create("org.pitest:pitest-junit5-plugin:${plugin}"),
+                ]
+                if (engine != null) {
+                    wanted << project.dependencies.create("org.junit.platform:junit-platform-launcher:${engine.moduleVersion.id.version}")
+                }
+                def tools = project.configurations.detachedConfiguration(wanted as Dependency[]).resolvedConfiguration.resolvedArtifacts
+                def extra = tools.findAll { !present.contains("${it.moduleVersion.id.group}:${it.name}") }.collect { it.file }
+                def sets = project.sourceSets
+                def entries = sets.test.runtimeClasspath.files + extra
+                target.parentFile.mkdirs()
+                target.text = entries.collect { it.absolutePath }.join(File.pathSeparator)
+                def launcher = project.tasks.named("test").get().javaLauncher.get()
+                project.file(".unslop/out/pit/java.txt").text = launcher.executablePath.asFile.absolutePath
+            }
+        }
+    }
+}

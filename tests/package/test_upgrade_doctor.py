@@ -64,7 +64,7 @@ def levels(results: list[doctor.Result]) -> dict[str, str]:
 
 
 def test_doctor_flags_stale_pins_and_missing_tools(adopted: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(doctor.shutil, "which", lambda tool: None if tool in {"jq", "uv", "npx"} else f"/bin/{tool}")
+    monkeypatch.setattr(doctor.shutil, "which", lambda tool: None if tool in {"jq", "uv", "npm"} else f"/bin/{tool}")
     monkeypatch.setattr(Path, "home", lambda: adopted / "home")
     found = levels(doctor.diagnose(online=False))
     assert found["jq is missing; the hooks need it (brew install jq or apt install jq)"] == "fail"
@@ -123,12 +123,14 @@ def test_upgrade_retires_the_old_claude_folder_rule(adopted: Path) -> None:
 def test_upgrade_reruns_older_workflows_on_labels(adopted: Path) -> None:
     workflow = adopted / ".github/workflows/unslop.yml"
     current = workflow.read_text()
-    write(workflow, current.replace(f"\n    types: {upgrade.LABEL_TYPES}", ""))
+    write(workflow, current.replace(f"\n    types: {upgrade.LABEL_TYPES}", "").replace("\n  pull-requests: write", ""))
     commit(adopted, "old trigger")
     changes = upgrade.upgrade(__version__)
-    assert any("label" in change for change in changes)
+    assert any("rerun when a label" in change for change in changes)
+    assert any("stale" in change for change in changes)
     assert workflow.read_text().replace(f"sha{__version__}", "sha0.0.9") == current
     assert not upgrade.rerun_on_labels()
+    assert not upgrade.allow_label_edits()
 
 
 def test_custom_pull_request_triggers_are_left_alone(adopted: Path) -> None:
