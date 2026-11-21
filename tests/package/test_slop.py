@@ -351,3 +351,37 @@ def test_events_are_summarised_per_rule(repo: Path, monkeypatch: pytest.MonkeyPa
     assert "attempt 2" in text
     assert "old" not in text
     assert "force push" in events.summary(14, None)
+
+
+def test_pit_helpers(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    source = write(repo / "src/main/kotlin/legacy/Clamp.kt", "package legacy.core\n\nfun clamp(value: Int) = value\n")
+    assert mutation.class_name(str(source.relative_to(repo))) == "legacy.core.Clamp"
+    write(repo / "Bare.java", "class Bare {}\n")
+    assert mutation.class_name("Bare.java") == "Bare"
+    fields = "<groupId>org.pitest</groupId><artifactId>pitest</artifactId><version>1.0</version>"
+    assert mutation.maven_dependency("org.pitest:pitest:1.0") == f"    <dependency>{fields}</dependency>"
+    monkeypatch.delenv("JAVA_HOME", raising=False)
+    assert mutation.java_binary() == "java"
+    monkeypatch.setenv("JAVA_HOME", "/opt/jdk")
+    assert mutation.java_binary() == "/opt/jdk/bin/java"
+    write(repo / ".unslop/out/pit/java.txt", "/toolchain/bin/java\n")
+    assert mutation.java_binary() == "/toolchain/bin/java"
+
+
+def test_mutation_budget_stops_with_a_warning(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(repo / "a.py", "x = 1\n")
+    commit(repo, "root")
+    since = head()
+    write(repo / "a.py", "x = 2\n")
+
+    def slow(plan: object, files: object) -> None:
+        _ = mutation.timed("sleep 5")
+
+    monkeypatch.setitem(mutation.RUNNERS, "mutmut", slow)
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    started = time.monotonic()
+    assert mutation.run({"tool": "mutmut", "runner": "python"}, since, ".", 1)
+    assert time.monotonic() - started < 4
+    assert "::warning::mutation: stopped after 1s" in capsys.readouterr().out
