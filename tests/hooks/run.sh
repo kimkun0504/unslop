@@ -239,7 +239,7 @@ done
 for p in pyproject.toml uv.lock package.json package-lock.json yarn.lock pnpm-lock.yaml poetry.lock pom.xml build.gradle.kts gradle/libs.versions.toml requirements.txt; do
   expect 0 "toml: dependency file $p is editable" protect-paths.sh "$(edit_in "$toml/$p")"
 done
-if jq -e --arg r "$toml" 'select(.hook == "protect-paths" and .repo == $r and .detail == "ruff.toml")' "$XDG_STATE_HOME/unslop/events.jsonl" >/dev/null; then tally ok; else tally no "toml: block not logged"; fi
+if jq -e --arg r "$(cd "$toml" && pwd -P)" 'select(.hook == "protect-paths" and .repo == $r and .detail == "ruff.toml")' "$XDG_STATE_HOME/unslop/events.jsonl" >/dev/null; then tally ok; else tally no "toml: block not logged"; fi
 expect 0 "toml: src edit" protect-paths.sh "$(edit_in "$toml/src/app.py")"
 printf 'version = "0.1.0"\n\n[[stack]]\nprofile = "python"\npath = "."\n\n[[stack]]\nprofile = "typescript"\npath = "web"\n' >"$toml/unslop.toml"
 for p in web/eslint.config.js web/vite.config.ts web/.prettierrc web/tsconfig.app.json; do
