@@ -329,7 +329,7 @@ def pit(plan: Mutation, files: dict[str, frozenset[int] | None]) -> list[Survivo
         f"java @{arguments} org.pitest.mutationtest.commandline.MutationCoverageReport"
         f" --reportDir {report} --targetClasses {','.join(f'{name}*' for name in classes)}"
         f" --targetTests {','.join(packages)} --sourceDirs {','.join(sources)}"
-        " --outputFormats XML --timestampedReports=false"
+        " --outputFormats XML --timestampedReports=false --verbose"
     )
     result = timed(command)
     found = report / "mutations.xml"
@@ -339,7 +339,9 @@ def pit(plan: Mutation, files: dict[str, frozenset[int] | None]) -> list[Survivo
         return None
     mutations = list(ET.parse(found).getroot().iter("mutation"))
     if mutations and all(mutation.get("status") == "NO_COVERAGE" for mutation in mutations):
-        print(result.stdout[-3000:] + result.stderr[-3000:])
+        print(result.stdout[-6000:] + result.stderr[-3000:])
+        junit = sorted({Path(entry).name for entry in classpath.split(os.pathsep) if "junit" in entry})
+        print(f"JUnit on the classpath: {', '.join(junit)}")
         print("mutation: PIT ran no tests against the changed classes; check that it can find them")
         return None
     survivors: list[Survivor] = []
