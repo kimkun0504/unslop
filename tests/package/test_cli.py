@@ -17,13 +17,13 @@ def test_new_scaffolds_a_template_with_the_plugin(tmp_path: Path, monkeypatch: p
     monkeypatch.setenv("GIT_COMMITTER_NAME", "t")
     monkeypatch.setenv("GIT_COMMITTER_EMAIL", "t@t")
     target = tmp_path / "app"
-    assert cli.main(["new", "go", str(target)]) == 0
+    assert cli.main(["new", "python", str(target)]) == 0
     settings = json.loads((target / ".claude/settings.json").read_text())
     assert settings["enabledPlugins"] == {"unslop@unslop": True}
     assert settings["extraKnownMarketplaces"]["unslop"]["source"]["ref"] == f"v{__version__}"
     assert "@octocat" in (target / ".github/CODEOWNERS").read_text()
     assert os.access(target / "scripts/fast-check", os.X_OK)
-    assert cli.main(["new", "go", str(target)]) == 1
+    assert cli.main(["new", "python", str(target)]) == 1
     assert cli.main(["new", "cobol", str(tmp_path / "other")]) == 1
 
 
@@ -98,7 +98,7 @@ def test_gates_report_every_problem(repo: Path, capsys: pytest.CaptureFixture[st
     since = cli.gitops.git("rev-parse", "HEAD").strip()
     write(repo / "src/a.py", "x = 1  # explain\ny = 2  # noqa\n")
     write(repo / "tests/test_a.py", "def test_a():\n    assert 2\n")
-    assert not cli.gates(since)
+    assert cli.gates(since, Config([Stack("python")])) == ["comments", "suppressions", "test-tampering"]
     output = capsys.readouterr().out
     assert "comments are forbidden" in output
     assert "new skip or suppression" in output
@@ -111,4 +111,4 @@ def test_reviewed_test_changes_pass_with_the_label(repo: Path, monkeypatch: pyte
     since = cli.gitops.git("rev-parse", "HEAD").strip()
     write(repo / "tests/test_a.py", "def test_a():\n    assert 2\n")
     monkeypatch.setenv("UNSLOP_TESTS_REVIEWED", "1")
-    assert cli.gates(since)
+    assert cli.gates(since, Config([Stack("python")])) == []

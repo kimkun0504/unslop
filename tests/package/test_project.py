@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from conftest import commit, write
-from unslop import __version__, cli, footprint, gitops, project
+from unslop import __version__, cli, footprint, gitops, guards, project
 from unslop.project import Config, ConfigError, Stack
 
 
@@ -80,10 +80,10 @@ def test_guard_config_flags_config_change_and_baseline_growth(repo: Path) -> Non
     project.write_baseline({"ruff": {"a.py::E1": 1}})
     commit(repo, "adopt")
     since = gitops.git("rev-parse", "HEAD").strip()
-    assert cli.guard_config(since) == []
+    assert guards.configuration(since) == []
     project.write_baseline({"ruff": {"a.py::E1": 2, "b.py::E2": 1}})
     project.save(Config([Stack("python", ".", {"tests": "true"})]))
-    assert cli.guard_config(since) == [
+    assert guards.configuration(since) == [
         "unslop.toml changed",
         "baseline grew: ruff a.py::E1",
         "baseline grew: ruff b.py::E2",
@@ -96,13 +96,16 @@ def test_shrinking_the_baseline_is_fine(repo: Path) -> None:
     commit(repo, "adopt")
     since = gitops.git("rev-parse", "HEAD").strip()
     project.write_baseline({"ruff": {"a.py::E1": 1}})
-    assert cli.guard_config(since) == []
+    assert guards.configuration(since) == []
 
 
 def test_settings_enable_the_plugin_and_protect_existing_files(repo: Path) -> None:
     write(repo / "pyproject.toml", "[project]\n")
+    write(repo / "ruff.toml", "")
     write(repo / "web/package.json", "{}")
-    write(repo / ".claude/settings.json", json.dumps({"permissions": {"deny": ["Read(.env)"]}, "model": "opus"}))
+    write(repo / "web/tsconfig.json", "{}")
+    old = {"permissions": {"deny": ["Read(.env)", "Edit(pyproject.toml)"]}, "model": "opus"}
+    write(repo / ".claude/settings.json", json.dumps(old))
     commit(repo, "legacy")
     footprint.write_settings("9.9.9", ["."])
     written = json.loads((repo / ".claude/settings.json").read_text())
@@ -111,9 +114,11 @@ def test_settings_enable_the_plugin_and_protect_existing_files(repo: Path) -> No
     assert written["extraKnownMarketplaces"]["unslop"]["source"]["ref"] == "v9.9.9"
     deny = written["permissions"]["deny"]
     assert deny[0] == "Read(.env)"
-    assert {"Edit(unslop.toml)", "Edit(.unslop/**)", "Edit(pyproject.toml)", "Edit(web/package.json)"} <= set(deny)
-    assert "Edit(Cargo.toml)" not in deny
-    assert "./pyproject.toml" in written["sandbox"]["filesystem"]["denyWrite"]
+    assert {"Edit(unslop.toml)", "Edit(.unslop/**)", "Edit(ruff.toml)", "Edit(web/tsconfig.json)"} <= set(deny)
+    assert "Edit(pyproject.toml)" not in deny
+    assert "Edit(web/package.json)" not in deny
+    assert "./ruff.toml" in written["sandbox"]["filesystem"]["denyWrite"]
+    assert "./pyproject.toml" not in written["sandbox"]["filesystem"]["denyWrite"]
 
 
 def test_settings_merge_is_idempotent(repo: Path) -> None:
@@ -123,18 +128,15 @@ def test_settings_merge_is_idempotent(repo: Path) -> None:
     assert (repo / ".claude/settings.json").read_text() == first
 
 
-def test_workflow_pins_the_action_and_adds_a_container_for_swift(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_workflow_pins_the_action_and_reruns_on_labels(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(footprint, "action_ref", lambda version: f"sha-for-{version}")
     commit_placeholder = write(repo / "a.txt", "a\n")
     assert commit_placeholder.exists()
     commit(repo, "root")
-    plain = footprint.workflow("1.0.0", ["python"])
+    plain = footprint.workflow("1.0.0")
     assert "uses: kimkun0504/unslop@sha-for-1.0.0" in plain
     assert "branches: [main]" in plain
-    assert "container" not in plain
-    swift = footprint.workflow("1.0.0", ["swift"])
-    assert "container: swift:6.4.2-noble" in swift
-    assert swift.index("apt-get") < swift.index("actions/checkout")
+    assert "labeled, unlabeled" in plain
 
 
 def test_ruleset_requires_the_unslop_check() -> None:

@@ -1,8 +1,0 @@
-/vendor/
-/coverage/
-/.bundle/
-/tmp/
-/.rubocop-cache/
-.env
-.env.*
-!.env.example

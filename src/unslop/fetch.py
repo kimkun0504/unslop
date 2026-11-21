@@ -1,14 +1,11 @@
 import hashlib
 import os
-import platform
 import shutil
 import stat
 import urllib.request
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-
-SWIFTLINT = "https://github.com/realm/SwiftLint/releases/download/0.65.1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,33 +18,6 @@ class Download:
 
 class FetchError(Exception):
     pass
-
-
-def swiftlint() -> Download:
-    system, machine = platform.system(), platform.machine()
-    if system == "Linux" and machine == "x86_64":
-        return Download(
-            f"{SWIFTLINT}/swiftlint_linux_amd64.zip",
-            "caeed6f4a679c35539ffaf124f6c4ab4a8416917f7d8796279dc52b74026059d",
-            "swiftlint.zip",
-            "swiftlint",
-        )
-    if system == "Linux" and machine in {"aarch64", "arm64"}:
-        return Download(
-            f"{SWIFTLINT}/swiftlint_linux_arm64.zip",
-            "9ffa52f478e6d8eb485d37d14715ffac90abc81c58f3370d598bf75be05605f8",
-            "swiftlint.zip",
-            "swiftlint",
-        )
-    if system == "Darwin":
-        return Download(
-            f"{SWIFTLINT}/portable_swiftlint.zip",
-            "c1e429b0599cf1b516f369a2d9ec04eaf0e436f3c12b637df8851fa52ff694d0",
-            "swiftlint.zip",
-            "swiftlint",
-        )
-    message = f"no SwiftLint build for {system}-{machine}"
-    raise FetchError(message)
 
 
 def catalog(tool: str) -> Download:
@@ -63,16 +33,9 @@ def catalog(tool: str) -> Download:
             "pmd.zip",
             "pmd-bin-7.29.0/bin/pmd",
         ),
-        "phpstan": Download(
-            "https://github.com/phpstan/phpstan/releases/download/2.3.7/phpstan.phar",
-            "87fa9aa451bb9b61d7c65d40ec7d14d5bab67e3ad74ce75a09b3140d6f22631a",
-            "phpstan.phar",
-        ),
     }
-    if tool == "swiftlint":
-        return swiftlint()
     if tool not in known:
-        message = f"unknown tool {tool}; known: {', '.join([*sorted(known), 'swiftlint'])}"
+        message = f"unknown tool {tool}; known: {', '.join(sorted(known))}"
         raise FetchError(message)
     return known[tool]
 

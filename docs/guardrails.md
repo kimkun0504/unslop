@@ -33,32 +33,37 @@ Switched on by `unslop.toml` in a repository set up with `unslop init`, or by `.
 
 | ID | Guardrail | Mechanism | Strength |
 |---|---|---|---|
-| P1 | Guardrail files are read-only for Claude: build files, lockfiles, lint and type configs, `scripts/`, CI, `CLAUDE.md`, Dockerfiles | Project deny rules, sandbox `denyWrite`, `protect-paths.sh` | Boundary |
+| P1 | Guardrail files are read-only for Claude: lint and type configs, build files and lockfiles in template projects, `scripts/`, CI, `CLAUDE.md`, Dockerfiles | Project deny rules, sandbox `denyWrite`, `protect-paths.sh` | Boundary |
 | P2 | Applied migrations and existing decision records cannot be edited; new ones can be added | `protect-paths.sh` | Gate |
 | P3 | Tests can be locked for an implementation phase: `touch .claude/tests.locked` | `protect-paths.sh` | Gate |
-| P4 | Claude cannot stop while `unslop check`, or `scripts/fast-check` in a template project, fails | Stop hook `stop-gate.sh` | Gate |
+| P4 | Claude cannot stop while `unslop check --fast`, or `scripts/fast-check` in a template project, fails. A turn that changed nothing since the last check, such as answering a question, is not checked again | Stop hook `stop-gate.sh`, using `stop_hook_active` | Gate |
 | P5 | The stop check never fails silently: three identical failures, twenty in a session, or running past the project's time budget end the session with a visible reason | `stop-gate.sh` | Gate |
 | P5a | The time budget is per project: `fast_check_seconds` in `unslop.toml` or `.claude/unslop.json`, 240 by default, at most 1700; `unslop init` sets it to twice the measured run plus a minute. The file is read-only for Claude | `stop-gate.sh`, `protect-paths.sh` | Boundary |
 | P6 | Committed work is still checked; only an exact state that already passed is skipped | `stop-gate.sh` fingerprint of HEAD, diff and untracked files | Gate |
 | P7 | No code comments in any language | `scripts/check-comments` (tree-sitter parsers for 300+ languages) | Gate |
-| P8 | No new suppressions or skipped tests: `eslint-disable`, `@ts-expect-error`, `# noqa`, `# type: ignore`, `//nolint`, `@Suppress`, `.skip`, `.only`, `@Disabled`, `t.Skip` and more | `scripts/check-diff` | Gate |
+| P8 | No new suppressions or skipped tests: `eslint-disable`, `@ts-expect-error`, `# noqa`, `# type: ignore`, `@Suppress`, `.skip`, `.only`, `@Disabled`, `pytest.mark.skip` and more | `scripts/check-diff` | Gate |
 | P9 | Existing tests cannot be changed, deleted or renamed without the `tests-reviewed` label, in every template's test layout. New tests may be appended to the end of an existing test file, with any imports they need | `scripts/check-diff` | Gate |
 | P10 | Per-stack quality gates: format, lint, types, architecture, tests, coverage, mutation, dead code, supply chain | `scripts/fast-check`, `scripts/verify`, `scripts/mutation`; see the [stack matrix](../README.md#stacks) | Gate |
 | P11 | Claude cannot record a new baseline or switch the plugin off in an unslop repository | `guard-bash.sh` | Tripwire, backed by A5 and the `unslop-reviewed` label |
+| P12 | Every block is logged on the computer, per repository, rule and session, so the noisy rules can be found | `events.sh` in each hook, `unslop stats` | Not a guardrail |
 
 ## 2a. Adopted repositories
 
-`unslop init` switches the project layer on in an existing repository by adding `unslop.toml`, `.unslop/baseline.json`, `.claude/settings.json` and `.github/workflows/unslop.yml`. P1 to P6, P9 and P11 apply unchanged. The rest are rewritten as ratchets inside `unslop check`, so legacy code keeps working and new work meets the full bar. Code: `src/unslop/`.
+`unslop init` switches the project layer on in an existing repository by adding `unslop.toml`, `.unslop/baseline.json`, `.claude/settings.json` and `.github/workflows/unslop.yml`. P1 to P6, P9, P11 and P12 apply, except that dependency files are not read-only (A8). The rest are rewritten as ratchets inside `unslop check`, so legacy code keeps working and new work meets the full bar. Code: `src/unslop/`.
 
 | ID | Guardrail | Mechanism | Strength |
 |---|---|---|---|
-| A1 | No comments on lines a change adds | `comments.py`, tree-sitter over the lines added since the base | Gate |
-| A2 | No lint or type finding beyond the recorded baseline, counted per file and rule so moved code does not count as new; a failure lists the findings on lines the change touches first | `ratchet.py` over SARIF, pyright, ESLint, tsc, Cargo, MSBuild, compiler, PHPStan, RuboCop, Credo and line reports | Gate |
+| A1 | No comments on lines a change adds, unless `comments = "allow"` | `comments.py`, tree-sitter over the lines added since the base | Gate |
+| A2 | No lint, type, dead-code or SQL finding beyond the recorded baseline, counted per file and rule so moved code does not count as new; a failure lists the findings on lines the change touches first | `ratchet.py` over SARIF, pyright, ESLint, tsc, vulture, knip and sqlfluff reports | Gate |
 | A3 | A file that was formatted stays formatted, and new files must be formatted; legacy files are never forced into a reformat | Format ratchet comparing each changed file before and after | Gate |
-| A4 | Every changed line is covered by a test | `diff-cover --fail-under 100` on the project's own coverage report | Gate |
+| A4 | Every changed line is covered by a test, or the share set by `coverage` | `diff-cover --fail-under` on the project's own coverage report, in CI | Gate |
 | A5 | `unslop.toml` and the baseline are read-only for Claude. Changing the configuration or growing the baseline fails the check unless the pull request has the `unslop-reviewed` label | Deny rules, sandbox `denyWrite`, `protect-paths.sh`, and the configuration gate in `unslop check` | Boundary, backed by a gate |
 | A6 | Downloaded tools are pinned by checksum | `unslop fetch` | Gate |
 | A7 | The unslop version is pinned, and the check refuses to run against a different version | `unslop.toml`, the marketplace `ref`, the action SHA | Gate |
+| A8 | Claude may add or update dependencies, and the pull request then needs the `unslop-reviewed` label. In `package.json` and `pyproject.toml`, anything outside the dependency sections fails even locally. In CI, a change to any protected file needs the same label | `guards.py` | Gate |
+| A9 | No new copy-pasted code: a block of 50 tokens or more, outside tests, that is not on the base branch | jscpd with `--baseline-from-ref` | Gate |
+| A10 | Large changes are flagged: a warning above `diff_warn_lines`, a failure above `diff_max_lines` when it is set | `slop.py` | Gate when a limit is set |
+| A11 | Optional: every mutant on a changed line must be killed, for Python and TypeScript | mutmut or Stryker limited to changed lines, when `mutation = true` | Gate |
 
 ## 3. CI and GitHub layer
 
@@ -93,6 +98,8 @@ These guide rather than enforce; everything that matters is enforced by the laye
 | Replace `scripts/fast-check` with `exit 0` | P1 sandbox `denyWrite` | G4: CI runs its own checkout |
 | Weaken an assertion | P9 `check-diff` | G3 |
 | Grow the baseline to hide a new finding | A5 deny rules, P11 tripwire | A5 configuration gate, then G3 |
+| Add a dependency, or slip a test setting into `pyproject.toml` | A8: the dependency section is fine, anything else fails | The `unslop-reviewed` label in CI, then G3 |
+| Paste a function instead of extracting it | A9 in the fast check | P4 stop check, then G3 |
 | Write a comment, then stop | P7 in `fast-check` | P4 stop check, then G3 |
 | Push straight to `main` | M8 tripwire | G1 and G2 |
 | Read a token and call an API with it | M1 and M2 | M3 network allowlist |

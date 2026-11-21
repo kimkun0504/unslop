@@ -1,8 +1,0 @@
-bin/
-obj/
-StrykerOutput/
-TestResults/
-coverage.*.json
-.env
-.env.*
-!.env.example

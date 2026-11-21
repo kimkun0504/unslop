@@ -75,6 +75,12 @@ export default defineConfig(
         { selector: "ExportDefaultDeclaration", message: "Use named exports." },
       ],
       "better-tailwindcss/no-unknown-classes": "error",
+      "better-tailwindcss/enforce-consistent-class-order": "error",
+      "better-tailwindcss/no-duplicate-classes": "error",
+      "better-tailwindcss/no-conflicting-classes": "error",
+      "better-tailwindcss/no-deprecated-classes": "error",
+      "better-tailwindcss/no-unnecessary-whitespace": "error",
+      "better-tailwindcss/enforce-shorthand-classes": "error",
       "better-tailwindcss/no-restricted-classes": [
         "error",
         {

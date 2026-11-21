@@ -3,6 +3,20 @@ set -uo pipefail
 trap 'echo "guard-bash: internal error; blocking" >&2; exit 2' ERR
 command -v jq >/dev/null 2>&1 || { echo "guard-bash: jq missing; blocking" >&2; exit 2; }
 input=$(cat)
+here=$(cd "$(dirname "$0")" && pwd)
+. "$here/events.sh" 2>/dev/null || unslop_event() { :; }
+worktree_root() {
+  local cwd top
+  cwd=$(printf '%s' "$1" | jq -r '.cwd // empty' 2>/dev/null) || cwd=""
+  [ -n "$cwd" ] && [ -d "$cwd" ] || return 0
+  top=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || top=""
+  if [ -n "$top" ] && { [ -f "$top/unslop.toml" ] || [ -f "$top/.claude/unslop.json" ]; }; then
+    printf '%s\n' "$top"
+  fi
+}
+root=$(worktree_root "$input")
+[ -n "$root" ] || root=${CLAUDE_PROJECT_DIR:-}
+session=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null) || session=""
 raw=$(printf '%s' "$input" | jq -er '.tool_input.command | select(type == "string" and length > 0)') || { echo "guard-bash: no command in hook input; blocking" >&2; exit 2; }
 raw=$(printf '%s' "$raw" | tr -s '[:space:]' ' ')
 if printf '%s' "$raw" | grep -Eq -- '(^|[ ;&|(])(ba|z|da)?sh -c|eval |node (-e|--eval|-p)|python3? -c|base64 (-d|--decode)|\$\(|`'; then
@@ -10,7 +24,11 @@ if printf '%s' "$raw" | grep -Eq -- '(^|[ ;&|(])(ba|z|da)?sh -c|eval |node (-e|-
 else
   cmd=$(printf '%s' "$raw" | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g")
 fi
-deny() { echo "Blocked by guard-bash (tripwire): $1. Fix the underlying problem or ask the human." >&2; exit 2; }
+deny() {
+  unslop_event guard-bash "$1" "$raw" "$root" "$session"
+  echo "Blocked by guard-bash (tripwire): $1. Fix the underlying problem or ask the human." >&2
+  exit 2
+}
 has() { printf '%s' "$cmd" | grep -Eq -- "$1"; }
 has '--no-verify|(^|[ ;&|])(HUSKY|LEFTHOOK|SKIP)=|core\.hooksPath' && deny "git hook bypass"
 has 'git( -[cC] [^ ]+)* commit( [^;&|]*)? -[a-zA-Z]*n[a-zA-Z]*( |$|[);&|])' && deny "git commit -n skips hooks"
@@ -24,17 +42,6 @@ has 'prisma +(migrate +reset|db +push)|drizzle-kit +push|flyway +clean|atlas +sc
 printf '%s' "$raw" | grep -Eiq -- '(drop +(table|schema|database)|truncate +table)' && deny "destructive SQL"
 has 'minimum.?release.?age|exclude-newer' && deny "release-age gate change"
 has '(^|[ /=<])\.env(\.[A-Za-z0-9_-]+)?( |$|;|\|)' && ! has '\.env\.example' && deny "reading or writing .env secrets"
-worktree_root() {
-  local cwd top
-  cwd=$(printf '%s' "$1" | jq -r '.cwd // empty' 2>/dev/null) || cwd=""
-  [ -n "$cwd" ] && [ -d "$cwd" ] || return 0
-  top=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || top=""
-  if [ -n "$top" ] && { [ -f "$top/unslop.toml" ] || [ -f "$top/.claude/unslop.json" ]; }; then
-    printf '%s\n' "$top"
-  fi
-}
-root=$(worktree_root "$input")
-[ -n "$root" ] || root=${CLAUDE_PROJECT_DIR:-}
 if [ -n "$root" ] && { [ -f "$root/unslop.toml" ] || [ -f "$root/.claude/unslop.json" ]; }; then
   has '(^|[ ;&|(/])unslop +(baseline|init|upgrade)( |$|[);&|])|scripts/rebaseline' && deny "only a human records the baseline or changes the unslop setup"
   has 'claude +plugins? +(disable|uninstall|remove)|plugins? +marketplace +remove' && deny "the unslop plugin stays enabled in this repository"

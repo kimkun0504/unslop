@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-cd "$(dirname "$0")/.."
-scripts/fast-check
-mix test --cover
-mix dialyzer --format short
-mix deps.unlock --check-unused
-mix hex.audit
-mix deps.audit

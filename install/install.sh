@@ -24,7 +24,7 @@ install_system() {
   local dir
   dir=$(managed_dir)
   install -d -m 755 "$hook_dir" "$dir"
-  for h in guard-bash.sh protect-paths.sh stop-gate.sh; do
+  for h in guard-bash.sh protect-paths.sh stop-gate.sh events.sh; do
     install -m 755 "$repo/plugin/hooks/$h" "$hook_dir/$h"
   done
   install -m 755 "$repo/plugin/bin/unslop" "$hook_dir/unslop"
@@ -73,7 +73,7 @@ uninstall_system() {
   [ -n "$prefix" ] || [ "$(id -u)" = 0 ] || { echo "system uninstall needs root: sudo $0 uninstall-system" >&2; exit 1; }
   local dir h
   dir=$(managed_dir)
-  for h in guard-bash.sh protect-paths.sh stop-gate.sh unslop; do
+  for h in guard-bash.sh protect-paths.sh stop-gate.sh events.sh unslop; do
     if [ -f "$hook_dir/$h" ]; then
       rm -f "$hook_dir/$h"
       echo "removed $hook_dir/$h"
@@ -93,7 +93,7 @@ uninstall_user() {
 check() {
   local dir ok=0
   dir=$(managed_dir)
-  for h in guard-bash.sh protect-paths.sh stop-gate.sh; do
+  for h in guard-bash.sh protect-paths.sh stop-gate.sh events.sh; do
     if cmp -s "$repo/plugin/hooks/$h" "$hook_dir/$h"; then echo "ok   hook $h"; else echo "DIFF hook $h"; ok=1; fi
   done
   if cmp -s "$repo/plugin/bin/unslop" "$hook_dir/unslop"; then echo "ok   launcher"; else echo "DIFF launcher"; ok=1; fi

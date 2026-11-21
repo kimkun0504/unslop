@@ -110,7 +110,7 @@ expect 2 "plain: git hooks" protect-paths.sh "$(edit_in "$plain/.git/hooks/pre-c
 expect 2 "plain: malformed" protect-paths.sh "garbage"
 export CLAUDE_PROJECT_DIR="$marked"
 expect 0 "marked: src edit" protect-paths.sh "$(edit_in "$marked/src/a.ts")"
-for p in CLAUDE.md package.json web/package.json tsconfig.json eslint.config.ts scripts/fast-check .github/workflows/ci.yml build.gradle.kts gradle/libs.versions.toml go.mod .golangci.yml pyproject.toml uv.lock Dockerfile vite.config.ts knip.json stryker.config.json .prettierrc.json pnpm-workspace.yaml versions.tf modules/bucket/versions.tf .tflint.hcl .checkov.yaml .terraform.lock.hcl Cargo.toml crates/domain/Cargo.toml Cargo.lock crates/domain/clippy.toml deny.toml rust-toolchain.toml src/App.Api/App.Api.csproj Directory.Build.props Directory.Packages.props global.json .editorconfig src/App.Api/packages.lock.json .config/dotnet-tools.json composer.json composer.lock phpstan.neon deptrac.yaml phpunit.xml.dist infection.json5 .php-cs-fixer.dist.php Gemfile Gemfile.lock .ruby-version .rubocop.yml Steepfile .mutant.yml .rspec spec/spec_helper.rb .node-version Package.swift Package.resolved .swift-version .swiftlint.yml .swift-format mix.exs mix.lock .credo.exs .formatter.exs .tool-versions .unslop/adopt.json .unslop/baseline/ruff.json .unslop/config/ruff.toml; do
+for p in CLAUDE.md package.json web/package.json tsconfig.json eslint.config.ts scripts/fast-check .github/workflows/ci.yml build.gradle.kts gradle/libs.versions.toml pyproject.toml uv.lock Dockerfile vite.config.ts knip.json stryker.config.json .prettierrc.json pnpm-workspace.yaml .editorconfig ruff.toml .sqlfluff tailwind.config.ts .java-version .node-version .tool-versions .unslop/adopt.json .unslop/baseline/ruff.json .unslop/config/ruff.toml; do
   expect 2 "marked: $p" protect-paths.sh "$(edit_in "$marked/$p")"
 done
 expect 2 "marked: dot-dot traversal into scripts" protect-paths.sh "$(edit_in "$marked/src/../scripts/fast-check")"
@@ -129,10 +129,9 @@ expect 2 "marked: existing migration" protect-paths.sh "$(edit_in "$marked/db/mi
 expect 0 "marked: test unlocked" protect-paths.sh "$(edit_in "$marked/src/a.test.ts")"
 touch "$marked/.claude/tests.locked"
 expect 2 "marked: test locked ts" protect-paths.sh "$(edit_in "$marked/src/a.test.ts")"
-expect 2 "marked: test locked go" protect-paths.sh "$(edit_in "$marked/internal/x/a_test.go")"
 expect 2 "marked: test locked py" protect-paths.sh "$(edit_in "$marked/tests/test_a.py")"
 expect 2 "marked: test locked kt" protect-paths.sh "$(edit_in "$marked/src/test/kotlin/AT.kt")"
-for t in Tests/DomainTests/MoneyTests.swift spec/models/user_spec.rb tests/Domain/MoneyTest.php tests/App.Tests/QuoteTests.cs tests/bucket.tftest.hcl test/app.js crates/app/tests/cli.rs; do
+for t in test/app.js web/src/app.spec.tsx api/tests/test_api.py; do
   expect 2 "marked: test locked $t" protect-paths.sh "$(edit_in "$marked/$t")"
 done
 expect 0 "marked: src still editable" protect-paths.sh "$(edit_in "$marked/src/main.py")"
@@ -172,7 +171,7 @@ printf 'x = 2\n' > "$diffrepo/src/app.py"
 if check_diff; then tally ok; else tally no "check-diff: source edits should pass"; fi
 git -C "$diffrepo" checkout -q -- .
 
-stop_in() { jq -cn --arg s "$1" '{session_id:$s,stop_hook_active:false}'; }
+stop_in() { jq -cn --arg s "$1" --argjson a "${2:-false}" '{session_id:$s,stop_hook_active:$a}'; }
 gate="$work/gate"
 mkdir -p "$gate/.claude" "$gate/scripts"
 printf '{}' >"$gate/.claude/unslop.json"
@@ -190,9 +189,15 @@ export CLAUDE_PROJECT_DIR="$gate"
 expect 0 "stop: passing check" stop-gate.sh "$(stop_in s1)"
 touch "$gate/broken"
 expect 2 "stop: failing check blocks" stop-gate.sh "$(stop_in s1)"
-expect 2 "stop: second identical failure blocks" stop-gate.sh "$(stop_in s1)"
-expect 0 "stop: third identical failure halts visibly" stop-gate.sh "$(stop_in s1)"
+expect 2 "stop: second identical failure blocks" stop-gate.sh "$(stop_in s1 true)"
+expect 0 "stop: third identical failure halts visibly" stop-gate.sh "$(stop_in s1 true)"
 if grep -q '"continue":false' "$work/out"; then tally ok; else tally no "stop: halt json missing"; fi
+expect 0 "stop: a new turn with no change since the last check passes" stop-gate.sh "$(stop_in s1)"
+if [ -s "$work/out" ]; then tally no "stop: unchanged turn should stop quietly"; else tally ok; fi
+printf 'more\n' >>"$gate/broken"
+expect 2 "stop: a new turn with a change is checked again" stop-gate.sh "$(stop_in s1)"
+if jq -e 'select(.hook == "stop-gate" and .rule == "unknown")' "$XDG_STATE_HOME/unslop/events.jsonl" >/dev/null; then tally ok; else tally no "stop: failure not logged"; fi
+if jq -e 'select(.rule == "gave up")' "$XDG_STATE_HOME/unslop/events.jsonl" >/dev/null; then tally ok; else tally no "stop: halt not logged"; fi
 rm "$gate/broken"
 expect 0 "stop: fixed passes" stop-gate.sh "$(stop_in s1)"
 if grep -q 'continue' "$work/out"; then tally no "stop: pass should not halt"; else tally ok; fi
@@ -228,16 +233,23 @@ printf 'version = "0.1.0"\nprofile = "python"\nfast_check_seconds = 30\n' >"$tom
 git -C "$toml" init -q
 git -C "$toml" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m init
 export CLAUDE_PROJECT_DIR="$toml"
-for p in unslop.toml .unslop/baseline.json .unslop/out/config/ruff.toml .github/workflows/unslop.yml .claude/settings.json CLAUDE.md pyproject.toml package-lock.json yarn.lock poetry.lock pom.xml build.gradle; do
+for p in unslop.toml .unslop/baseline.json .unslop/out/config/ruff.toml .github/workflows/unslop.yml .claude/settings.json CLAUDE.md ruff.toml tsconfig.json gradlew .sqlfluff; do
   expect 2 "toml: $p" protect-paths.sh "$(edit_in "$toml/$p")"
 done
+for p in pyproject.toml uv.lock package.json package-lock.json yarn.lock pnpm-lock.yaml poetry.lock pom.xml build.gradle.kts gradle/libs.versions.toml requirements.txt; do
+  expect 0 "toml: dependency file $p is editable" protect-paths.sh "$(edit_in "$toml/$p")"
+done
+if jq -e --arg r "$(cd "$toml" && pwd -P)" 'select(.hook == "protect-paths" and .repo == $r and .detail == "ruff.toml")' "$XDG_STATE_HOME/unslop/events.jsonl" >/dev/null; then tally ok; else tally no "toml: block not logged"; fi
 expect 0 "toml: src edit" protect-paths.sh "$(edit_in "$toml/src/app.py")"
 printf 'version = "0.1.0"\n\n[[stack]]\nprofile = "python"\npath = "."\n\n[[stack]]\nprofile = "typescript"\npath = "web"\n' >"$toml/unslop.toml"
-for p in web/package-lock.json web/eslint.config.js web/vite.config.ts web/.prettierrc web/package.json; do
+for p in web/eslint.config.js web/vite.config.ts web/.prettierrc web/tsconfig.app.json; do
   expect 2 "stack folder: $p" protect-paths.sh "$(edit_in "$toml/$p")"
 done
+for p in web/package-lock.json web/package.json; do
+  expect 0 "stack folder: dependency file $p is editable" protect-paths.sh "$(edit_in "$toml/$p")"
+done
 expect 0 "stack folder: source edit" protect-paths.sh "$(edit_in "$toml/web/src/app.ts")"
-expect 0 "other folder: lockfile not in a stack" protect-paths.sh "$(edit_in "$toml/fixtures/package-lock.json")"
+expect 0 "other folder: config not in a stack" protect-paths.sh "$(edit_in "$toml/fixtures/eslint.config.js")"
 printf 'version = "0.1.0"\nprofile = "python"\nfast_check_seconds = 30\n' >"$toml/unslop.toml"
 for c in "unslop baseline" "uvx unslop init" "unslop upgrade" "/opt/plugin/bin/unslop baseline" "scripts/rebaseline" "claude plugin disable unslop@unslop" "claude plugin uninstall unslop" "claude plugin marketplace remove unslop"; do
   expect 2 "toml: block $c" guard-bash.sh "$(bash_in "$c")"
@@ -256,7 +268,10 @@ copy="$work/plugin-copy"
 cp -R "$hooks/.." "$copy"
 cat >"$copy/bin/unslop" <<'SH'
 #!/usr/bin/env bash
-[ "$1" = check ] && [ ! -f "$PWD/broken" ]
+mkdir -p .unslop/out
+if [ "$1 $2" = "check --fast" ] && [ ! -f "$PWD/broken" ]; then echo '{"failed":[]}' >.unslop/out/result.json; exit 0; fi
+echo '{"failed":["lint:ruff","duplication"]}' >.unslop/out/result.json
+exit 1
 SH
 chmod +x "$copy/bin/unslop"
 saved=$hooks
@@ -265,6 +280,9 @@ expect 0 "toml stop: passing check" stop-gate.sh "$(stop_in t1)"
 touch "$toml/broken"
 expect 2 "toml stop: failing check blocks" stop-gate.sh "$(stop_in t1)"
 if grep -q 'unslop check failed' "$work/err"; then tally ok; else tally no "toml stop: failure not labelled"; fi
+for gate in lint:ruff duplication; do
+  if jq -e --arg g "$gate" 'select(.hook == "stop-gate" and .rule == $g)' "$XDG_STATE_HOME/unslop/events.jsonl" >/dev/null; then tally ok; else tally no "toml stop: $gate not logged"; fi
+done
 mkdir -p "$work/machine"
 printf '#!/usr/bin/env bash\nexit 0\n' >"$work/machine/stop-gate.sh"
 chmod +x "$work/machine/stop-gate.sh"
@@ -288,7 +306,8 @@ mkdir -p "$tree_repo/.claude/worktrees/feat/src"
 export CLAUDE_PROJECT_DIR="$tree_repo"
 expect 0 "worktree: source edit allowed" protect-paths.sh "$(edit_in "$tree_repo/.claude/worktrees/feat/src/app.py")"
 expect 0 "worktree: new file allowed" protect-paths.sh "$(edit_in "$tree_repo/.claude/worktrees/feat/tests/test_new.py")"
-expect 2 "worktree: build file blocked" protect-paths.sh "$(edit_in "$tree_repo/.claude/worktrees/feat/pyproject.toml")"
+expect 2 "worktree: tool config blocked" protect-paths.sh "$(edit_in "$tree_repo/.claude/worktrees/feat/ruff.toml")"
+expect 0 "worktree: dependency file editable" protect-paths.sh "$(edit_in "$tree_repo/.claude/worktrees/feat/pyproject.toml")"
 expect 2 "worktree: its unslop.toml blocked" protect-paths.sh "$(edit_in "$tree_repo/.claude/worktrees/feat/unslop.toml")"
 expect 2 "worktree: its claude settings blocked" protect-paths.sh "$(edit_in "$tree_repo/.claude/worktrees/feat/.claude/settings.json")"
 expect 2 "main: claude settings still blocked" protect-paths.sh "$(edit_in "$tree_repo/.claude/settings.json")"

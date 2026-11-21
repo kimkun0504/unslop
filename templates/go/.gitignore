@@ -1,7 +1,0 @@
-/app
-/bin/
-*.out
-testdata/fuzz/
-.env
-.env.*
-!.env.example

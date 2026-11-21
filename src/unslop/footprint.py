@@ -1,5 +1,6 @@
 import fnmatch
 import json
+import re
 import subprocess
 from importlib import resources
 from pathlib import Path
@@ -35,12 +36,6 @@ ALWAYS_FOLDERS = (
 )
 PROTECTED = (
     "CODEOWNERS",
-    "package.json",
-    "*/package.json",
-    "package-lock.json",
-    "yarn.lock",
-    "pnpm-lock.yaml",
-    "pnpm-workspace.yaml",
     ".npmrc",
     "tsconfig*.json",
     "*/tsconfig*.json",
@@ -48,6 +43,7 @@ PROTECTED = (
     ".eslintrc*",
     ".dependency-cruiser.*",
     "knip.*",
+    ".jscpd.json",
     "stryker.config.*",
     "vitest.config.*",
     "vite.config.*",
@@ -55,88 +51,81 @@ PROTECTED = (
     ".prettierrc*",
     ".prettierignore",
     "playwright.config.*",
+    "tailwind.config.*",
+    "postcss.config.*",
+    "gradle.properties",
+    "gradlew",
+    "gradlew.bat",
+    "gradle/wrapper/*",
+    "mvnw",
+    ".mvn/*",
+    "detekt.yml",
+    "config/detekt/*",
+    "setup.cfg",
+    "ruff.toml",
+    ".ruff.toml",
+    "pyrightconfig.json",
+    "mypy.ini",
+    "pytest.ini",
+    "tox.ini",
+    ".coveragerc",
+    ".importlinter",
+    ".python-version",
+    ".node-version",
+    ".nvmrc",
+    ".java-version",
+    ".sdkmanrc",
+    ".sqlfluff",
+    ".editorconfig",
+    ".tool-versions",
+    "mise.toml",
+    "renovate.json",
+    "Dockerfile",
+    "*/Dockerfile",
+)
+DEPENDENCIES = (
+    "package.json",
+    "*/package.json",
+    "package-lock.json",
+    "*/package-lock.json",
+    "yarn.lock",
+    "*/yarn.lock",
+    "pnpm-lock.yaml",
+    "*/pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "pyproject.toml",
+    "*/pyproject.toml",
+    "uv.lock",
+    "*/uv.lock",
+    "poetry.lock",
+    "*/poetry.lock",
+    "requirements*.txt",
+    "*/requirements*.txt",
     "build.gradle",
     "build.gradle.kts",
     "*/build.gradle",
     "*/build.gradle.kts",
     "settings.gradle",
     "settings.gradle.kts",
-    "gradle.properties",
-    "gradlew",
-    "gradlew.bat",
-    "gradle/*",
+    "gradle/*.versions.toml",
+    "gradle.lockfile",
+    "*/gradle.lockfile",
     "pom.xml",
     "*/pom.xml",
-    "mvnw",
-    "go.mod",
-    "*/go.mod",
-    "go.sum",
-    "*/go.sum",
-    ".golangci.y*ml",
-    "pyproject.toml",
-    "*/pyproject.toml",
-    "uv.lock",
-    "poetry.lock",
-    "setup.cfg",
-    "ruff.toml",
-    ".python-version",
-    "*.csproj",
-    "*.sln",
-    "*.slnx",
-    "Directory.Build.props",
-    "Directory.Packages.props",
-    "Directory.Build.targets",
-    "global.json",
-    ".editorconfig",
-    "packages.lock.json",
-    "*/packages.lock.json",
-    ".config/dotnet-tools.json",
-    "composer.json",
-    "composer.lock",
-    "phpstan.neon",
-    "phpstan.neon.dist",
-    "phpunit.xml",
-    "phpunit.xml.dist",
-    ".node-version",
-    ".nvmrc",
-    "Package.swift",
-    "Package.resolved",
-    ".swift-version",
-    ".swiftlint.yml",
-    ".swift-format",
-    "mix.exs",
-    "mix.lock",
-    ".credo.exs",
-    ".formatter.exs",
-    ".tool-versions",
-    "Gemfile",
-    "Gemfile.lock",
-    ".ruby-version",
-    ".rubocop.yml",
-    ".rubocop_todo.yml",
-    ".rspec",
-    "Cargo.toml",
-    "*/Cargo.toml",
-    "Cargo.lock",
-    "clippy.toml",
-    "*/clippy.toml",
-    "deny.toml",
-    "rust-toolchain.toml",
-    "rustfmt.toml",
-    "versions.tf",
-    "*/versions.tf",
-    ".tflint.hcl",
-    ".terraform.lock.hcl",
-    "mise.toml",
-    "renovate.json",
-    "Dockerfile",
-    "*/Dockerfile",
 )
 
 
-def guarded(path: str, folders: list[str]) -> bool:
+def matches(path: str, folders: list[str], patterns: tuple[str, ...]) -> bool:
     relative = [path] + [path.removeprefix(f"{folder}/") for folder in folders if path.startswith(f"{folder}/")]
-    return any(fnmatch.fnmatchcase(candidate, pattern) for candidate in relative for pattern in PROTECTED)
+    return any(fnmatch.fnmatchcase(candidate, pattern) for candidate in relative for pattern in patterns)
+
+
+def guarded(path: str, folders: list[str]) -> bool:
+    return matches(path, folders, PROTECTED)
+
+
+def dependency(path: str, folders: list[str]) -> bool:
+    return matches(path, folders, DEPENDENCIES)
 
 
 def protected_files(folders: list[str]) -> list[str]:
@@ -153,10 +142,17 @@ def deny_rules(folders: list[str]) -> tuple[list[str], list[str]]:
 
 
 RETIRED = frozenset({"Edit(.claude/**)", "./.claude"})
+RULE = re.compile(r"^(?:Edit\((?P<edit>[^)]+)\)|\./(?P<write>.+))$")
+
+
+def retired(rule: str) -> bool:
+    found = RULE.match(rule)
+    path = "" if found is None else found["edit"] or found["write"] or ""
+    return rule in RETIRED or (bool(path) and dependency(path, []))
 
 
 def merged(existing: list[object], extra: list[str]) -> list[str]:
-    values = [str(item) for item in existing if str(item) not in RETIRED]
+    values = [str(item) for item in existing if not retired(str(item))]
     return values + [item for item in extra if item not in values]
 
 
@@ -210,13 +206,8 @@ def default_branch() -> str:
     return gitops.git("branch", "--show-current", check=False).strip() or "main"
 
 
-SWIFT_IMAGE = "swift:6.4.2-noble"
-
-
-def workflow(version: str, profiles: list[str]) -> str:
+def workflow(version: str) -> str:
     ref = action_ref(version)
-    container = [f"    container: {SWIFT_IMAGE}"] if "swift" in profiles else []
-    prepare = ["      - run: apt-get update -qq && apt-get install -y -qq git curl > /dev/null"] if container else []
     return "\n".join(
         [
             "name: unslop",
@@ -234,9 +225,7 @@ def workflow(version: str, profiles: list[str]) -> str:
             "  unslop:",
             "    runs-on: ubuntu-24.04",
             "    timeout-minutes: 30",
-            *container,
             "    steps:",
-            *prepare,
             f"      - uses: {CHECKOUT}",
             "        with:",
             "          fetch-depth: 0",
@@ -247,9 +236,9 @@ def workflow(version: str, profiles: list[str]) -> str:
     )
 
 
-def write_workflow(version: str, profiles: list[str]) -> None:
+def write_workflow(version: str) -> None:
     WORKFLOW.parent.mkdir(parents=True, exist_ok=True)
-    _ = WORKFLOW.write_text(workflow(version, profiles))
+    _ = WORKFLOW.write_text(workflow(version))
 
 
 def ruleset() -> str:

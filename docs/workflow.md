@@ -11,7 +11,7 @@ Architectural choices the spec forces go into `docs/decisions/` as new MADR reco
 For each criterion Claude:
 
 1. writes the failing test and shows it failing,
-2. implements until `scripts/fast-check` passes (`unslop check` in an adopted repository),
+2. implements until `scripts/fast-check` passes (`unslop check` in an adopted repository; Claude's end-of-turn check is `unslop check --fast`, and CI runs the tests),
 3. asks the `reviewer` agent to review the changed files against the spec and decision record 0003,
 4. fixes anything the reviewer blocks, then commits.
 
@@ -35,9 +35,13 @@ claude -p "/goal <same condition>" --permission-mode auto --max-turns 400 --max-
 
 ## 4. When a guardrail blocks Claude
 
-Claude cannot edit build files, lockfiles, lint or type configs, CI, `scripts/`, `CLAUDE.md` or decision records. When it needs a change there (a new dependency, a rule exception), it says what and why in its final message. You make the change yourself in a pull request, which CI and the ruleset then check.
+Claude cannot edit lint or type configs, CI, `scripts/`, `CLAUDE.md` or decision records. When it needs a change there (a rule exception, a new script), it says what and why in its final message. You make the change yourself in a pull request, which CI and the ruleset then check.
+
+In an adopted repository Claude can add or update dependencies itself; the pull request then needs the `unslop-reviewed` label, which you add after reading the dependency diff. Template projects keep dependency files read-only.
 
 If a pull request intentionally changes existing tests, add the `tests-reviewed` label so CI accepts it.
+
+To see which guardrails get in the way, run `unslop stats` after a week or two. It counts each rule's blocks in the repository and shows recent examples, so you can tell real catches from noise.
 
 ## 5. Merging
 

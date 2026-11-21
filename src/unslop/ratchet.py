@@ -132,7 +132,9 @@ def formatted(rule: FormatRule, since: str, files: list[tuple[str, str]]) -> boo
     return not regressions
 
 
-def coverage_command(tests: Tests, reports: list[str], since: str, prefix: str = ".") -> list[str]:
+def coverage_command(
+    tests: Tests, reports: list[str], since: str, prefix: str = ".", threshold: int = 100
+) -> list[str]:
     roots = sorted(
         {
             root
@@ -144,11 +146,19 @@ def coverage_command(tests: Tests, reports: list[str], since: str, prefix: str =
     lead = "" if prefix == "." else f"{prefix}/"
     excluded = [*GUARD_PATHS, *([f"{lead}.unslop/*"] if lead else [])]
     command = [sys.executable, "-m", "diff_cover.diff_cover_tool", *(lead + report for report in reports)]
-    command += ["--compare-branch", since, "--fail-under", "100", "--include-untracked", "--exclude", *excluded]
+    command += [
+        "--compare-branch",
+        since,
+        "--fail-under",
+        str(threshold),
+        "--include-untracked",
+        "--exclude",
+        *excluded,
+    ]
     return command + (["--src-roots", *(lead + root for root in roots)] if roots else [])
 
 
-def run_tests(tests: Tests, since: str, prefix: str) -> bool:
+def run_tests(tests: Tests, since: str, prefix: str, threshold: int = 100) -> bool:
     result = shell(tests["run"])
     _ = sys.stdout.write(result.stdout[-4000:])
     if result.returncode != 0:
@@ -156,16 +166,16 @@ def run_tests(tests: Tests, since: str, prefix: str) -> bool:
         print("tests: failed")
         return False
     pattern = tests.get("coverage", "")
-    if not pattern:
+    if not pattern or threshold == 0:
         return True
     reports = sorted(path.as_posix() for path in Path().glob(pattern) if path.is_file())
     if not reports:
         print(f"coverage: the tests wrote no report matching {pattern}")
         return False
-    command = coverage_command(tests, reports, since, prefix)
+    command = coverage_command(tests, reports, since, prefix, threshold)
     print(f"$ diff-cover {shlex.join(command[3:])}", flush=True)
     folder = gitops.toplevel() if prefix != "." else Path.cwd()
     covered = subprocess.run(command, cwd=folder, check=False)
     if covered.returncode != 0:
-        print("coverage: every changed line must be covered by a test")
+        print(f"coverage: at least {threshold}% of changed lines must be covered by a test")
     return covered.returncode == 0

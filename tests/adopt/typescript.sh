@@ -25,7 +25,7 @@ JSON
 }
 cases() {
   printf 'export const double = (value: number): number => value * 2;\n' > src/double.ts
-  expect_fail "untested new file" "every changed line must be covered"
+  expect_fail "untested new file" "of changed lines must be covered"
   printf 'export const pick = (items: string[]): number => items[0].length;\n' > src/pick.ts
   printf 'import { expect, test } from "vitest";\nimport { pick } from "./pick";\n\ntest("picks", () => {\n  expect(pick(["ab"])).toBe(2);\n});\n' > src/pick.test.ts
   expect_fail "unchecked index access" "TS2532"
@@ -39,6 +39,14 @@ cases() {
   printf 'export const double = (value: number): number => value * 2;\n' > src/double.ts
   printf 'import { expect, test } from "vitest";\nimport { double } from "./double";\n\ntest("doubles", () => {\n  expect(double(2)).toBe(4);\n});\n' > src/double.test.ts
   expect_pass "clean, tested new code"
+  printf 'export const double = (value: number): number => value * 2;\nexport const triple = (value: number): number => value * 3;\n' > src/double.ts
+  printf 'import { expect, test } from "vitest";\nimport { double, triple } from "./double";\n\ntest("doubles", () => {\n  expect(double(2)).toBe(4);\n  expect(triple(2)).toBeGreaterThan(0);\n});\n' > src/double.test.ts
+  printf 'export const unusedHelper = (value: number): number => value + 1;\n' > src/helper.ts
+  expect_fail "a file nothing imports" "\[files\]"
+  jq '.version = "2.0.0"' package.json > package.json.next && mv package.json.next package.json
+  expect_pass "a version bump in package.json"
+  jq '.scripts.test = "true"' package.json > package.json.next && mv package.json.next package.json
+  expect_fail "the test script changed in package.json" "changed outside its dependency sections"
   rm node_modules/.bin/tsc
   printf '#!/bin/sh\necho "tsc: cannot start" >&2\nexit 1\n' > node_modules/.bin/tsc
   chmod +x node_modules/.bin/tsc

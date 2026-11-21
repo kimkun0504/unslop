@@ -1,8 +1,0 @@
-/vendor/
-/build/
-/.phpunit.cache/
-/.php-cs-fixer.cache
-infection.log
-.env
-.env.*
-!.env.example
