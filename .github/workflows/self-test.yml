@@ -219,7 +219,7 @@ jobs:
       - run: bash tests/hooks/run.sh
       - run: bash tests/install/run.sh
       - run: bash tests/contract/check.sh
-      - run: bin/unslop fetch phpstan
+      - run: bin/unslop fetch pmd
       - run: |
           git config --global user.name ci
           git config --global user.email ci@example.com
