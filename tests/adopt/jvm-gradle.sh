@@ -43,4 +43,7 @@ cases() {
   printf 'package legacy\n\nfun twice(value: Int): Int = value * 2\n' > src/main/kotlin/legacy/Twice.kt
   printf 'package legacy\n\nimport kotlin.test.Test\nimport kotlin.test.assertEquals\n\nclass TwiceTest {\n    @Test\n    fun doubles() {\n        assertEquals(4, twice(2))\n    }\n}\n' > src/test/kotlin/legacy/TwiceTest.kt
   expect_pass "clean, tested new code"
+  printf 'package legacy\n\nprivate const val LIMIT = 10\n\nfun clamp(value: Int): Int = if (value > LIMIT) LIMIT else value\n' > src/main/kotlin/legacy/Clamp.kt
+  printf 'package legacy\n\nimport kotlin.test.Test\nimport kotlin.test.assertTrue\n\nclass ClampTest {\n    @Test\n    fun clamps() {\n        assertTrue(clamp(50) <= 10)\n        assertTrue(clamp(1) > 0)\n    }\n}\n' > src/test/kotlin/legacy/ClampTest.kt
+  expect_fail "weak tests that miss a boundary" "can be broken without any test failing"
 }

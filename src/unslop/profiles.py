@@ -10,15 +10,19 @@ from typing import NotRequired, TypedDict
 
 from unslop.findings import table
 from unslop.project import OUT
+from unslop.tools import node_tool, python_tool
 
-RUFF = "uvx ruff@0.17.6"
-VULTURE = "uvx vulture@2.16"
-KNIP = "npx --yes knip@6.47.0"
+RUFF = python_tool("ruff")
+VULTURE = python_tool("vulture")
+BASEDPYRIGHT = python_tool("basedpyright")
+KNIP = node_tool("knip")
 UNUSED_PYTHON = (
     "git ls-files -co --exclude-standard -z '*.py' | xargs -0 -r"
     f" {VULTURE} --min-confidence 60 --ignore-decorators '@*' --ignore-names 'test_*,Test*,setUp*,tearDown*'"
     " > .unslop/out/vulture.txt; test -f .unslop/out/vulture.txt || : > .unslop/out/vulture.txt"
 )
+PYTHON_FILES = ["*.py", "*.pyi"]
+SCRIPT_FILES = ["*.ts", "*.tsx", "*.js", "*.jsx", "*.mjs", "*.cjs", "*.mts", "*.cts"]
 CONFIG = ".unslop/out/config"
 GUARD = ".unslop/out/guard"
 UP = "../../.."
@@ -36,6 +40,8 @@ class Check(TypedDict):
     report: str
     run: str
     kind: NotRequired[str]
+    scoped: NotRequired[str]
+    files: NotRequired[list[str]]
 
 
 class Mutation(TypedDict):
@@ -128,13 +134,18 @@ def python(unslop: str) -> Plan:
                 "report": ".unslop/out/ruff.sarif",
                 "run": f"{RUFF} check --config {CONFIG}/ruff.toml --exit-zero --output-format sarif"
                 " --output-file .unslop/out/ruff.sarif .",
+                "scoped": f"{RUFF} check --config {CONFIG}/ruff.toml --exit-zero --output-format sarif"
+                " --output-file .unslop/out/ruff.sarif {files}",
+                "files": PYTHON_FILES,
             },
             {
                 "name": "basedpyright",
                 "format": "pyright",
                 "report": ".unslop/out/basedpyright.json",
-                "run": f"uvx basedpyright@1.40.2 -p {CONFIG}/pyrightconfig.json --outputjson"
+                "run": f"{BASEDPYRIGHT} -p {CONFIG}/pyrightconfig.json --outputjson > .unslop/out/basedpyright.json",
+                "scoped": f"{BASEDPYRIGHT} -p {CONFIG}/pyrightconfig.json --outputjson {{files}}"
                 " > .unslop/out/basedpyright.json",
+                "files": PYTHON_FILES,
             },
             {
                 "name": "vulture",
@@ -200,7 +211,8 @@ def typescript(unslop: str) -> Plan:
                 "name": "tsc",
                 "format": "tsc",
                 "report": ".unslop/out/tsc.txt",
-                "run": f"{run} tsc -p {config} --pretty false > .unslop/out/tsc.txt",
+                "run": f"{run} tsc -p {config} --pretty false --incremental"
+                " --tsBuildInfoFile .unslop/out/tsc.tsbuildinfo > .unslop/out/tsc.txt",
             }
         )
     if any(Path().glob("eslint.config.*")) or any(Path().glob(".eslintrc*")):
@@ -210,6 +222,9 @@ def typescript(unslop: str) -> Plan:
                 "format": "eslint",
                 "report": ".unslop/out/eslint.json",
                 "run": f"{run} eslint . --format json --output-file .unslop/out/eslint.json",
+                "scoped": f"{run} eslint --no-warn-ignored --format json"
+                " --output-file .unslop/out/eslint.json {files}",
+                "files": SCRIPT_FILES,
             }
         )
     checks.append(
@@ -226,7 +241,7 @@ def typescript(unslop: str) -> Plan:
         formatting.append(
             {
                 "name": "prettier",
-                "glob": ["*.ts", "*.tsx", "*.js", "*.jsx", "*.mjs", "*.cjs", "*.mts", "*.cts"],
+                "glob": SCRIPT_FILES,
                 "run": f"{run} prettier --stdin-filepath {{path}}",
             }
         )
@@ -288,6 +303,9 @@ def jvm(unslop: str) -> Plan:
                 "report": ".unslop/out/detekt.sarif",
                 "run": f'java -jar "$({unslop} fetch detekt)" --input . --excludes "**/build/**,**/.unslop/**"'
                 " --build-upon-default-config --all-rules --report sarif:.unslop/out/detekt.sarif > /dev/null",
+                "scoped": f'java -jar "$({unslop} fetch detekt)" --input {{files_csv}}'
+                " --build-upon-default-config --all-rules --report sarif:.unslop/out/detekt.sarif > /dev/null",
+                "files": ["*.kt"],
             }
         )
     if tracked("*.kt", "*.kts"):
@@ -309,10 +327,15 @@ def jvm(unslop: str) -> Plan:
                 "report": ".unslop/out/pmd.sarif",
                 "run": f'"$({unslop} fetch pmd)" check --dir . --rulesets {CONFIG}/pmd.xml --format sarif'
                 " --report-file .unslop/out/pmd.sarif --no-fail-on-violation --no-fail-on-error --no-progress",
+                "scoped": f'"$({unslop} fetch pmd)" check --dir {{files_csv}} --rulesets {CONFIG}/pmd.xml'
+                " --format sarif"
+                " --report-file .unslop/out/pmd.sarif --no-fail-on-violation --no-fail-on-error --no-progress",
+                "files": ["*.java"],
             }
         )
     roots = ["src/main/java", "src/main/kotlin", "*/src/main/java", "*/src/main/kotlin"]
     return {
+        "mutation": {"tool": "pit", "runner": build},
         "stack": "jvm",
         "format": [],
         "checks": checks,

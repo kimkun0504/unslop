@@ -42,8 +42,10 @@ class Gates:
     diff_max_lines: int = 0
     duplication: bool = True
     dead_code: bool = True
-    mutation: bool = False
+    mutation: bool = True
+    mutation_seconds: int = 900
     sql_dialect: str = "postgres"
+    fast_scope_files: int = 2000
 
     def render(self) -> list[str]:
         return [
@@ -55,7 +57,9 @@ class Gates:
             f"duplication = {str(self.duplication).lower()}",
             f"dead_code = {str(self.dead_code).lower()}",
             f"mutation = {str(self.mutation).lower()}",
+            f"mutation_seconds = {self.mutation_seconds}",
             f'sql_dialect = "{self.sql_dialect}"',
+            f"fast_scope_files = {self.fast_scope_files}",
         ]
 
 
@@ -154,7 +158,9 @@ GATE_TYPES: dict[str, type] = {
     "duplication": bool,
     "dead_code": bool,
     "mutation": bool,
+    "mutation_seconds": int,
     "sql_dialect": str,
+    "fast_scope_files": int,
 }
 COMMENT_RULES = ("forbid", "allow")
 FULL_COVERAGE = 100
@@ -182,8 +188,9 @@ def read_gates(raw: object) -> Gates:
     if gates.sql_dialect not in SQL_DIALECTS:
         message = f"[gates] sql_dialect must be one of {', '.join(SQL_DIALECTS)}"
         raise fail(message)
-    if not 0 <= gates.coverage <= FULL_COVERAGE or gates.diff_warn_lines < 0 or gates.diff_max_lines < 0:
-        message = "[gates] coverage must be 0 to 100 and the diff limits 0 or more"
+    limits = (gates.diff_warn_lines, gates.diff_max_lines, gates.fast_scope_files, gates.mutation_seconds)
+    if not 0 <= gates.coverage <= FULL_COVERAGE or min(limits) < 0:
+        message = "[gates] coverage must be 0 to 100, and the line and file limits 0 or more"
         raise fail(message)
     return gates
 

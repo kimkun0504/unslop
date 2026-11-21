@@ -14,8 +14,12 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
 ]
 dependencies = [
+    "basedpyright==1.40.2",
     "diff-cover==11.0.4",
+    "ruff==0.17.6",
+    "sqlfluff==4.5.0",
     "tree-sitter-language-pack==1.25.2",
+    "vulture==2.16",
 ]
 
 [project.urls]
@@ -28,9 +32,7 @@ unslop-cli = "unslop.cli:main"
 
 [dependency-groups]
 dev = [
-    "basedpyright==1.40.2",
     "pytest==9.2.0",
-    "ruff==0.17.6",
 ]
 
 [build-system]
@@ -61,6 +63,7 @@ ignore = ["D", "CPY001", "COM812", "ISC001", "S310", "S603", "S607", "T201", "FB
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "PLR2004", "INP001", "ANN", "ARG001", "ARG005"]
+"src/unslop/mutation.py" = ["S314"]
 
 [tool.basedpyright]
 include = ["src"]

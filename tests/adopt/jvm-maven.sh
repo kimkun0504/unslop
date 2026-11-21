@@ -45,4 +45,7 @@ cases() {
   printf 'package legacy;\n\npublic final class Triple {\n  private Triple() {}\n\n  public static int triple(int value) {\n    return value * 3;\n  }\n}\n' > src/main/java/legacy/Triple.java
   printf 'package legacy;\n\nimport static org.junit.jupiter.api.Assertions.assertEquals;\n\nimport org.junit.jupiter.api.Test;\n\nclass TripleTest {\n  @Test\n  void triples() {\n    assertEquals(6, Triple.triple(2));\n  }\n}\n' > src/test/java/legacy/TripleTest.java
   expect_pass "clean, tested new code"
+  printf 'package legacy;\n\npublic final class Clamp {\n  private static final int LIMIT = 10;\n\n  private Clamp() {}\n\n  public static int clamp(int value) {\n    return value > LIMIT ? LIMIT : value;\n  }\n}\n' > src/main/java/legacy/Clamp.java
+  printf 'package legacy;\n\nimport static org.junit.jupiter.api.Assertions.assertTrue;\n\nimport org.junit.jupiter.api.Test;\n\nclass ClampTest {\n  @Test\n  void clamps() {\n    assertTrue(Clamp.clamp(50) <= 10);\n    assertTrue(Clamp.clamp(1) > 0);\n  }\n}\n' > src/test/java/legacy/ClampTest.java
+  expect_fail "weak tests that miss a boundary" "can be broken without any test failing"
 }

@@ -3,19 +3,74 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
+import time
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 from unslop import diffcheck, gitops
 from unslop.findings import objects, table, text
-from unslop.profiles import GUARD, Mutation
+from unslop.profiles import CONFIG, GUARD, Mutation
 from unslop.project import OUT
-from unslop.ratchet import Touched, local_files, shell
+from unslop.ratchet import Touched, local_files
+from unslop.tools import node_version
 
-STRYKER = "10.1.1"
-SOURCES = {"stryker": ("ts", "tsx", "js", "jsx", "mts", "cts", "mjs", "cjs"), "mutmut": ("py",)}
-UNKILLED = {"stryker": {"Survived", "NoCoverage"}, "mutmut": {"survived", "no tests"}}
+SOURCES = {
+    "stryker": ("ts", "tsx", "js", "jsx", "mts", "cts", "mjs", "cjs"),
+    "mutmut": ("py",),
+    "pit": ("java", "kt"),
+}
+UNKILLED = {
+    "stryker": {"Survived", "NoCoverage"},
+    "mutmut": {"survived", "no tests"},
+    "pit": {"SURVIVED", "NO_COVERAGE"},
+}
+PIT = "1.30.2"
+PIT_JUNIT5 = "1.2.3"
+PACKAGE = re.compile(r"^\s*package\s+([\w.]+)", re.MULTILINE)
+PIT_OUT = OUT / "pit"
+
+
+class OutOfTimeError(RuntimeError):
+    pass
+
+
+@dataclass(slots=True)
+class Budget:
+    deadline: float = 0.0
+
+    def remaining(self) -> float:
+        left = self.deadline - time.monotonic()
+        if left <= 0:
+            raise OutOfTimeError
+        return left
+
+
+BUDGET = Budget()
+
+
+def timed(command: str, environment: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    print(f"$ {command}", flush=True)
+    process = subprocess.Popen(
+        ["bash", "-c", command],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=environment,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=BUDGET.remaining())
+    except subprocess.TimeoutExpired as expired:
+        os.killpg(process.pid, signal.SIGKILL)
+        _ = process.communicate()
+        raise OutOfTimeError from expired
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+
+
 RESULT = re.compile(r"^\s*(?P<name>\S+): (?P<status>.+?)\s*$")
 FUNCTION = re.compile(r"\.x(?:_(?P<function>[^.ǁ]+)|ǁ(?P<cls>[^ǁ]+)ǁ(?P<method>[^.]+?))__mutmut_\d+$")
 HUNK = re.compile(r"^@@ -(\d+)")
@@ -60,15 +115,15 @@ def stryker(plan: Mutation, files: dict[str, frozenset[int] | None]) -> list[Sur
     tools = OUT / "tools"
     runner = plan["runner"]
     packages = [
-        f"@stryker-mutator/core@{STRYKER}",
-        f"@stryker-mutator/{runner}-runner@{STRYKER}",
+        f"@stryker-mutator/core@{node_version('@stryker-mutator/core')}",
+        f"@stryker-mutator/{runner}-runner@{node_version(f'@stryker-mutator/{runner}-runner')}",
         f"typescript@{installed_version('typescript')}",
         f"{runner}@{installed_version(runner)}",
     ]
     install = (
         f"npm install --silent --no-audit --no-fund --no-save --no-package-lock --prefix {tools} {' '.join(packages)}"
     )
-    if shell(install).returncode != 0:
+    if timed(install).returncode != 0:
         print("mutation: could not install Stryker")
         return None
     mutate = [
@@ -90,7 +145,7 @@ def stryker(plan: Mutation, files: dict[str, frozenset[int] | None]) -> list[Sur
     }
     settings = OUT / "stryker.json"
     _ = settings.write_text(json.dumps(config, indent=2))
-    result = shell(f"{tools}/node_modules/.bin/stryker run {settings}")
+    result = timed(f"{tools}/node_modules/.bin/stryker run {settings}")
     if not report.is_file():
         print(result.stdout[-3000:] + result.stderr[-3000:])
         print("mutation: Stryker wrote no report")
@@ -161,11 +216,9 @@ def mutmut(plan: Mutation, files: dict[str, frozenset[int] | None]) -> list[Surv
     script = f"{GUARD}/mutmut_run.py"
 
     def mutmut_command(arguments: str) -> subprocess.CompletedProcess[str]:
-        command = f"{plan['runner']} {script} {arguments}"
-        return subprocess.run(["bash", "-c", command], capture_output=True, text=True, env=environment, check=False)
+        return timed(f"{plan['runner']} {script} {arguments}", environment)
 
     try:
-        print(f"$ mutmut run (only {', '.join(sorted(files))})", flush=True)
         ran = mutmut_command("run")
         if ran.returncode != 0:
             print(ran.stdout[-3000:] + ran.stderr[-3000:])
@@ -195,14 +248,108 @@ def mutmut(plan: Mutation, files: dict[str, frozenset[int] | None]) -> list[Surv
         shutil.rmtree("mutants", ignore_errors=True)
 
 
-def run(plan: Mutation, since: str, prefix: str) -> bool:
+def class_name(path: str) -> str:
+    found = PACKAGE.search(Path(path).read_text())
+    stem = Path(path).stem
+    return f"{found.group(1)}.{stem}" if found else stem
+
+
+def maven_classpath(build: str) -> str | None:
+    deps = PIT_OUT / "deps.txt"
+    command = (
+        f"{build} -B -q -DskipTests test-compile dependency:build-classpath"
+        f" -Dmdep.includeScope=test -Dmdep.outputFile={deps}"
+    )
+    if timed(command).returncode != 0 or not deps.is_file():
+        return None
+    entries = ["target/test-classes", "target/classes", *deps.read_text().strip().split(os.pathsep)]
+    engine = next((entry for entry in entries if Path(entry).name.startswith("junit-platform-engine-")), None)
+    artifacts = [f"org.pitest:pitest:{PIT}", f"org.pitest:pitest-entry:{PIT}", f"org.pitest:pitest-command-line:{PIT}"]
+    artifacts.append(f"org.pitest:pitest-junit5-plugin:{PIT_JUNIT5}")
+    if engine is not None:
+        version = Path(engine).name.removeprefix("junit-platform-engine-").removesuffix(".jar")
+        artifacts.append(f"org.junit.platform:junit-platform-launcher:{version}")
+    lib = PIT_OUT / "lib"
+    for artifact in artifacts:
+        if timed(f"{build} -B -q dependency:copy -Dartifact={artifact} -DoutputDirectory={lib}").returncode != 0:
+            return None
+    return os.pathsep.join([*(str(jar) for jar in sorted(lib.glob("*.jar"))), *entries])
+
+
+def gradle_classpath(build: str) -> str | None:
+    target = PIT_OUT / "classpath.txt"
+    command = (
+        f"{build} --quiet unslopPitClasspath --init-script {CONFIG}/pit.init.gradle"
+        f" -PunslopPitVersion={PIT} -PunslopPitJunit5Version={PIT_JUNIT5}"
+    )
+    if timed(command).returncode != 0 or not target.is_file():
+        return None
+    return target.read_text().strip()
+
+
+def pit(plan: Mutation, files: dict[str, frozenset[int] | None]) -> list[Survivor] | None:
+    shutil.rmtree(PIT_OUT, ignore_errors=True)
+    PIT_OUT.mkdir(parents=True)
+    build = plan["runner"]
+    classpath = gradle_classpath(build) if "gradle" in build else maven_classpath(build)
+    if not classpath:
+        print("mutation: could not build the classpath for PIT; only single-module builds are supported")
+        return None
+    classes = sorted({class_name(path) for path in files})
+    packages = sorted({name.rsplit(".", 1)[0] + ".*" if "." in name else "*" for name in classes})
+    sources = [folder for folder in ("src/main/java", "src/main/kotlin") if Path(folder).is_dir()]
+    arguments = PIT_OUT / "arguments.txt"
+    _ = arguments.write_text(f"-cp\n{classpath}\n")
+    report = PIT_OUT / "report"
+    command = (
+        f"java @{arguments} org.pitest.mutationtest.commandline.MutationCoverageReport"
+        f" --reportDir {report} --targetClasses {','.join(f'{name}*' for name in classes)}"
+        f" --targetTests {','.join(packages)} --sourceDirs {','.join(sources)}"
+        " --outputFormats XML --timestampedReports=false"
+    )
+    result = timed(command)
+    found = report / "mutations.xml"
+    if not found.is_file():
+        print(result.stdout[-3000:] + result.stderr[-3000:])
+        print("mutation: PIT wrote no report")
+        return None
+    survivors: list[Survivor] = []
+    for mutation in ET.parse(found).getroot().iter("mutation"):
+        if mutation.get("status") not in UNKILLED["pit"]:
+            continue
+        owner = (mutation.findtext("mutatedClass") or "").split("$", 1)[0]
+        folder = owner.rsplit(".", 1)[0].replace(".", "/") if "." in owner else ""
+        source = mutation.findtext("sourceFile") or ""
+        path = next((name for name in files if Path(name).as_posix().endswith(f"{folder}/{source}".lstrip("/"))), None)
+        line = int(mutation.findtext("lineNumber") or 0)
+        if path is not None and (files[path] is None or line in cast("frozenset[int]", files[path])):
+            detail = f"{mutation.get('status')}: {mutation.findtext('description') or ''}"
+            survivors.append(Survivor(path, line, detail))
+    return survivors
+
+
+RUNNERS = {"stryker": stryker, "mutmut": mutmut, "pit": pit}
+
+
+def run(plan: Mutation, since: str, prefix: str, seconds: int = 900) -> bool:
+    BUDGET.deadline = time.monotonic() + seconds
+    try:
+        return mutate(plan, since, prefix)
+    except OutOfTimeError:
+        message = f"mutation: stopped after {seconds}s with mutants left untested; a human can raise mutation_seconds"
+        prefix_text = "::warning::" if os.environ.get("GITHUB_ACTIONS") == "true" else ""
+        print(f"{prefix_text}{message}")
+        return True
+
+
+def mutate(plan: Mutation, since: str, prefix: str) -> bool:
     changed = gitops.changed_files(since)
     touched = gitops.added_lines(since)
     files = targets(plan["tool"], changed, prefix, touched)
     if not files:
         print("mutation: no changed source lines to mutate")
         return True
-    survivors = stryker(plan, files) if plan["tool"] == "stryker" else mutmut(plan, files)
+    survivors = RUNNERS[plan["tool"]](plan, files)
     if survivors is None:
         return False
     if survivors:

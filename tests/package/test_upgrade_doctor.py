@@ -64,7 +64,7 @@ def levels(results: list[doctor.Result]) -> dict[str, str]:
 
 
 def test_doctor_flags_stale_pins_and_missing_tools(adopted: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(doctor.shutil, "which", lambda tool: None if tool in {"jq", "uv", "npx"} else f"/bin/{tool}")
+    monkeypatch.setattr(doctor.shutil, "which", lambda tool: None if tool in {"jq", "uv", "npm"} else f"/bin/{tool}")
     monkeypatch.setattr(Path, "home", lambda: adopted / "home")
     found = levels(doctor.diagnose(online=False))
     assert found["jq is missing; the hooks need it (brew install jq or apt install jq)"] == "fail"
