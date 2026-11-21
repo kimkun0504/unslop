@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - run: shellcheck plugin/hooks/*.sh plugin/bin/unslop tests/hooks/run.sh tests/contract/*.sh tests/adopt/run.sh install/install.sh common/scripts/* bin/unslop templates/*/scripts/* src/unslop/data/elixir/guard/elixir_test src/unslop/data/swift/guard/swift_coverage
+      - run: shellcheck plugin/hooks/*.sh plugin/bin/unslop tests/hooks/run.sh tests/contract/*.sh tests/adopt/run.sh install/install.sh common/scripts/* bin/unslop templates/*/scripts/*
       - run: find tests/adopt -name "*.sh" ! -name run.sh -exec shellcheck -s bash {} +
       - run: jq empty global/managed-settings.json common/.claude/settings.json common/.github/rulesets/main.json plugin/hooks/hooks.json plugin/.claude-plugin/plugin.json .claude-plugin/marketplace.json src/unslop/data/ruleset.json
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
@@ -107,29 +107,9 @@ jobs:
           scripts/setup
           scripts/verify
           scripts/mutation
-  go-template:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
-        with:
-          go-version-file: templates/go/go.mod
-      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
-        with:
-          version: v2.15.0
-          install-only: true
-      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
-        with:
-          version: "0.13.9"
-      - run: |
-          git config --global user.name ci
-          git config --global user.email ci@example.com
-          bin/unslop new go "$RUNNER_TEMP/go"
-          cd "$RUNNER_TEMP/go"
-          scripts/setup
-          scripts/verify
+          sed -i 's/className="p-4 text-2xl font-semibold text-ink"/className="text-ink p-4 font-semibold text-2xl"/' src/app/App.tsx
+          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: Tailwind class order"; exit 1; fi
+          grep -q "Incorrect class order" "$RUNNER_TEMP/neg.txt"
   kotlin-spring-template:
     runs-on: ubuntu-24.04
     steps:
@@ -173,56 +153,6 @@ jobs:
           git checkout -- .
           scripts/verify
           scripts/mutation
-  terraform-template:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
-        with:
-          terraform_version: "1.17.2"
-          terraform_wrapper: false
-      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337
-        with:
-          tflint_version: v0.66.0
-      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
-        with:
-          version: "0.13.9"
-      - env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          git config --global user.name ci
-          git config --global user.email ci@example.com
-          bin/unslop new terraform "$RUNNER_TEMP/tf"
-          cd "$RUNNER_TEMP/tf"
-          scripts/setup
-          scripts/verify
-          git add .terraform.lock.hcl && git commit -qm lock
-          expect_fail() {
-            printf '\n%s\n' "$2" >> "$3"
-            if scripts/$5 > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -30 "$RUNNER_TEMP/neg.txt"; exit 1; fi
-            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -30 "$RUNNER_TEMP/neg.txt"; exit 1; }
-            echo "caught: $1 by $4"
-            git checkout -- .
-          }
-          expect_fail "comment" "# note" main.tf "comments are forbidden" fast-check
-          expect_fail "untyped variable" 'variable "loose" {}' variables.tf "terraform_typed_variables" fast-check
-          expect_fail "open ingress" 'resource "aws_security_group" "open" {
-            name        = "open"
-            description = "open"
-            ingress {
-              description = "ssh"
-              from_port   = 22
-              to_port     = 22
-              protocol    = "tcp"
-              cidr_blocks = ["0.0.0.0/0"]
-            }
-          }' main.tf "CKV_AWS_24" verify
-          sed -i 's/block_public_acls       = true/block_public_acls       = false/' modules/storage_bucket/main.tf
-          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: public bucket"; exit 1; fi
-          grep -q "all public access must be blocked" "$RUNNER_TEMP/neg.txt" && echo "caught: public bucket by terraform test"
-          git checkout -- .
   java-spring-template:
     runs-on: ubuntu-24.04
     steps:
@@ -264,251 +194,6 @@ jobs:
           git checkout -- .
           scripts/verify
           scripts/mutation
-  rust-template:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
-        with:
-          tool: cargo-deny@0.21.0,cargo-llvm-cov@0.9.1,cargo-mutants@27.1.0
-      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
-        with:
-          version: "0.13.9"
-      - run: |
-          git config --global user.name ci
-          git config --global user.email ci@example.com
-          bin/unslop new rust "$RUNNER_TEMP/rs"
-          cd "$RUNNER_TEMP/rs"
-          scripts/setup
-          expect_fail() {
-            printf '%s\n' "$2" >> "$3"
-            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
-            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
-            echo "caught: $1 by $4"
-            git checkout -- .
-          }
-          expect_fail "comment" '// note' crates/app/src/lib.rs "comments are forbidden"
-          expect_fail "allow attribute" $'\n#[allow(clippy::unwrap_used)]\npub const fn quiet() {}' crates/domain/src/lib.rs "check-diff"
-          expect_fail "println" $'\n#[must_use]\npub fn noisy() -> u8 {\n    println!("x");\n    1\n}' crates/app/src/lib.rs "use of \`println!\`"
-          expect_fail "domain I/O" $'\n#[must_use]\npub fn leak() -> String {\n    std::fs::read_to_string("x").unwrap_or_default()\n}' crates/domain/src/lib.rs "disallowed method"
-          sed -i 's/Self::Silver => 5,/Self::Silver => 6,/' crates/domain/src/pricing.rs
-          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
-          grep -q "FAILED" "$RUNNER_TEMP/neg.txt" && echo "caught: behaviour change by a failing test"
-          git checkout -- .
-          scripts/verify
-          scripts/mutation
-  dotnet-template:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73
-        with:
-          global-json-file: templates/dotnet/global.json
-      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
-        with:
-          version: "0.13.9"
-      - run: |
-          git config --global user.name ci
-          git config --global user.email ci@example.com
-          bin/unslop new dotnet "$RUNNER_TEMP/net"
-          cd "$RUNNER_TEMP/net"
-          scripts/setup
-          git add -A && git commit -qm lock --allow-empty
-          scripts/fast-check
-          expect_fail() {
-            printf '%s\n' "$2" > "$3"
-            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
-            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
-            echo "caught: $1 by $4"
-            rm -f "$3"
-            git checkout -- .
-          }
-          D=src/App.Domain
-          expect_fail "comment" $'namespace App.Domain;\n\npublic static class Note\n{\n    public static int Value => 1; // note\n}' "$D/Note.cs" "comments are forbidden"
-          expect_fail "console in domain" $'namespace App.Domain;\n\npublic static class Shout\n{\n    public static void Say() => Console.WriteLine("x");\n}' "$D/Shout.cs" "System.Console"
-          expect_fail "pragma suppression" $'namespace App.Domain;\n\n#pragma warning disable CA1822\npublic static class Quiet\n{\n}' "$D/Quiet.cs" "check-diff"
-          expect_fail "unchecked null" $'namespace App.Domain;\n\npublic static class Maybe\n{\n    public static string Value() => null;\n}' "$D/Maybe.cs" "CS8603"
-          sed -i 's/Tier.Silver => 5,/Tier.Silver => 6,/' "$D/Pricing.cs"
-          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
-          grep -qE "Failed|failed" "$RUNNER_TEMP/neg.txt" && echo "caught: behaviour change by a failing test"
-          git checkout -- .
-          scripts/verify
-          scripts/mutation
-  php-template:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
-        with:
-          php-version: "8.5"
-          coverage: pcov
-          tools: composer:v2
-      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
-        with:
-          version: "0.13.9"
-      - run: |
-          git config --global user.name ci
-          git config --global user.email ci@example.com
-          bin/unslop new php "$RUNNER_TEMP/php"
-          cd "$RUNNER_TEMP/php"
-          scripts/setup
-          git add -A && git commit -qm lock --allow-empty
-          scripts/fast-check
-          expect_fail() {
-            printf '%s\n' "$2" > "$3"
-            vendor/bin/php-cs-fixer fix --show-progress=none "$3" >/dev/null 2>&1 || true
-            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
-            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
-            echo "caught: $1 by $4"
-            rm -f "$3"
-            git checkout -- .
-          }
-          expect_fail "comment" $'<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Domain;\n\nfinal class Note\n{\n    public const int VALUE = 1; // note\n}' src/Domain/Note.php "comments are forbidden"
-          expect_fail "var_dump" $'<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Cli;\n\nfinal class Debug\n{\n    public static function show(string $value): void\n    {\n        var_dump($value);\n    }\n}' src/Cli/Debug.php "write through an Output"
-          expect_fail "domain I/O" $'<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Domain;\n\nfinal class Reader\n{\n    public static function read(string $path): string|false\n    {\n        return file_get_contents($path);\n    }\n}' src/Domain/Reader.php "the domain does no I/O"
-          expect_fail "layer violation" $'<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Domain;\n\nuse App\\Cli\\Application;\n\nfinal class Leak\n{\n    public static function code(): int\n    {\n        return Application::EXIT_OK;\n    }\n}' src/Domain/Leak.php "must not depend on"
-          expect_fail "skipped test" $'<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Tests\\Domain;\n\nuse PHPUnit\\Framework\\TestCase;\n\nfinal class LaterTest extends TestCase\n{\n    public function testLater(): void\n    {\n        self::markTestSkipped(\'later\');\n    }\n}' tests/Domain/LaterTest.php "check-diff"
-          sed -i 's/self::Silver => 5,/self::Silver => 6,/' src/Domain/Tier.php
-          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
-          grep -q "FAILURES" "$RUNNER_TEMP/neg.txt" && echo "caught: behaviour change by a failing test"
-          git checkout -- .
-          scripts/verify
-          scripts/mutation
-  ruby-template:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18
-        with:
-          ruby-version: "4.0.10"
-      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
-        with:
-          version: "0.13.9"
-      - run: |
-          git config --global user.name ci
-          git config --global user.email ci@example.com
-          bin/unslop new ruby "$RUNNER_TEMP/ruby"
-          cd "$RUNNER_TEMP/ruby"
-          scripts/setup
-          git add -A && git commit -qm lock --allow-empty
-          scripts/fast-check
-          expect_fail() {
-            printf '%s\n' "$2" > "$3"
-            bundle exec rubocop -A --format quiet "$3" >/dev/null 2>&1 || true
-            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
-            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
-            echo "caught: $1 by $4"
-            rm -f "$3"
-            git checkout -- .
-          }
-          expect_fail "comment" $'module App\n  module Domain\n    class Note\n      def self.value\n        1 # note\n      end\n    end\n  end\nend' lib/app/domain/note.rb "comments are forbidden"
-          expect_fail "puts" $'module App\n  module Cli\n    class Debug\n      def self.show(value)\n        puts(value)\n      end\n    end\n  end\nend' lib/app/cli/debug.rb "write through an Output port"
-          expect_fail "domain I/O" $'module App\n  module Domain\n    class Reader\n      def self.read(path)\n        File.read(path)\n      end\n    end\n  end\nend' lib/app/domain/reader.rb "the domain does no I/O"
-          expect_fail "layer violation" $'module App\n  module Domain\n    class Leak\n      def self.code\n        App::Cli::Application::EXIT_OK\n      end\n    end\n  end\nend' lib/app/domain/leak.rb "App::Domain must not depend on App::Cli"
-          expect_fail "unsigned code" $'module App\n  module Domain\n    class Extra\n      def self.value\n        1\n      end\n    end\n  end\nend' lib/app/domain/extra.rb "Extra"
-          expect_fail "skipped spec" $'RSpec.describe App::Domain::Money do\n  it \'is later\' do\n    skip \'later\'\n  end\nend' spec/app/domain/later_spec.rb "check-diff"
-          sed -i 's/percent_off: 5)/percent_off: 6)/' lib/app/domain/tier.rb
-          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
-          grep -q "failures" "$RUNNER_TEMP/neg.txt" && echo "caught: behaviour change by a failing spec"
-          git checkout -- .
-          scripts/verify
-          scripts/mutation
-  elixir-template:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
-        with:
-          version-file: templates/elixir/.tool-versions
-          version-type: strict
-      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
-        with:
-          version: "0.13.9"
-      - run: |
-          git config --global user.name ci
-          git config --global user.email ci@example.com
-          UNSLOP_OWNER=ci bin/unslop new elixir "$RUNNER_TEMP/elixir"
-          cd "$RUNNER_TEMP/elixir"
-          scripts/setup
-          git add -A && git commit -qm lock --allow-empty
-          scripts/fast-check
-          expect_fail() {
-            mkdir -p "$(dirname "$3")"
-            printf '%s\n' "$2" > "$3"
-            mix format "$3" >/dev/null 2>&1 || true
-            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
-            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
-            echo "caught: $1 by $4"
-            rm -f "$3"
-            git checkout -- .
-          }
-          expect_fail "comment" $'defmodule App.Domain.Note do\n  @spec value() :: 1\n  def value, do: 1 # note\nend' lib/app/domain/note.ex "comments are forbidden"
-          expect_fail "IO.puts to the process stream" $'defmodule App.Cli.Debug do\n  @spec show(String.t()) :: :ok\n  def show(value), do: IO.puts(value)\nend' lib/app/cli/debug.ex "write through an injected device"
-          expect_fail "domain I/O" $'defmodule App.Domain.Reader do\n  @spec read(Path.t()) :: binary()\n  def read(path), do: File.read!(path)\nend' lib/app/domain/reader.ex "the domain does no I/O"
-          expect_fail "layer violation" $'defmodule App.Domain.Leak do\n  @spec run() :: 0 | 2\n  def run, do: App.Cli.run([], :stdio, :stdio)\nend' lib/app/domain/leak.ex "forbidden reference"
-          expect_fail "type error" $'defmodule App.Domain.Broken do\n  @spec total() :: integer()\n  def total, do: "1" + 1\nend' lib/app/domain/broken.ex "incompatible types"
-          expect_fail "missing spec" $'defmodule App.Domain.Unspecified do\n  def value, do: 1\nend' lib/app/domain/unspecified.ex "@spec"
-          expect_fail "skipped test" $'defmodule App.LaterTest do\n  use ExUnit.Case, async: true\n\n  @tag :skip\n  test "later" do\n    assert true\n  end\nend' test/app/later_test.exs "check-diff"
-          sed -i 's/percent_off: 5}/percent_off: 6}/' lib/app/domain/tier.ex
-          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
-          grep -q "failed" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for behaviour change"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
-          echo "caught: behaviour change by a failing test"
-          git checkout -- .
-          scripts/verify
-  swift-template:
-    runs-on: ubuntu-24.04
-    container: swift:6.4.2-noble
-    steps:
-      - run: apt-get update -qq && apt-get install -y -qq git curl jq > /dev/null
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
-        with:
-          version: "0.13.9"
-      - shell: bash
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          git config --global user.name ci
-          git config --global user.email ci@example.com
-          UNSLOP_OWNER=ci bin/unslop new swift "$RUNNER_TEMP/swift"
-          cd "$RUNNER_TEMP/swift"
-          scripts/setup
-          git add -A && git commit -qm lock --allow-empty
-          scripts/fast-check
-          expect_fail() {
-            mkdir -p "$(dirname "$3")"
-            printf '%s\n' "$2" > "$3"
-            swift format --in-place "$3" >/dev/null 2>&1 || true
-            if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; fi
-            grep -q -- "$4" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for $1"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
-            echo "caught: $1 by $4"
-            rm -f "$3"
-            git checkout -- .
-          }
-          expect_fail "comment" $'public enum Note {\n    public static let value = 1 // note\n}' Sources/Domain/Note.swift "comments are forbidden"
-          expect_fail "print in the adapter" $'public enum Debug {\n    public static func show(_ value: String) {\n        print(value)\n    }\n}' Sources/CLI/Debug.swift "write through an Output port"
-          expect_fail "Foundation in the domain" $'import Foundation\n\npublic enum Clock {\n    public static func now() -> Date {\n        Date()\n    }\n}' Sources/Domain/Clock.swift "the domain does no I/O"
-          expect_fail "layer violation" $'import CLI\n\npublic enum Leak {\n    public static let code = Application.exitOK\n}' Sources/Domain/Leak.swift 'circular dependency\|no such module'
-          expect_fail "force unwrap" $'public enum Unsafe {\n    public static func cents() -> Int {\n        Int("1")!\n    }\n}' Sources/Domain/Unsafe.swift "orce"
-          expect_fail "shared mutable state" $'public enum Counter {\n    public static var count = 0\n}' Sources/Domain/Counter.swift "concurrency-safe"
-          expect_fail "disabled test" $'import Testing\n\nstruct LaterTests {\n    @Test(.disabled("later"))\n    func later() {}\n}' Tests/DomainTests/LaterTests.swift "check-diff"
-          sed -i 's/silverPercentOff = 5/silverPercentOff = 6/' Sources/Domain/Tier.swift
-          if scripts/fast-check > "$RUNNER_TEMP/neg.txt" 2>&1; then echo "MISSED: behaviour change"; exit 1; fi
-          grep -q "failed" "$RUNNER_TEMP/neg.txt" || { echo "WRONG CHECK for behaviour change"; tail -40 "$RUNNER_TEMP/neg.txt"; exit 1; }
-          echo "caught: behaviour change by a failing test"
-          git checkout -- .
-          scripts/verify
   macos:
     runs-on: macos-15
     timeout-minutes: 30
@@ -552,11 +237,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        fixture: [python, python-pip, python-web, typescript, go, jvm-maven, jvm-gradle, terraform, rust, dotnet, php, ruby, elixir, swift]
-    container: ${{ matrix.fixture == 'swift' && 'swift:6.4.2-noble' || '' }}
+        fixture: [python, python-pip, python-web, typescript, jvm-maven, jvm-gradle]
     steps:
-      - if: matrix.fixture == 'swift'
-        run: apt-get update -qq && apt-get install -y -qq git curl jq > /dev/null
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
@@ -564,13 +246,8 @@ jobs:
         with:
           version: "0.13.9"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
-        if: matrix.fixture == 'typescript' || matrix.fixture == 'python-web'
         with:
           node-version: lts/*
-      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
-        if: matrix.fixture == 'go'
-        with:
-          go-version: "1.26"
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
         if: startsWith(matrix.fixture, 'jvm')
         with:
@@ -580,37 +257,6 @@ jobs:
         if: matrix.fixture == 'jvm-gradle'
         with:
           gradle-version: "9.9.1"
-      - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f
-        if: matrix.fixture == 'rust'
-        with:
-          tool: cargo-llvm-cov@0.9.1
-      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73
-        if: matrix.fixture == 'dotnet'
-        with:
-          dotnet-version: "10.0.x"
-      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
-        if: matrix.fixture == 'php'
-        with:
-          php-version: "8.4"
-          coverage: pcov
-          tools: composer:v2
-      - uses: ruby/setup-ruby@be3c7df29b3349ec6bcfc6b4792f1cf9f5237d18
-        if: matrix.fixture == 'ruby'
-        with:
-          ruby-version: "4.0.10"
-      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
-        if: matrix.fixture == 'elixir'
-        with:
-          otp-version: "29.1.2"
-          elixir-version: "1.20.5"
-      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
-        if: matrix.fixture == 'terraform'
-        with:
-          terraform_wrapper: false
-      - uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337
-        if: matrix.fixture == 'terraform'
-      - if: matrix.fixture == 'swift'
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - run: bash tests/adopt/run.sh "${{ matrix.fixture }}"
         env:
           GITHUB_TOKEN: ${{ github.token }}

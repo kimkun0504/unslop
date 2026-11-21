@@ -14,13 +14,13 @@ The standards every unslop project follows, and how each one is held in place. T
 | Standard | Why | Status |
 |---|---|---|
 | Start as a modular monolith; split into services only for a proven scaling or ownership need | One deployable is far cheaper to change, test and run | Shown in every template |
-| Dependencies point inward: adapters (HTTP, CLI, database) depend on the domain, never the reverse | Business rules stay testable without I/O | Enforced: import-linter (Python), eslint-plugin-boundaries (TS), depguard (Go), Spring Modulith (Kotlin) |
-| The domain does no I/O ("functional core, imperative shell") | Pure logic is easy to test and mutate | Enforced for Python and Go domain packages; Reviewed elsewhere |
+| Dependencies point inward: adapters (HTTP, CLI, database) depend on the domain, never the reverse | Business rules stay testable without I/O | Enforced: import-linter (Python), eslint-plugin-boundaries (TS), Spring Modulith (Java and Kotlin) |
+| The domain does no I/O ("functional core, imperative shell") | Pure logic is easy to test and mutate | Enforced for Python domain packages; Reviewed elsewhere |
 | No grab-bag modules: `utils`, `helpers`, `common`, `shared` | They collect unrelated code and blur boundaries | Enforced in TS (`no-restricted-imports`); Reviewed elsewhere |
 | Deep modules: a small interface over substantial behaviour; no pass-through layers | Shallow layers add cost without hiding anything | Reviewed |
 | Build only what a current requirement needs (YAGNI) | Speculative abstractions are the most common agent slop | Reviewed |
 | Significant decisions are recorded as MADR decision records with a Confirmation line naming the check that enforces them | Decisions become inputs agents can read, and each has a test | Shown in `docs/decisions/` |
-| Complexity limits: function length, cyclomatic and cognitive complexity, nesting, parameter count | Keeps every unit reviewable | Enforced: ruff PLR and C90, ESLint, golangci-lint cyclop, gocognit and funlen, detekt |
+| Complexity limits: function length, cyclomatic and cognitive complexity, nesting, parameter count | Keeps every unit reviewable | Enforced: ruff PLR and C90, ESLint, detekt |
 
 ## 2. Domain modelling
 
@@ -29,8 +29,8 @@ The standards every unslop project follows, and how each one is held in place. T
 | Parse, don't validate: turn raw input into a domain type once, at the boundary | Invalid data cannot travel inward | Shown: `Money.parse` in every template |
 | Make illegal states unrepresentable: private constructors, sealed types, enums instead of flags | The compiler rejects whole classes of bugs | Shown; Reviewed |
 | No primitive obsession for money, identifiers or units | `int cents` and `String id` mix silently | Shown |
-| Errors are typed: result types or dedicated exception classes that build their own message | Callers can handle them precisely | Shown; Enforced in Python (ruff EM, TRY) and Go (errorlint, err113, wrapcheck) |
-| Exhaustive handling of enums and unions | Adding a case cannot silently fall through | Enforced: `switch-exhaustiveness-check` (TS), `exhaustive` (Go), Kotlin `when` |
+| Errors are typed: result types or dedicated exception classes that build their own message | Callers can handle them precisely | Shown; Enforced in Python (ruff EM, TRY) |
+| Exhaustive handling of enums and unions | Adding a case cannot silently fall through | Enforced: `switch-exhaustiveness-check` (TS), Kotlin `when` |
 | No type escapes: no `any`, type assertions, non-null assertions or `!!` | They switch the type checker off | Enforced: typescript-eslint, basedpyright `all`, Kotlin guard |
 
 ## 3. APIs and contracts
@@ -49,7 +49,7 @@ The standards every unslop project follows, and how each one is held in place. T
 | Standard | Why | Status |
 |---|---|---|
 | Versioned migrations, immutable once applied | History is reproducible | Enforced: `protect-paths.sh` blocks edits to existing migrations |
-| Migrations are linted: Squawk for Postgres, Atlas analyzers for destructive and incompatible changes | Locks and rewrites are caught before production | Planned for a database template; procedure in `/unslop:migration` |
+| Migrations are linted: sqlfluff for style and parse errors; Squawk for Postgres, Atlas analyzers for destructive and incompatible changes | Locks and rewrites are caught before production | sqlfluff enforced in adopted repositories, ratcheted; Squawk and Atlas planned for a database template; procedure in `/unslop:migration` |
 | Expand, migrate, contract: add, backfill in batches, switch code, drop later | Zero-downtime deploys | Procedure in `/unslop:migration` |
 | Every migration sets `lock_timeout` and `statement_timeout`; indexes use `CONCURRENTLY`; constraints are added `NOT VALID` and validated later | Avoids table-wide locks | Procedure; enforced by Squawk when added |
 | Keys are `bigint GENERATED ALWAYS AS IDENTITY` or `uuidv7()`; times are `timestamptz`; integrity lives in database constraints | The database guards its own invariants | Procedure |
@@ -63,8 +63,8 @@ The standards every unslop project follows, and how each one is held in place. T
 | Write the failing test first, then the code | Proves the test can fail | Reviewed; tests lockable with `.claude/tests.locked` |
 | Existing tests are never weakened, skipped or deleted to get green | The most common way agents fake success | Enforced: `check-diff` (P8, P9) |
 | 100% line and branch coverage of application code | A floor: untested code is unreviewed code | Enforced in all four templates |
-| Every mutant killed | Coverage shows code ran; mutation shows tests would notice a change | Enforced: mutmut, Stryker, PIT, cargo-mutants, Stryker.NET, Infection, mutant; Go relies on fuzzing |
-| Property-based or fuzz tests for parsers and arithmetic | Finds the inputs nobody thought of | Shown: hypothesis, fast-check, Go native fuzzing |
+| Every mutant killed | Coverage shows code ran; mutation shows tests would notice a change | Enforced in templates: mutmut, Stryker, PIT. Optional in adopted repositories: mutmut and Stryker on changed lines |
+| Property-based or fuzz tests for parsers and arithmetic | Finds the inputs nobody thought of | Shown: hypothesis, fast-check |
 | Test through public behaviour: roles and labels in UIs, HTTP in services | Tests survive refactoring | Shown |
 
 ## 6. Errors, logging and observability
@@ -72,7 +72,7 @@ The standards every unslop project follows, and how each one is held in place. T
 | Standard | Why | Status |
 |---|---|---|
 | No swallowed errors and no ignored results | Silent failures are the hardest bugs | Enforced: ruff BLE, SIM105, typescript-eslint `no-floating-promises`, errcheck, basedpyright `reportUnusedCallResult` |
-| No `print`, `console.log`, `fmt.Println` or `println`; output goes through an injected writer or a structured logger | Logs stay structured and testable | Enforced: ruff T20, ESLint `no-console`, forbidigo, Kotlin guard |
+| No `print`, `console.log`, `System.out.println` or `println`; output goes through an injected writer or a structured logger | Logs stay structured and testable | Enforced: ruff T20, ESLint `no-console`, Kotlin guard |
 | OpenTelemetry for traces, metrics and logs, with correlation IDs | One vendor-neutral signal pipeline | Planned |
 | Health and readiness endpoints, and SLOs for user-facing paths | Operations need a definition of healthy | Planned |
 
@@ -95,7 +95,8 @@ The standards every unslop project follows, and how each one is held in place. T
 | Style only with design tokens: no arbitrary Tailwind values, no inline styles, no unknown classes | Prevents generic, inconsistent UI | Enforced: eslint-plugin-better-tailwindcss and `no-restricted-syntax` |
 | Accessibility: jsx-a11y strict, and tests that query by role and label | Accessible UIs are also testable UIs | Enforced and Shown |
 | Core Web Vitals budgets at the 75th percentile: LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1, checked with Lighthouse CI | Performance regressions fail like bugs | Planned |
-| Named exports only; no unused exports or files | Searchable code, no dead code | Enforced: `no-restricted-syntax`, knip |
+| Named exports only; no unused exports or files | Searchable code, no dead code | Enforced: `no-restricted-syntax`, knip; vulture for Python in adopted repositories |
+| No copy-pasted code | One rule, one place to change it | Enforced in adopted repositories: jscpd rejects new clones of 50 tokens or more |
 
 ## 9. Delivery and infrastructure
 
@@ -104,7 +105,7 @@ The standards every unslop project follows, and how each one is held in place. T
 | Trunk-based: short-lived branches, pull requests, required checks, linear history | Small reviewable changes | Enforced by the ruleset (G1 to G3) |
 | Agents plan; humans or CI apply. No agent `terraform apply`, `kubectl apply` or `helm upgrade` | An agent deleted a production database and its snapshots with `terraform destroy` in February 2026 | Enforced locally by M11 |
 | GitOps: Argo CD deploys from Git, with sync windows and manual sync for production | Every change is reviewed and reversible | Planned |
-| Toolchains pinned per project (mise) and in CI | The same versions everywhere | Enforced in Go and Kotlin; pinned in CI for all |
+| Toolchains pinned per project (mise) and in CI | The same versions everywhere | Enforced in Kotlin; pinned in CI for all |
 | Dependency updates through Renovate with release-age delay and digest pinning | Fresh but not reckless | Planned |
 
 ## 10. Review rubric

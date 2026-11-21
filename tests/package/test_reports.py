@@ -32,7 +32,7 @@ def test_sarif() -> None:
     assert parse("sarif", json.dumps(report)) == [("src/a.py", "E1", 3)]
 
 
-def test_pyright_eslint_rubocop_credo_phpstan() -> None:
+def test_pyright_and_eslint() -> None:
     pyright = {
         "generalDiagnostics": [
             {"file": "a.py", "rule": "reportX", "range": {"start": {"line": 4}}, "message": "m\nmore"}
@@ -41,14 +41,6 @@ def test_pyright_eslint_rubocop_credo_phpstan() -> None:
     assert parse("pyright", json.dumps(pyright)) == [("a.py", "reportX", 5)]
     eslint = [{"filePath": "a.ts", "messages": [{"ruleId": None, "line": 2, "message": "parse"}]}]
     assert parse("eslint", json.dumps(eslint)) == [("a.ts", "fatal", 2)]
-    rubocop = {
-        "files": [{"path": "a.rb", "offenses": [{"cop_name": "Lint/X", "location": {"start_line": 7}, "message": "m"}]}]
-    }
-    assert parse("rubocop", json.dumps(rubocop)) == [("a.rb", "Lint/X", 7)]
-    credo = {"issues": [{"filename": "a.ex", "check": "Credo.X", "line_no": 1, "message": "m"}]}
-    assert parse("credo", json.dumps(credo)) == [("a.ex", "Credo.X", 1)]
-    phpstan = {"files": {"src/A.php": {"messages": [{"message": "Call 3 times", "line": 9}]}}}
-    assert parse("phpstan", json.dumps(phpstan)) == [("src/A.php", "Call _ times", 9)]
 
 
 def test_line_formats() -> None:
@@ -56,23 +48,37 @@ def test_line_formats() -> None:
     assert parse("lines", "src/A.kt:4:1: println() is forbidden; use a logger") == [
         ("src/A.kt", "println() is forbidden", 4)
     ]
-    msbuild = "src/A.cs(10,5): warning CA1822: Mark members as static [/x/A.csproj]"
-    assert parse("msbuild", f"{msbuild}\n{msbuild}") == [("src/A.cs", "CA1822", 10)]
-    swift = "\x1b[1mSources/A.swift:2:3: warning: x is never used [#UnusedVariable]\x1b[0m"
-    assert parse("compiler", findings.TERMINAL_CODES.sub("", swift)) == [("Sources/A.swift", "UnusedVariable", 2)]
-    elixir = '    warning: variable "x" is unused\n    │\n    └─ lib/a.ex:3:5: A.f/0\n'
-    assert parse("elixir", elixir) == [("lib/a.ex", "variable _ is unused", 3)]
-    cargo = json.dumps(
-        {
-            "reason": "compiler-message",
-            "message": {
-                "message": "used unwrap",
-                "code": {"code": "clippy::unwrap_used"},
-                "spans": [{"is_primary": True, "file_name": "src/lib.rs", "line_start": 8}],
-            },
-        }
+
+
+def test_dead_code_reports() -> None:
+    vulture = (
+        "src/app/core.py:5: unused function 'helper' (60% confidence)\n"
+        "src/app/core.py:9: unused variable 'name' (60% confidence)\n"
+        "src/app/core.py:12: unused method 'run' (60% confidence)\n"
     )
-    assert parse("cargo", f"not json\n{cargo}") == [("src/lib.rs", "clippy::unwrap_used", 8)]
+    assert parse("vulture", vulture) == [
+        ("src/app/core.py", "unused-function", 5),
+        ("src/app/core.py", "unused-method", 12),
+    ]
+    knip = {
+        "issues": [
+            {"file": "src/orphan.ts", "owners": [], "files": [{"name": "src/orphan.ts"}], "exports": []},
+            {"file": "src/math.ts", "exports": [{"name": "unused", "line": 4, "col": 17}], "catalog": []},
+            {"file": "src/a.ts", "classMembers": {"A": [{"name": "b", "line": 2}]}},
+        ]
+    }
+    assert parse("knip", json.dumps(knip)) == [
+        ("src/orphan.ts", "files", 1),
+        ("src/math.ts", "exports", 4),
+        ("src/a.ts", "classMembers", 2),
+    ]
+
+
+def test_sqlfluff_reports_may_be_split() -> None:
+    first = [{"filepath": "db/1.sql", "violations": [{"code": "LT09", "start_line_no": 1, "description": "x"}]}]
+    second = [{"filepath": "db/2.sql", "violations": [{"code": "CP01", "start_line_no": 3, "description": "y"}]}]
+    report = f"{json.dumps(first)}\n{json.dumps(second)}\n"
+    assert parse("sqlfluff", report) == [("db/1.sql", "LT09", 1), ("db/2.sql", "CP01", 3)]
 
 
 def test_absolute_and_file_uris_become_relative(repo: Path) -> None:
@@ -124,10 +130,16 @@ def test_tests_must_write_a_coverage_report(repo: Path) -> None:
     assert ratchet.run_tests({"run": "true"}, "HEAD", ".")
     assert not ratchet.run_tests({"run": "false"}, "HEAD", ".")
     assert not ratchet.run_tests({"run": "true", "coverage": ".unslop/out/none.xml"}, "HEAD", ".")
+    assert ratchet.run_tests({"run": "true", "coverage": ".unslop/out/none.xml"}, "HEAD", ".", 0)
+
+
+def test_coverage_threshold_reaches_diff_cover() -> None:
+    command = ratchet.coverage_command({"run": "x"}, ["c.xml"], "abc", ".", 80)
+    assert command[command.index("--fail-under") + 1] == "80"
 
 
 def test_fetch_catalog_is_pinned() -> None:
-    for tool in ("detekt", "pmd", "phpstan", "swiftlint"):
+    for tool in ("detekt", "pmd"):
         item = catalog(tool)
         assert item.url.startswith("https://")
         assert len(item.sha256) == 64

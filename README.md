@@ -1,6 +1,6 @@
 # unslop
 
-**Make AI slop fail the build. Any stack.**
+**Make AI slop fail the build. Python, TypeScript and React, Java and Kotlin.**
 
 [![self-test](https://github.com/kimkun0504/unslop/actions/workflows/self-test.yml/badge.svg)](https://github.com/kimkun0504/unslop/actions/workflows/self-test.yml)
 
@@ -12,7 +12,7 @@ Requirements: `git`, `jq` (included in macOS 15 and later) and [`uv`](https://do
 
 ```bash
 cd ~/code/my-service
-uvx --from git+https://github.com/kimkun0504/unslop@v0.3.2 unslop init
+uvx --from git+https://github.com/kimkun0504/unslop@v0.4.0 unslop init
 ```
 
 `unslop init` detects the stacks, including a front end in a subfolder beside a back end, records today's lint and type findings as a baseline so only new code has to meet the bar, checks that the gate passes, and adds four files:
@@ -21,17 +21,17 @@ uvx --from git+https://github.com/kimkun0504/unslop@v0.3.2 unslop init
 |---|---|
 | `unslop.toml` | The stacks and their folders, the pinned unslop version and the time budget for the end-of-turn check |
 | `.unslop/baseline.json` | Findings that existed on day one, counted per file and rule |
-| `.claude/settings.json` | Turns on the unslop Claude Code plugin for this repository and makes build files, lockfiles, CI and the unslop files read-only for Claude |
+| `.claude/settings.json` | Turns on the unslop Claude Code plugin for this repository and makes tool configs, CI and the unslop files read-only for Claude |
 | `.github/workflows/unslop.yml` | Runs the same check on every pull request |
 
 If something is off, `unslop doctor` says what and how to fix it. Commit them on a branch and open a pull request. The next time you open Claude Code in the repository and trust the folder, the plugin installs itself. You can also install the plugin for yourself with `/plugin install unslop --marketplace kimkun0504/unslop`. Installed that way it runs in every repository you open: it blocks force pushes, hook bypasses and edits to Claude's own settings everywhere, and switches the rest on only where `unslop.toml` or a template's `.claude/unslop.json` exists. Once the repository is on GitHub, `unslop ruleset --apply` blocks merging until the check passes.
 
-`unslop check` runs everything: no comments on added lines, no new suppressions or skipped tests, existing tests left alone, no lint or type finding beyond the baseline, formatted files stay formatted, tests pass, and every changed line is covered. Claude cannot end a turn while it fails. See [Adopting an existing repository](docs/adopting.md).
+`unslop check` runs everything: no comments on added lines, no new suppressions or skipped tests, existing tests left alone, no lint, type, dead-code or SQL finding beyond the baseline, no new copy-pasted code, formatted files stay formatted, tests pass, and every changed line is covered. Mutation testing of changed lines is one setting away. Claude cannot end a turn while `unslop check --fast` fails; that is the same check without tests, so it takes seconds, and CI runs the full one on every pull request. Claude may add dependencies, and the pull request then needs a human's `unslop-reviewed` label. The rules are settings in `unslop.toml`, and `unslop stats` shows how often each one blocked Claude. See [Adopting an existing repository](docs/adopting.md).
 
 ## Start a new project
 
 ```bash
-uvx --from git+https://github.com/kimkun0504/unslop@v0.3.2 unslop new python ~/code/my-app
+uvx --from git+https://github.com/kimkun0504/unslop@v0.4.0 unslop new python ~/code/my-app
 cd ~/code/my-app
 scripts/setup
 scripts/verify
@@ -51,7 +51,7 @@ A template is a small working app in the house style with the strictest gates fo
 
 | Layer | Applies to | What it does | Details |
 |---|---|---|---|
-| **Plugin** | Repositories with `unslop.toml` or a template | Makes build and lint configs read-only for the agent, blocks history rewrites and hook bypasses, and refuses to let the agent stop while the check fails. Adds a reviewer agent and the `/unslop:spec`, `/unslop:long-run` and `/unslop:migration` skills | [Guardrails §2](docs/guardrails.md#2-project-layer) |
+| **Plugin** | Repositories with `unslop.toml` or a template | Makes lint and type configs read-only for the agent, blocks history rewrites and hook bypasses, and refuses to let the agent stop while the fast check fails. Adds a reviewer agent and the `/unslop:spec`, `/unslop:long-run` and `/unslop:migration` skills | [Guardrails §2](docs/guardrails.md#2-project-layer) |
 | **CI and GitHub** | Every pull request | Runs the same check; the ruleset blocks merging until it passes | [Guardrails §3](docs/guardrails.md#3-ci-and-github-layer) |
 | **Machine**, optional | Every repository on your computer | Hides secrets and credentials, sandboxes shell commands behind a network allowlist, and makes the plugin's hooks impossible to switch off | [Guardrails §1](docs/guardrails.md#1-machine-layer) |
 | **Claude profile**, optional | Your Claude Code sessions | A ten-line `CLAUDE.md` with working rules | [Guardrails §4](docs/guardrails.md#4-claude-profile-layer) |
@@ -71,37 +71,21 @@ sudo ./install/install.sh system
 
 ## Stacks
 
-Every template ships a small working feature in the house style and passes the same contract: strict formatting, linting and types, enforced architecture boundaries, no comments, 100% coverage and, where a maintained tool exists, every mutant killed. Each is proven in CI by scaffolding a fresh project and planting violations that must be caught. Every profile for existing repositories is proven the same way against a sample legacy repository.
+unslop covers the stacks its author uses; the 0.3 releases also had Go, Rust, .NET, PHP, Ruby, Elixir, Swift and Terraform, and those tags still work. Every template ships a small working feature in the house style and passes the same contract: strict formatting, linting and types, enforced architecture boundaries, no comments, 100% coverage and, where a maintained tool exists, every mutant killed. Each is proven in CI by scaffolding a fresh project and planting violations that must be caught. Every profile for existing repositories is proven the same way against a sample legacy repository.
 
 <!-- stacks:start -->
 | Template | Format | Lint and types | Architecture | Tests | Mutation | Adopt profile |
 |---|---|---|---|---|---|---|
 | `python` | ruff format | ruff (all rules), basedpyright (all) | import-linter | pytest, hypothesis | mutmut | `python` |
 | `ts-react` | prettier | typescript-eslint strict, tsc strictest, jsx-a11y | eslint-plugin-boundaries | vitest, testing-library, fast-check | Stryker | `typescript` |
-| `go` | gofumpt | golangci-lint (all linters) | depguard | race detector, native fuzzing | none maintained | `go` |
 | `kotlin-spring` | ktlint | detekt (all rules), warnings as errors | Spring Modulith | JUnit 5, Spring Boot | PIT | `jvm` |
 | `java-spring` | google-java-format | Error Prone, NullAway (JSpecify), `-Xlint:all -Werror` | Spring Modulith | JUnit 5, AssertJ, Spring Boot | PIT | `jvm` |
-| `terraform` | terraform fmt | tflint (all rules, AWS), validate, checkov | single-purpose modules | `terraform test` with mocked providers | none available | `terraform` |
-| `rust` | rustfmt | clippy (all, pedantic, nursery, restriction), `#[allow]` denied | workspace crates, I/O banned in domain | cargo test, proptest | cargo-mutants | `rust` |
-| `dotnet` | dotnet format | all analyzers as errors, nullable reference types | domain references only core framework | xUnit v3, WebApplicationFactory | Stryker.NET | `dotnet` |
-| `php` | PHP-CS-Fixer | PHPStan max + strict rules, native types only | deptrac, I/O banned in domain | PHPUnit 13 | Infection | `php` |
-| `ruby` | RuboCop | RuboCop with every cop, Steep strict on RBS | RuboCop guards: pure domain, output through ports | RSpec | mutant | `ruby` |
-| `elixir` | mix format | Credo strict, compiler types, Dialyzer | Boundary, I/O banned in domain | ExUnit + StreamData | none yet | `elixir` |
-| `swift` | swift-format | SwiftLint (all opt-in), Swift 6 strict concurrency | SwiftPM targets, I/O banned in domain | Swift Testing | none yet | `swift` |
 
 | Adopt profile | For | Format, on changed files | Lint and types, ratcheted | Tests and changed-line coverage |
 |---|---|---|---|---|
 | `python` | Python: uv, Poetry or pip projects | ruff format | ruff (all rules), basedpyright strict | pytest with branch coverage |
 | `typescript` | TypeScript and JavaScript: npm, pnpm or Yarn projects | prettier, when the project uses it | tsc with strictest flags, the project's ESLint config | vitest or jest with coverage |
-| `go` | Go: a go.mod at the root | gofmt | golangci-lint (all linters) | go test -race with coverage |
 | `jvm` | Java and Kotlin: Gradle or Maven builds | none; the project's own formatter | PMD for Java, detekt (all rules) for Kotlin | JaCoCo added without editing the build |
-| `terraform` | Terraform: .tf files | terraform fmt | tflint (all rules, AWS), checkov | terraform test, when the repository has tests |
-| `rust` | Rust: a Cargo.toml at the root | rustfmt | clippy pedantic and nursery, no unwrap, expect, panic or print outside tests | cargo llvm-cov |
-| `dotnet` | C# and .NET: a solution or project file at the root | none; the project's own formatter | all .NET analyzers, code style and nullable warnings from the build | dotnet test with Coverlet |
-| `php` | PHP: composer.json | none; the project's own formatter | PHPStan at max level | PHPUnit with clover coverage of src, app and lib |
-| `ruby` | Ruby: a Gemfile | RuboCop layout cops, in the project's style | RuboCop with the project's config plus new cops and the performance and RSpec plugins | RSpec or rake test, with coverage through Ruby's Coverage module |
-| `elixir` | Elixir: mix.exs | mix format | compiler warnings, Credo strict when the project uses Credo | mix test with cover, converted for diff coverage |
-| `swift` | Swift: Package.swift | swift format, when the project has a .swift-format | SwiftLint defect rules on top of the project's config, compiler warnings with complete strict concurrency | swift test with llvm-cov |
 <!-- stacks:end -->
 
 The tables are generated from [`templates/catalog.json`](templates/catalog.json); `unslop list` shows the same in the terminal. To add a stack, follow [Adding a stack](docs/adding-a-stack.md).
@@ -120,12 +104,13 @@ Every template has the same commands:
 | Command | What it does |
 |---|---|
 | `unslop init [--stack PROFILE[:FOLDER]]…` | Add unslop to the current repository and record the baseline; stacks are detected when left out |
-| `unslop check [--base REF]` | Run every gate against the changes since the base branch |
+| `unslop check [--base REF] [--fast]` | Run every gate against the changes since the base branch; `--fast` skips tests, coverage and mutation, as Claude's end-of-turn check does |
 | `unslop setup` | Install the repository's dependencies the way the profile expects |
 | `unslop baseline` | Record the current findings as the baseline. For humans, after fixing old findings; Claude is blocked from running it |
 | `unslop plan` | Print the exact commands each gate runs |
 | `unslop doctor` | Explain what is missing for unslop to work here: tools, pins, the plugin, the ruleset |
-| `unslop upgrade` | Move `unslop.toml`, the plugin pin and the CI action to the version you run it with |
+| `unslop upgrade` | Move `unslop.toml`, the plugin pin and the CI action to the version you run it with, and baseline any checks the version adds |
+| `unslop stats [--days N] [--all]` | Count how often each guardrail blocked Claude, with recent examples |
 | `unslop ruleset [--apply]` | Print or apply the GitHub branch ruleset |
 | `unslop new TEMPLATE DIR` | Start a new project from a template |
 | `unslop list` | Show templates, their gates and the profiles for existing repositories |

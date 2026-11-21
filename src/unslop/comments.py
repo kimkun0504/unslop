@@ -47,11 +47,7 @@ GENERATED = re.compile(r"Code generated .* DO NOT EDIT|@generated|maintained aut
 HEADER_LINES = 5
 HEADER_DIRECTIVES = (re.compile(r"^#!"), re.compile(r"^#.*coding[:=]"))
 DIRECTIVES = (
-    re.compile(r"^//go:"),
-    re.compile(r"^//line "),
-    re.compile(r"^//export "),
     re.compile(r"^/// <reference "),
-    re.compile(r"^// swift-tools-version"),
     re.compile(r"^# (syntax|escape|check)="),
 )
 

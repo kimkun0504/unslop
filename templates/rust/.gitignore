@@ -1,6 +1,0 @@
-/target/
-/mutants.out*/
-lcov.info
-.env
-.env.*
-!.env.example

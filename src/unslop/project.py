@@ -5,7 +5,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from unslop import __version__
 
@@ -35,10 +35,36 @@ class Stack:
 
 
 @dataclass(slots=True)
+class Gates:
+    comments: str = "forbid"
+    coverage: int = 100
+    diff_warn_lines: int = 400
+    diff_max_lines: int = 0
+    duplication: bool = True
+    dead_code: bool = True
+    mutation: bool = False
+    sql_dialect: str = "postgres"
+
+    def render(self) -> list[str]:
+        return [
+            "[gates]",
+            f'comments = "{self.comments}"',
+            f"coverage = {self.coverage}",
+            f"diff_warn_lines = {self.diff_warn_lines}",
+            f"diff_max_lines = {self.diff_max_lines}",
+            f"duplication = {str(self.duplication).lower()}",
+            f"dead_code = {str(self.dead_code).lower()}",
+            f"mutation = {str(self.mutation).lower()}",
+            f'sql_dialect = "{self.sql_dialect}"',
+        ]
+
+
+@dataclass(slots=True)
 class Config:
     stacks: list[Stack]
     version: str = __version__
     fast_check_seconds: int = DEFAULT_SECONDS
+    gates: Gates = field(default_factory=Gates)
 
     @property
     def profiles(self) -> list[str]:
@@ -46,12 +72,15 @@ class Config:
 
     def render(self) -> str:
         lines = [f'version = "{self.version}"', f"fast_check_seconds = {self.fast_check_seconds}"]
+        gates = ["", *self.gates.render()]
         if len(self.stacks) == 1 and self.stacks[0].path == ".":
             only = self.stacks[0]
             lines.insert(1, f'profile = "{only.profile}"')
+            lines += gates
             if only.commands:
                 lines += ["", "[commands]", *render_commands(only.commands)]
             return "\n".join(lines) + "\n"
+        lines += gates
         for stack in self.stacks:
             lines += ["", "[[stack]]", f'profile = "{stack.profile}"', f"path = {json.dumps(stack.path)}"]
             if stack.commands:
@@ -117,6 +146,48 @@ def read_stacks(raw: dict[str, object]) -> list[Stack]:
     return stacks
 
 
+GATE_TYPES: dict[str, type] = {
+    "comments": str,
+    "coverage": int,
+    "diff_warn_lines": int,
+    "diff_max_lines": int,
+    "duplication": bool,
+    "dead_code": bool,
+    "mutation": bool,
+    "sql_dialect": str,
+}
+COMMENT_RULES = ("forbid", "allow")
+FULL_COVERAGE = 100
+SQL_DIALECTS = ("postgres", "mysql", "sqlite", "tsql", "bigquery", "snowflake", "ansi", "off")
+
+
+def read_gates(raw: object) -> Gates:
+    if not isinstance(raw, dict):
+        message = "[gates] must be a table"
+        raise fail(message)
+    typed = cast("dict[str, object]", raw)
+    unknown = sorted(set(typed) - set(GATE_TYPES))
+    if unknown:
+        message = f"[gates] does not know {', '.join(unknown)}; it accepts {', '.join(GATE_TYPES)}"
+        raise fail(message)
+    for key, value in typed.items():
+        expected = GATE_TYPES[key]
+        if type(value) is not expected:
+            message = f"[gates] {key} must be a {expected.__name__}"
+            raise fail(message)
+    gates = Gates(**cast("dict[str, Any]", typed))
+    if gates.comments not in COMMENT_RULES:
+        message = f"[gates] comments must be one of {', '.join(COMMENT_RULES)}"
+        raise fail(message)
+    if gates.sql_dialect not in SQL_DIALECTS:
+        message = f"[gates] sql_dialect must be one of {', '.join(SQL_DIALECTS)}"
+        raise fail(message)
+    if not 0 <= gates.coverage <= FULL_COVERAGE or gates.diff_warn_lines < 0 or gates.diff_max_lines < 0:
+        message = "[gates] coverage must be 0 to 100 and the diff limits 0 or more"
+        raise fail(message)
+    return gates
+
+
 def load(path: Path = CONFIG) -> Config:
     if not path.is_file():
         message = f"no {path} here; run `unslop init` first"
@@ -134,7 +205,7 @@ def load(path: Path = CONFIG) -> Config:
     if not isinstance(seconds, int):
         message = "fast_check_seconds must be a whole number"
         raise fail(message)
-    return Config(read_stacks(raw), version, seconds)
+    return Config(read_stacks(raw), version, seconds, read_gates(raw.get("gates", {})))
 
 
 def save(config: Config, path: Path = CONFIG) -> None:

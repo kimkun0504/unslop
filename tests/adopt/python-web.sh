@@ -34,7 +34,7 @@ JSON
 }
 cases() {
   printf 'export const half = (value: number): number => value / 2;\n' > web/src/half.ts
-  expect_fail "untested front-end file" "every changed line must be covered"
+  expect_fail "untested front-end file" "of changed lines must be covered"
   printf 'export const n: number = "text";\n' > web/src/wrong.ts
   printf 'import { expect, test } from "vitest";\nimport { n } from "./wrong";\n\ntest("n", () => {\n  expect(n).toBeDefined();\n});\n' > web/src/wrong.test.ts
   expect_fail "front-end type error" "web:tsc: web/src/wrong.ts has 1"
@@ -42,7 +42,7 @@ cases() {
   printf 'import { expect, test } from "vitest";\nimport { half } from "./half";\n\ntest("halves", () => {\n  expect(half(4)).toBe(2);\n});\n' > web/src/half.test.ts
   expect_pass "tested front-end file"
   printf 'def double(value: int) -> int:\n    return value * 2\n' > src/legacy/double.py
-  expect_fail "untested back-end file" "every changed line must be covered"
+  expect_fail "untested back-end file" "of changed lines must be covered"
   printf 'def total(items):\n    return sum(items)  # adds\n' > src/legacy/__init__.py
   expect_fail "back-end comment" "comments are forbidden"
   printf 'def double(value: int) -> int:\n    return value * 2\n' > src/legacy/double.py

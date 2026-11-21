@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-cd "$(dirname "$0")/.."
-scripts/fast-check
-uv run --quiet --no-project --python 3.13 --with checkov==3.4.3 checkov --config-file .checkov.yaml --directory .

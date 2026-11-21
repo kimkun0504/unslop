@@ -37,7 +37,7 @@ cases() {
   printf 'package legacy\n\nimport kotlin.test.Test\nimport kotlin.test.assertEquals\n\nclass AreaTest {\n    @Test\n    fun area() {\n        assertEquals(294, area())\n    }\n}\n' > src/test/kotlin/legacy/AreaTest.kt
   expect_fail "new detekt finding" "MagicNumber"
   printf 'package legacy\n\nfun twice(value: Int): Int = value * 2\n' > src/main/kotlin/legacy/Twice.kt
-  expect_fail "untested new code" "every changed line must be covered"
+  expect_fail "untested new code" "of changed lines must be covered"
   printf 'package legacy\n\nimport kotlin.test.Ignore\nimport kotlin.test.Test\n\nclass LaterTest {\n    @Ignore\n    @Test\n    fun later() {\n    }\n}\n' > src/test/kotlin/legacy/LaterTest.kt
   expect_fail "ignored test" "new skip or suppression"
   printf 'package legacy\n\nfun twice(value: Int): Int = value * 2\n' > src/main/kotlin/legacy/Twice.kt

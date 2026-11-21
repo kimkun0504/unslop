@@ -39,7 +39,7 @@ cases() {
   printf 'package legacy;\n\nimport static org.junit.jupiter.api.Assertions.assertEquals;\n\nimport org.junit.jupiter.api.Test;\n\nclass WasteTest {\n  @Test\n  void value() {\n    assertEquals(2, Waste.value());\n  }\n}\n' > src/test/java/legacy/WasteTest.java
   expect_fail "new PMD finding" "SystemPrintln"
   printf 'package legacy;\n\npublic final class Triple {\n  private Triple() {}\n\n  public static int triple(int value) {\n    return value * 3;\n  }\n}\n' > src/main/java/legacy/Triple.java
-  expect_fail "untested new code" "every changed line must be covered"
+  expect_fail "untested new code" "of changed lines must be covered"
   printf 'package legacy;\n\nimport org.junit.jupiter.api.Disabled;\nimport org.junit.jupiter.api.Test;\n\nclass LaterTest {\n  @Disabled\n  @Test\n  void later() {}\n}\n' > src/test/java/legacy/LaterTest.java
   expect_fail "disabled test" "new skip or suppression"
   printf 'package legacy;\n\npublic final class Triple {\n  private Triple() {}\n\n  public static int triple(int value) {\n    return value * 3;\n  }\n}\n' > src/main/java/legacy/Triple.java

@@ -8,16 +8,12 @@ from typing import cast
 from urllib.parse import unquote, urlparse
 
 LINE = re.compile(r"^(?P<path>[^:\n]+):(?P<line>\d+):\d+: (?P<message>.*)$")
-MSBUILD_LINE = re.compile(
-    r"^(?P<path>[^(\n]+?)\((?P<line>\d+),\d+(?:,\d+,\d+)?\): "
-    r"(?:warning|error) (?P<rule>[A-Za-z]+\d+): (?P<message>.*?)(?: \[[^\]]*\])?$"
-)
-COMPILER_LINE = re.compile(r"^(?P<path>[^:\n]+\.[A-Za-z]+):(?P<line>\d+):\d+: (?:warning|error): (?P<message>.*)$")
-ELIXIR_WARNING = re.compile(r"^\s*warning: (?P<message>.*)$")
-ELIXIR_LOCATION = re.compile(r"^\s*(?:└─ )?(?P<path>[^\s:]+\.exs?):(?P<line>\d+)(?::\d+)?:")
 TERMINAL_CODES = re.compile(r"\x1b\]8;;[^\x1b]*\x1b\\|\x1b\[[0-9;?]*[A-Za-z]")
 QUOTED = re.compile(r"\"[^\"]*\"|'[^']*'|`[^`]*`|\d+")
-SWIFT_GROUP = re.compile(r"\[#(?P<group>[A-Za-z]+)\]")
+VULTURE_LINE = re.compile(
+    r"^(?P<path>[^:\n]+):(?P<line>\d+): (?P<message>unused (?P<kind>function|class|method) '[^']*')"
+)
+KNIP_SKIPPED = frozenset({"file", "owners", "catalog", "catalogReferences"})
 TSC_LINE = re.compile(r"^(?P<path>.+?)\((?P<line>\d+),\d+\): error (?P<rule>TS\d+): (?P<message>.*)$")
 
 type Json = dict[str, object]
@@ -126,92 +122,52 @@ def lines(report: str) -> Iterator[Finding]:
             yield Finding(relative(match["path"]), message.split(";")[0].split(" (")[0], int(match["line"]), message)
 
 
-def shape(message: str) -> str:
-    return QUOTED.sub("_", message).strip()
-
-
-def cargo(report: str) -> Iterator[Finding]:
+def vulture(report: str) -> Iterator[Finding]:
     for line in report.splitlines():
-        if not line.startswith("{"):
-            continue
-        entry = cast("Json", json.loads(line))
-        message = entry.get("message")
-        if entry.get("reason") != "compiler-message" or not isinstance(message, dict):
-            continue
-        diagnostic = cast("Json", message)
-        primary = [span for span in objects(diagnostic.get("spans")) if span.get("is_primary") is True]
-        if not primary:
-            continue
-        text_ = text(diagnostic.get("message"))
-        rule = text(field(diagnostic, "code", "code"), shape(text_))
-        yield Finding(relative(text(primary[0].get("file_name"))), rule, number(primary[0].get("line_start")), text_)
+        match = VULTURE_LINE.match(line)
+        if match is not None:
+            yield Finding(relative(match["path"]), f"unused-{match['kind']}", int(match["line"]), match["message"])
 
 
-def msbuild(report: str) -> Iterator[Finding]:
-    seen: set[str] = set()
-    for line in report.splitlines():
-        match = MSBUILD_LINE.match(line.strip())
-        if match is not None and line.strip() not in seen:
-            seen.add(line.strip())
-            yield Finding(relative(match["path"]), match["rule"], int(match["line"]), match["message"])
+def knip_items(value: object) -> list[Json]:
+    if isinstance(value, dict):
+        return [item for group in cast("dict[str, object]", value).values() for item in objects(group)]
+    return objects(value)
 
 
-def compiler(report: str) -> Iterator[Finding]:
-    seen: set[str] = set()
-    for line in report.splitlines():
-        match = COMPILER_LINE.match(line.strip())
-        if match is not None and line.strip() not in seen:
-            seen.add(line.strip())
-            message = match["message"]
-            group = SWIFT_GROUP.search(message)
-            rule = group["group"] if group is not None else shape(message)
-            yield Finding(relative(match["path"]), rule, int(match["line"]), message)
-
-
-def elixir(report: str) -> Iterator[Finding]:
-    pending: str | None = None
-    for line in report.splitlines():
-        warning = ELIXIR_WARNING.match(line)
-        if warning is not None:
-            pending = warning["message"]
-            continue
-        location = ELIXIR_LOCATION.match(line)
-        if location is not None and pending is not None:
-            yield Finding(relative(location["path"]), shape(pending), int(location["line"]), pending)
-            pending = None
-
-
-def phpstan(report: str) -> Iterator[Finding]:
-    document = cast("Json", json.loads(report))
-    for path, entry in table(document.get("files")).items():
-        for message in objects(table(entry).get("messages")):
-            text_ = text(message.get("message"))
-            yield Finding(
-                relative(path), text(message.get("identifier"), shape(text_)), number(message.get("line")), text_
-            )
-
-
-def rubocop(report: str) -> Iterator[Finding]:
-    document = cast("Json", json.loads(report))
-    for entry in objects(document.get("files")):
-        for offense in objects(entry.get("offenses")):
-            yield Finding(
-                relative(text(entry.get("path"))),
-                text(offense.get("cop_name"), "unnamed"),
-                number(field(offense, "location", "start_line")),
-                text(offense.get("message")),
-            )
-
-
-def credo(report: str) -> Iterator[Finding]:
+def knip(report: str) -> Iterator[Finding]:
     document = cast("Json", json.loads(report))
     for issue in objects(document.get("issues")):
-        yield Finding(
-            relative(text(issue.get("filename"))),
-            text(issue.get("check"), "unnamed"),
-            number(issue.get("line_no")),
-            text(issue.get("message")),
-        )
+        path = relative(text(issue.get("file"), "<unknown>"))
+        for category, value in issue.items():
+            if category in KNIP_SKIPPED:
+                continue
+            for item in knip_items(value):
+                name = text(item.get("name"))
+                yield Finding(path, category, number(item.get("line")) or 1, f"unused {category}: {name}")
+
+
+def sqlfluff(report: str) -> Iterator[Finding]:
+    decoder = json.JSONDecoder()
+    position = 0
+    while position < len(report):
+        if report[position].isspace():
+            position += 1
+            continue
+        document, position = decoder.raw_decode(report, position)
+        for entry in objects(document):
+            path = relative(text(entry.get("filepath"), "<unknown>"))
+            for violation in objects(entry.get("violations")):
+                yield Finding(
+                    path,
+                    text(violation.get("code"), "unnamed"),
+                    number(violation.get("start_line_no")),
+                    text(violation.get("description")),
+                )
+
+
+def shape(message: str) -> str:
+    return QUOTED.sub("_", message).strip()
 
 
 PARSERS: dict[str, Callable[[str], Iterator[Finding]]] = {
@@ -220,11 +176,7 @@ PARSERS: dict[str, Callable[[str], Iterator[Finding]]] = {
     "eslint": eslint,
     "tsc": tsc,
     "lines": lines,
-    "cargo": cargo,
-    "msbuild": msbuild,
-    "compiler": compiler,
-    "elixir": elixir,
-    "phpstan": phpstan,
-    "rubocop": rubocop,
-    "credo": credo,
+    "vulture": vulture,
+    "knip": knip,
+    "sqlfluff": sqlfluff,
 }

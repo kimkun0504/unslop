@@ -46,7 +46,7 @@
         "mutation": "stryker, 100% score",
         "dead-code": "knip",
         "supply-chain": "pnpm lockfile, 1-day release age, pnpm audit",
-        "design-system": "tailwind tokens only, no arbitrary values or inline styles"
+        "design-system": "tailwind tokens only, consistent class order, no duplicate, conflicting or arbitrary classes, no inline styles"
       },
       "summary": {
         "format": "prettier",
@@ -56,34 +56,6 @@
         "mutation": "Stryker"
       },
       "adopt": "typescript"
-    },
-    {
-      "name": "go",
-      "title": "Go",
-      "kind": "service",
-      "toolchain": {
-        "go": "1.27.4",
-        "golangci-lint": "2.15.0"
-      },
-      "gates": {
-        "format": "gofumpt, goimports",
-        "lint": "golangci-lint (all linters)",
-        "types": "go vet (enable-all)",
-        "architecture": "depguard layer rules",
-        "tests": "go test -race -shuffle + native fuzzing",
-        "coverage": "100% statements in internal/",
-        "mutation": null,
-        "dead-code": "unused, unparam",
-        "supply-chain": "go mod verify, go mod tidy -diff, govulncheck"
-      },
-      "summary": {
-        "format": "gofumpt",
-        "lint": "golangci-lint (all linters)",
-        "architecture": "depguard",
-        "tests": "race detector, native fuzzing",
-        "mutation": "none maintained"
-      },
-      "adopt": "go"
     },
     {
       "name": "kotlin-spring",
@@ -143,203 +115,6 @@
         "mutation": "PIT"
       },
       "adopt": "jvm"
-    },
-    {
-      "name": "terraform",
-      "title": "Terraform on AWS",
-      "kind": "infrastructure",
-      "toolchain": {
-        "terraform": "1.17.2",
-        "tflint": "0.66.0",
-        "aws-provider": "~> 6.73"
-      },
-      "gates": {
-        "format": "terraform fmt",
-        "lint": "tflint (terraform preset all + AWS ruleset)",
-        "types": "terraform validate, typed and validated variables",
-        "architecture": "root module composes single-purpose modules",
-        "tests": "terraform test with mocked providers",
-        "coverage": "every validation and secure default asserted",
-        "mutation": null,
-        "dead-code": "tflint terraform_unused_declarations",
-        "supply-chain": "provider lockfile, pinned provider and plugin versions",
-        "security": "checkov"
-      },
-      "summary": {
-        "format": "terraform fmt",
-        "lint": "tflint (all rules, AWS), validate, checkov",
-        "architecture": "single-purpose modules",
-        "tests": "`terraform test` with mocked providers",
-        "mutation": "none available"
-      },
-      "adopt": "terraform"
-    },
-    {
-      "name": "rust",
-      "title": "Rust",
-      "kind": "service",
-      "toolchain": {
-        "rust": "1.100.0",
-        "edition": "2024"
-      },
-      "gates": {
-        "format": "rustfmt",
-        "lint": "clippy all, pedantic, nursery, cargo and restriction lints (unwrap, expect, panic, indexing, print, arithmetic) denied; #[allow] denied",
-        "types": "rustc with unsafe_code forbidden",
-        "architecture": "workspace crates; clippy.toml bans I/O in the domain crate",
-        "tests": "cargo test + proptest + binary integration tests",
-        "coverage": "100% lines (cargo-llvm-cov)",
-        "mutation": "cargo-mutants, none missed",
-        "dead-code": "rustc unused lints denied",
-        "supply-chain": "Cargo.lock --locked, cargo-deny advisories, licenses, bans, sources"
-      },
-      "summary": {
-        "format": "rustfmt",
-        "lint": "clippy (all, pedantic, nursery, restriction), `#[allow]` denied",
-        "architecture": "workspace crates, I/O banned in domain",
-        "tests": "cargo test, proptest",
-        "mutation": "cargo-mutants"
-      },
-      "adopt": "rust"
-    },
-    {
-      "name": "dotnet",
-      "title": "C# + ASP.NET Core",
-      "kind": "service",
-      "toolchain": {
-        "dotnet-sdk": "10.0.404",
-        "framework": "net10.0"
-      },
-      "gates": {
-        "format": "dotnet format --verify-no-changes",
-        "lint": "AnalysisMode All, every analyzer and code-style rule as an error",
-        "types": "nullable reference types, warnings as errors",
-        "architecture": "domain assembly may reference only core framework assemblies (architecture test)",
-        "tests": "xUnit v3 + WebApplicationFactory integration tests",
-        "coverage": "100% lines and branches (coverlet)",
-        "mutation": "Stryker.NET, 100% score",
-        "dead-code": "IDE and CA unused-code analyzers",
-        "supply-chain": "central package versions, lockfiles in locked mode, NuGet audit of transitive packages"
-      },
-      "summary": {
-        "format": "dotnet format",
-        "lint": "all analyzers as errors, nullable reference types",
-        "architecture": "domain references only core framework",
-        "tests": "xUnit v3, WebApplicationFactory",
-        "mutation": "Stryker.NET"
-      },
-      "adopt": "dotnet"
-    },
-    {
-      "name": "php",
-      "title": "PHP",
-      "kind": "service",
-      "toolchain": {
-        "php": "8.5",
-        "composer": "2"
-      },
-      "gates": {
-        "format": "PHP-CS-Fixer (PER-CS, strict_types, final classes)",
-        "lint": "PHPStan max + strict rules + disallowed calls",
-        "types": "native types only, strict_types everywhere",
-        "architecture": "deptrac layers; I/O calls banned in the domain",
-        "tests": "PHPUnit 13, random order, strict",
-        "coverage": "100% statements, methods and conditionals",
-        "mutation": "Infection, 100% MSI",
-        "dead-code": "PHPStan unused and dead-code rules",
-        "supply-chain": "composer.lock, composer validate --strict, composer audit"
-      },
-      "summary": {
-        "format": "PHP-CS-Fixer",
-        "lint": "PHPStan max + strict rules, native types only",
-        "architecture": "deptrac, I/O banned in domain",
-        "tests": "PHPUnit 13",
-        "mutation": "Infection"
-      },
-      "adopt": "php"
-    },
-    {
-      "name": "ruby",
-      "title": "Ruby",
-      "kind": "service",
-      "toolchain": {
-        "ruby": "4.0.10",
-        "bundler": "4"
-      },
-      "gates": {
-        "format": "RuboCop layout cops, autocorrected",
-        "lint": "RuboCop with every cop enabled, plus rubocop-performance and rubocop-rspec",
-        "types": "Steep strict against RBS signatures in sig/",
-        "architecture": "local RuboCop guards: no I/O, clock or randomness in the domain, no domain dependency on the CLI, output only through injected streams",
-        "tests": "RSpec, random order, monkey patching off, own deprecation warnings raise",
-        "coverage": "SimpleCov, 100% lines and branches",
-        "mutation": "mutant, no surviving mutations",
-        "dead-code": "RuboCop Lint unused and unreachable cops",
-        "supply-chain": "Gemfile.lock in frozen mode, bundle-audit"
-      },
-      "summary": {
-        "format": "RuboCop",
-        "lint": "RuboCop with every cop, Steep strict on RBS",
-        "architecture": "RuboCop guards: pure domain, output through ports",
-        "tests": "RSpec",
-        "mutation": "mutant"
-      },
-      "adopt": "ruby"
-    },
-    {
-      "name": "elixir",
-      "title": "Elixir",
-      "kind": "service",
-      "toolchain": {
-        "elixir": "1.20.5",
-        "erlang": "29.1.2"
-      },
-      "gates": {
-        "format": "mix format",
-        "lint": "Credo strict with opt-in readability, refactor and warning checks",
-        "types": "compiler type checker with warnings as errors, Dialyzer with extra and missing returns and unmatched returns, @spec on every public function",
-        "architecture": "Boundary at compile time; Credo guards: pure domain, output only through injected devices",
-        "tests": "ExUnit with StreamData properties",
-        "coverage": "mix test --cover, 100% of lines",
-        "dead-code": "compiler unused warnings as errors, mix deps.unlock --check-unused",
-        "supply-chain": "mix.lock checked, mix hex.audit, mix_audit"
-      },
-      "summary": {
-        "format": "mix format",
-        "lint": "Credo strict, compiler types, Dialyzer",
-        "architecture": "Boundary, I/O banned in domain",
-        "tests": "ExUnit + StreamData",
-        "mutation": "none yet"
-      },
-      "adopt": "elixir",
-      "autofix": "mix format"
-    },
-    {
-      "name": "swift",
-      "title": "Swift",
-      "kind": "service",
-      "toolchain": {
-        "swift": "6.4.2"
-      },
-      "gates": {
-        "format": "swift format lint --strict",
-        "lint": "SwiftLint with every opt-in rule that does not conflict with the formatter",
-        "types": "Swift 6 language mode, strict concurrency, strict memory safety, ExistentialAny, all warnings as errors",
-        "architecture": "SwiftPM targets: Domain depends on nothing; SwiftLint rules keep Foundation, I/O, the clock and randomness out of Domain and print out of Domain and CLI",
-        "tests": "Swift Testing with parameterized tests",
-        "coverage": "llvm-cov, 100% of lines, regions and functions in Domain and CLI",
-        "dead-code": "unused declarations as compiler errors",
-        "supply-chain": "Package.resolved; no third-party packages in the template"
-      },
-      "summary": {
-        "format": "swift-format",
-        "lint": "SwiftLint (all opt-in), Swift 6 strict concurrency",
-        "architecture": "SwiftPM targets, I/O banned in domain",
-        "tests": "Swift Testing",
-        "mutation": "none yet"
-      },
-      "adopt": "swift",
-      "autofix": "swift format --in-place --recursive Sources Tests Package.swift"
     }
   ],
   "adopt": [
@@ -360,76 +135,12 @@
       "tests": "vitest or jest with coverage"
     },
     {
-      "name": "go",
-      "title": "Go",
-      "detects": "a go.mod at the root",
-      "format": "gofmt",
-      "checks": "golangci-lint (all linters)",
-      "tests": "go test -race with coverage"
-    },
-    {
       "name": "jvm",
       "title": "Java and Kotlin",
       "detects": "Gradle or Maven builds",
       "format": "none; the project's own formatter",
       "checks": "PMD for Java, detekt (all rules) for Kotlin",
       "tests": "JaCoCo added without editing the build"
-    },
-    {
-      "name": "terraform",
-      "title": "Terraform",
-      "detects": ".tf files",
-      "format": "terraform fmt",
-      "checks": "tflint (all rules, AWS), checkov",
-      "tests": "terraform test, when the repository has tests"
-    },
-    {
-      "name": "rust",
-      "title": "Rust",
-      "detects": "a Cargo.toml at the root",
-      "format": "rustfmt",
-      "checks": "clippy pedantic and nursery, no unwrap, expect, panic or print outside tests",
-      "tests": "cargo llvm-cov"
-    },
-    {
-      "name": "dotnet",
-      "title": "C# and .NET",
-      "detects": "a solution or project file at the root",
-      "format": "none; the project's own formatter",
-      "checks": "all .NET analyzers, code style and nullable warnings from the build",
-      "tests": "dotnet test with Coverlet"
-    },
-    {
-      "name": "php",
-      "title": "PHP",
-      "detects": "composer.json",
-      "format": "none; the project's own formatter",
-      "checks": "PHPStan at max level",
-      "tests": "PHPUnit with clover coverage of src, app and lib"
-    },
-    {
-      "name": "ruby",
-      "title": "Ruby",
-      "detects": "a Gemfile",
-      "format": "RuboCop layout cops, in the project's style",
-      "checks": "RuboCop with the project's config plus new cops and the performance and RSpec plugins",
-      "tests": "RSpec or rake test, with coverage through Ruby's Coverage module"
-    },
-    {
-      "name": "elixir",
-      "title": "Elixir",
-      "detects": "mix.exs",
-      "format": "mix format",
-      "checks": "compiler warnings, Credo strict when the project uses Credo",
-      "tests": "mix test with cover, converted for diff coverage"
-    },
-    {
-      "name": "swift",
-      "title": "Swift",
-      "detects": "Package.swift",
-      "format": "swift format, when the project has a .swift-format",
-      "checks": "SwiftLint defect rules on top of the project's config, compiler warnings with complete strict concurrency",
-      "tests": "swift test with llvm-cov"
     }
   ]
 }

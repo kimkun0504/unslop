@@ -13,17 +13,21 @@ from unslop import (
     comments,
     diffcheck,
     doctor,
+    events,
     footprint,
     gitops,
+    guards,
+    mutation,
     profiles,
     project,
     ratchet,
     scaffold,
+    slop,
     stacks,
     upgrade,
 )
 from unslop.fetch import FetchError, fetch
-from unslop.profiles import DetectError, Plan
+from unslop.profiles import Check, DetectError, Plan
 from unslop.project import Config, ConfigError, Stack
 from unslop.ratchet import BrokenCheckError
 from unslop.scaffold import ScaffoldError
@@ -33,7 +37,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 TESTS_REVIEWED = ("UNSLOP_TESTS_REVIEWED", "CHECK_DIFF_ALLOW_TEST_CHANGES")
-CONFIG_REVIEWED = "UNSLOP_CONFIG_REVIEWED"
 MIN_SECONDS = 240
 MAX_SECONDS = 1700
 
@@ -61,79 +64,96 @@ def loaded() -> Config:
     return config
 
 
-def guard_config(since: str) -> list[str]:
-    problems: list[str] = []
-    before = gitops.show(since, str(project.CONFIG))
-    if before is not None and before.decode() != project.CONFIG.read_text():
-        problems.append("unslop.toml changed")
-    previous = gitops.show(since, str(project.BASELINE))
-    if previous is not None:
-        old = project.read_baseline(previous.decode())
-        new = project.read_baseline()
-        for name, keys in new.items():
-            grown = [key for key, amount in keys.items() if amount > old.get(name, {}).get(key, 0)]
-            problems += [f"baseline grew: {name} {key}" for key in grown]
-    return problems
-
-
-def gates(since: str) -> bool:
-    ok = True
-    found = comments.check(since)
+def gates(since: str, config: Config) -> list[str]:
+    failed: list[str] = []
+    found = comments.check(since) if config.gates.comments == "forbid" else []
     if found:
         print("comments: comments are forbidden on lines you add; make the code say it instead")
         print("".join(f"  {violation.render()}\n" for violation in found), end="")
-        ok = False
+        failed.append("comments")
     suppressed = diffcheck.suppressions(since)
     if suppressed:
         print("suppressions: new skip or suppression found")
         print("\n".join(f"  {problem.detail}" for problem in suppressed))
-        ok = False
+        failed.append("suppressions")
     tampered = diffcheck.tampered_tests(since)
     if tampered and not enabled(*TESTS_REVIEWED):
         print("tests: existing tests were modified or deleted; a human must review (label tests-reviewed)")
         print("\n".join(f"  {problem.kind}: {problem.detail}" for problem in tampered))
         print("  new tests go in new files, or after the last line of an existing one with any new imports")
-        ok = False
-    guarded = guard_config(since)
-    if guarded and not enabled(CONFIG_REVIEWED):
-        print("unslop: the guardrail configuration changed; a human must review (label unslop-reviewed)")
-        print("\n".join(f"  {problem}" for problem in guarded))
-        ok = False
-    return ok
+        failed.append("test-tampering")
+    problems, notes = guards.review(since, [stack.path for stack in config.stacks])
+    if problems:
+        print("review: guardrail or dependency files changed; a human must review (label unslop-reviewed)")
+        print("\n".join(f"  {problem}" for problem in problems))
+        failed.append("needs-review")
+    print("\n".join(f"note: {note}" for note in notes), end="\n" if notes else "")
+    return failed
 
 
-def check_stack(stack: Stack, since: str, changed: list[str], touched: ratchet.Touched) -> bool:
+def check_stack(
+    stack: Stack, config: Config, since: str, touched: ratchet.Touched, *, fast: bool
+) -> list[tuple[str, bool]]:
     baseline = project.read_baseline()
+    changed = gitops.changed_files(since)
+    results: list[tuple[str, bool]] = []
     with project.inside(stack.path):
         project.prepare_out()
         plan = stacks.resolve(stack, self_command())
         files = ratchet.local_files(changed, stack.path)
-        results = [ratchet.formatted(rule, since, files) for rule in plan["format"]]
+        results += [(f"format:{rule['name']}", ratchet.formatted(rule, since, files)) for rule in plan["format"]]
         for item in plan["checks"]:
+            if item.get("kind") == "dead-code" and not config.gates.dead_code:
+                continue
             found = ratchet.collect(item, stack.path)
             key = stack.key(item["name"])
-            results.append(ratchet.ratchet(key, found, baseline.get(key, {}), touched))
+            results.append((f"lint:{key}", ratchet.ratchet(key, found, baseline.get(key, {}), touched)))
+        if fast:
+            return results
         if "tests" in plan:
-            results.append(ratchet.run_tests(plan["tests"], since, stack.path))
-    return all(results)
+            passed = ratchet.run_tests(plan["tests"], since, stack.path, config.gates.coverage)
+            results.append((f"tests:{stack.label}", passed))
+        if config.gates.mutation and "mutation" in plan and all(passed for _, passed in results):
+            results.append((f"mutation:{stack.label}", mutation.run(plan["mutation"], since, stack.path)))
+    return results
 
 
-def run_check(base: str | None) -> int:
+def repository_checks(config: Config, since: str, touched: ratchet.Touched) -> list[tuple[str, bool]]:
+    results = [("diff-size", slop.diff_size(since, config.gates))]
+    if config.gates.duplication:
+        results.append(("duplication", slop.duplication(since)))
+    sql = slop.sql_check(config.gates)
+    if sql is not None:
+        recorded = project.read_baseline().get("sqlfluff", {})
+        results.append(("lint:sqlfluff", ratchet.ratchet("sqlfluff", ratchet.collect(sql), recorded, touched)))
+    return results
+
+
+def record_result(failed: list[str]) -> None:
+    project.prepare_out()
+    _ = (project.OUT / "result.json").write_text(json.dumps({"failed": failed}) + "\n")
+
+
+def run_check(base: str | None, *, fast: bool = False) -> int:
     config = loaded()
     since = gitops.diff_base(base)
-    if not gates(since):
+    failed = gates(since, config)
+    if failed:
+        record_result(failed)
         return 1
-    changed = gitops.changed_files(since)
     touched = gitops.added_lines(since)
-    results: list[bool] = []
+    project.prepare_out()
+    results = repository_checks(config, since, touched)
     for stack in config.stacks:
         if len(config.stacks) > 1:
             print(f"== {stack.label}", flush=True)
-        results.append(check_stack(stack, since, changed, touched))
-    if all(results):
-        print("unslop: all checks pass")
-        return 0
-    return 1
+        results += check_stack(stack, config, since, touched, fast=fast)
+    failed = [name for name, passed in results if not passed]
+    record_result(failed)
+    if failed:
+        return 1
+    print("unslop: all fast checks pass; tests and coverage run in CI" if fast else "unslop: all checks pass")
+    return 0
 
 
 def run_setup() -> int:
@@ -150,17 +170,26 @@ def run_setup() -> int:
     return 0
 
 
-def record_baseline() -> int:
-    baseline: dict[str, dict[str, int]] = {}
-    for stack in loaded().stacks:
+def record_baseline(*, missing_only: bool = False) -> int:
+    config = loaded()
+    baseline = project.read_baseline() if missing_only else {}
+    planned: list[tuple[str, str, Check]] = []
+    for stack in config.stacks:
         with project.inside(stack.path):
             project.prepare_out()
             plan = stacks.resolve(stack, self_command())
-            for item in plan["checks"]:
-                found = ratchet.collect(item, stack.path)
-                key = stack.key(item["name"])
-                baseline[key] = ratchet.counts(found)
-                print(f"{key}: recorded {len(found)} findings")
+            planned += [(stack.path, stack.key(item["name"]), item) for item in plan["checks"]]
+    project.prepare_out()
+    sql = slop.sql_check(config.gates)
+    if sql is not None:
+        planned.append((".", "sqlfluff", sql))
+    for path, key, item in planned:
+        if missing_only and key in baseline:
+            continue
+        with project.inside(path):
+            found = ratchet.collect(item, path)
+        baseline[key] = ratchet.counts(found)
+        print(f"{key}: recorded {len(found)} findings")
     project.write_baseline(baseline)
     print(f"wrote {project.BASELINE}")
     return 0
@@ -198,7 +227,7 @@ def run_init(requested: list[str], skip_setup: bool) -> int:
             _ = profiles.plan(stack.profile, self_command())
     project.save(config)
     footprint.write_settings(config.version, [stack.path for stack in config.stacks])
-    footprint.write_workflow(config.version, config.profiles)
+    footprint.write_workflow(config.version)
     print(f"set up unslop {config.version} for {', '.join(stack.label for stack in config.stacks)}")
     if not skip_setup and run_setup() != 0:
         print("setup failed: override the setup command in unslop.toml, then run `unslop setup` and `unslop baseline`")
@@ -258,12 +287,7 @@ def run_list() -> int:
 
 TOOLCHAIN_FILES = {
     "node": ("typescript", (".node-version", ".nvmrc")),
-    "ruby": ("ruby", (".ruby-version",)),
-    "go": ("go", ("go.mod",)),
-    "beam": ("elixir", (".tool-versions",)),
     "java": ("jvm", (".java-version", ".sdkmanrc")),
-    "dotnet": ("dotnet", ("global.json",)),
-    "php": ("php", (".php-version",)),
 }
 
 
@@ -285,6 +309,8 @@ def run_upgrade() -> int:
         print(f"already on unslop {__version__}")
         return 0
     print("\n".join(changes))
+    print("recording a baseline for checks this version adds", flush=True)
+    _ = record_baseline(missing_only=True)
     print("next: commit on a branch and open a pull request with the unslop-reviewed label")
     return 0
 
@@ -293,6 +319,11 @@ def run_doctor(online: bool) -> int:
     results = doctor.diagnose(online)
     print("\n".join(result.render() for result in results))
     return 1 if any(result.level == "fail" for result in results) else 0
+
+
+def run_stats(days: int, *, everywhere: bool) -> int:
+    print(events.summary(days, None if everywhere else str(gitops.toplevel())))
+    return 0
 
 
 def run_plan() -> int:
@@ -321,6 +352,10 @@ def parser() -> argparse.ArgumentParser:
     _ = init.add_argument("--skip-setup", action="store_true", help="skip installing dependencies")
     check = commands.add_parser("check", help="run every gate against the changes since the base branch")
     _ = check.add_argument("--base", default=None, help="branch to compare against; the default branch when left out")
+    _ = check.add_argument("--fast", action="store_true", help="skip tests, coverage and mutation, as Claude does")
+    stats = commands.add_parser("stats", help="count how often each guardrail blocked Claude")
+    _ = stats.add_argument("--days", type=int, default=14)
+    _ = stats.add_argument("--all", action="store_true", help="every repository, not only this one")
     _ = commands.add_parser("setup", help="install the project's dependencies")
     _ = commands.add_parser("baseline", help="record current findings as the baseline (humans only)")
     rules = commands.add_parser("ruleset", help="print or apply the GitHub branch ruleset")
@@ -343,7 +378,8 @@ def parser() -> argparse.ArgumentParser:
 def dispatch(arguments: argparse.Namespace) -> int:
     handlers: dict[str, Callable[[], int]] = {
         "init": lambda: run_init(arguments.stack, arguments.skip_setup),
-        "check": lambda: run_check(arguments.base),
+        "check": lambda: run_check(arguments.base, fast=arguments.fast),
+        "stats": lambda: run_stats(arguments.days, everywhere=arguments.all),
         "setup": run_setup,
         "baseline": record_baseline,
         "ruleset": lambda: run_ruleset(arguments.apply),

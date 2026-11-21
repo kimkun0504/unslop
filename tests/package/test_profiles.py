@@ -15,24 +15,7 @@ SETUPS: dict[str, dict[str, str]] = {
         "eslint.config.js": "export default []\n",
         "pnpm-lock.yaml": "",
     },
-    "go": {"go.mod": "module x\n"},
     "jvm": {"build.gradle.kts": "", "src/main/kotlin/A.kt": "class A\n", "src/main/java/B.java": "class B {}\n"},
-    "terraform": {"main.tf": "", "main.tftest.hcl": ""},
-    "rust": {"Cargo.toml": '[package]\nedition = "2024"\n'},
-    "dotnet": {"App.slnx": ""},
-    "php": {
-        "composer.json": json.dumps({"require-dev": {"phpunit/phpunit": "11"}}),
-        "src/A.php": "",
-        "tests/ATest.php": "",
-    },
-    "ruby": {
-        "Gemfile": "",
-        "Gemfile.lock": "GEM\n  specs:\n    rubocop (1.0)\n",
-        ".rubocop.yml": "",
-        "spec/a_spec.rb": "",
-    },
-    "elixir": {"mix.exs": "", "mix.lock": '%{"credo": {}}\n'},
-    "swift": {"Package.swift": "", ".swift-format": "{}", ".swiftlint.yml": ""},
 }
 
 
@@ -53,8 +36,10 @@ def test_every_profile_plans_against_its_project(repo: Path, name: str) -> None:
 
 
 def test_profiles_report_a_missing_project(repo: Path) -> None:
-    with pytest.raises(DetectError, match=r"no go\.mod"):
-        _ = profiles.plan("go", "unslop")
+    with pytest.raises(DetectError, match=r"no package\.json"):
+        _ = profiles.plan("typescript", "unslop")
+    with pytest.raises(DetectError, match="no Gradle or Maven build"):
+        _ = profiles.plan("jvm", "unslop")
 
 
 def test_unknown_profile(repo: Path) -> None:
@@ -80,36 +65,26 @@ def test_typescript_without_coverage_tooling(repo: Path) -> None:
     write(repo / "package.json", json.dumps({"devDependencies": {"jest": "29"}}))
     write(repo / "yarn.lock", "")
     plan = profiles.plan("typescript", "unslop")
-    assert plan["checks"] == []
+    assert [check["name"] for check in plan["checks"]] == ["knip"]
     assert plan.get("tests", {}).get("run", "").startswith("yarn jest")
+    assert plan.get("mutation") == {"tool": "stryker", "runner": "jest"}
     write(repo / "package.json", "{}")
-    assert "coverage" not in profiles.plan("typescript", "unslop").get("tests", {})
+    bare = profiles.plan("typescript", "unslop")
+    assert "coverage" not in bare.get("tests", {})
+    assert "mutation" not in bare
 
 
-def test_maven_and_php_folders(repo: Path) -> None:
+def test_maven_builds_add_jacoco(repo: Path) -> None:
     write(repo / "pom.xml", "")
-    assert "jacoco" in profiles.plan("jvm", "unslop").get("tests", {}).get("run", "")
-    write(repo / "composer.json", "{}")
-    with pytest.raises(DetectError, match="no src, app or lib"):
-        _ = profiles.plan("php", "unslop")
+    plan = profiles.plan("jvm", "unslop")
+    assert "jacoco" in plan.get("tests", {}).get("run", "")
+    assert "mutation" not in plan
 
 
-def test_ruby_without_rubocop_installs_it(repo: Path) -> None:
-    write(repo / "Gemfile", "")
-    plan = profiles.plan("ruby", "unslop")
-    assert "gem install" in plan.get("setup", "")
-    assert "rake test" in plan.get("tests", {}).get("run", "")
-
-
-def test_elixir_without_credo_and_swift_without_format(repo: Path) -> None:
-    write(repo / "mix.exs", "")
-    assert [check["name"] for check in profiles.plan("elixir", "unslop")["checks"]] == ["compiler"]
-    write(repo / "Package.swift", "")
-    assert profiles.plan("swift", "unslop")["format"] == []
-
-
-def test_dotnet_and_terraform_need_projects(repo: Path) -> None:
-    with pytest.raises(DetectError):
-        _ = profiles.plan("dotnet", "unslop")
-    with pytest.raises(DetectError):
-        _ = profiles.plan("terraform", "unslop")
+def test_python_dead_code_and_mutation_follow_the_installer(repo: Path) -> None:
+    write(repo / "poetry.lock", "")
+    plan = profiles.plan("python", "unslop")
+    vulture = next(check for check in plan["checks"] if check["name"] == "vulture")
+    assert vulture.get("kind") == "dead-code"
+    assert "poetry run python" in plan.get("mutation", {}).get("runner", "")
+    assert Path(".unslop/out/guard/mutmut_run.py").is_file()

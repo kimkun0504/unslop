@@ -4,17 +4,18 @@ from pathlib import Path
 import pytest
 
 from conftest import commit, write
-from unslop import __version__, cli, doctor, footprint, project, upgrade
+from unslop import __version__, cli, doctor, footprint, project, ratchet, upgrade
 from unslop.project import Config, Stack
 
 
 @pytest.fixture
 def adopted(repo: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr(footprint, "action_ref", lambda version: f"sha{version}")
+    monkeypatch.setattr(ratchet, "collect", lambda check, prefix=".": [])
     write(repo / "pyproject.toml", "[project]\n")
     project.save(Config([Stack("python", ".", {"tests": "pytest"})], "0.0.9"))
     footprint.write_settings("0.0.9", ["."])
-    footprint.write_workflow("0.0.9", ["python"])
+    footprint.write_workflow("0.0.9")
     project.write_baseline({})
     commit(repo, "adopted")
     return repo
@@ -30,7 +31,10 @@ def test_upgrade_moves_all_three_pins(adopted: Path, capsys: pytest.CaptureFixtu
     assert upgrade.marketplace_ref() == f"v{__version__}"
     assert upgrade.workflow_ref() == f"sha{__version__}"
     settings = json.loads((adopted / ".claude/settings.json").read_text())
-    assert "Edit(pyproject.toml)" in settings["permissions"]["deny"]
+    assert "Edit(unslop.toml)" in settings["permissions"]["deny"]
+    assert "Edit(pyproject.toml)" not in settings["permissions"]["deny"]
+    assert "vulture: recorded 0 findings" in output
+    assert set(project.read_baseline()) == {"ruff", "basedpyright", "vulture"}
     assert cli.main(["upgrade"]) == 0
     assert "already on" in capsys.readouterr().out
 
@@ -60,13 +64,14 @@ def levels(results: list[doctor.Result]) -> dict[str, str]:
 
 
 def test_doctor_flags_stale_pins_and_missing_tools(adopted: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(doctor.shutil, "which", lambda tool: None if tool in {"jq", "uv"} else f"/bin/{tool}")
+    monkeypatch.setattr(doctor.shutil, "which", lambda tool: None if tool in {"jq", "uv", "npx"} else f"/bin/{tool}")
     monkeypatch.setattr(Path, "home", lambda: adopted / "home")
     found = levels(doctor.diagnose(online=False))
     assert found["jq is missing; the hooks need it (brew install jq or apt install jq)"] == "fail"
     assert any(level == "fail" and "pins 0.0.9" in message for message, level in found.items())
     assert found["python: uv not on PATH, so its checks cannot run here"] == "fail"
     assert any("not installed for you" in message for message in found)
+    assert any(level == "warn" and "duplication check is skipped" in message for message, level in found.items())
 
 
 def test_doctor_is_happy_after_an_upgrade(adopted: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -14,15 +14,7 @@ MACHINE_HOOKS = Path("/usr/local/lib/claude-guard")
 TOOLS: dict[str, tuple[str, ...]] = {
     "python": ("uv",),
     "typescript": ("node", "npx"),
-    "go": ("go",),
     "jvm": ("java",),
-    "terraform": ("terraform", "tflint"),
-    "rust": ("cargo", "rustup"),
-    "dotnet": ("dotnet",),
-    "php": ("php", "composer"),
-    "ruby": ("ruby", "bundle"),
-    "elixir": ("mix",),
-    "swift": ("swift",),
 }
 
 
@@ -98,6 +90,8 @@ def toolchains(config: Config) -> list[Result]:
             results.append(ok(f"{stack.label}: toolchain found"))
         if not Path(stack.path).is_dir():
             results.append(failed(f"{stack.label}: folder {stack.path} does not exist"))
+    if config.gates.duplication and not shutil.which("npx"):
+        results.append(warn("Node.js is not on PATH, so the duplication check is skipped here; CI still runs it"))
     return results
 
 

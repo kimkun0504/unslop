@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -uo pipefail
-halt() { printf '{"continue":false,"stopReason":"%s"}\n' "$1"; exit 0; }
+here=$(cd "$(dirname "$0")" && pwd)
+. "$here/events.sh" 2>/dev/null || unslop_event() { :; }
+halt() {
+  unslop_event stop-gate "${2:-halted}" "$1" "${root:-}" "${sid:-}"
+  printf '{"continue":false,"stopReason":"%s"}\n' "$1"
+  exit 0
+}
 trap 'halt "stop-gate: internal error; work NOT verified"' ERR
 command -v jq >/dev/null 2>&1 || halt "stop-gate: jq missing; work NOT verified"
 input=$(cat)
@@ -16,7 +22,6 @@ worktree_root() {
 root=$(worktree_root "$input")
 [ -n "$root" ] || root="${CLAUDE_PROJECT_DIR:-}"
 [ -n "$root" ] || exit 0
-here=$(cd "$(dirname "$0")" && pwd)
 machine=${UNSLOP_MACHINE_HOOKS:-/usr/local/lib/claude-guard}
 if [ "$here" != "$machine" ] && [ -x "$machine/stop-gate.sh" ]; then
   exit 0
@@ -24,7 +29,7 @@ fi
 if [ -f "$root/unslop.toml" ]; then
   launcher="$here/../bin/unslop"
   [ -x "$launcher" ] || launcher="$here/unslop"
-  runner=("$launcher" check)
+  runner=("$launcher" check --fast)
   limit=$(sed -n 's/^fast_check_seconds *= *\([0-9][0-9]*\).*/\1/p' "$root/unslop.toml" | head -n 1)
   label="unslop check"
   budget_file=unslop.toml
@@ -44,6 +49,7 @@ state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/claude-stop-gate"
 mkdir -p "$state_dir"
 find "$state_dir" -type f -mtime +14 -exec rm -f {} + 2>/dev/null || true
 ok_file="$state_dir/$sid.ok"
+seen_file="$state_dir/$sid.seen"
 fail_file="$state_dir/$sid.fail"
 total_file="$state_dir/$sid.total"
 fingerprint=$(
@@ -54,6 +60,11 @@ fingerprint=$(
   } | git hash-object --stdin
 )
 [ "$fingerprint" = "$(cat "$ok_file" 2>/dev/null || true)" ] && exit 0
+continuing=$(printf '%s' "$input" | jq -r '.stop_hook_active // false' 2>/dev/null) || continuing=false
+if [ "$continuing" != "true" ] && [ "$fingerprint" = "$(cat "$seen_file" 2>/dev/null || true)" ]; then
+  exit 0
+fi
+echo "$fingerprint" >"$seen_file"
 [ -x "${runner[0]}" ] || halt "stop-gate: ${runner[0]} missing; work NOT verified"
 [ -n "$limit" ] || limit=$(jq -r '.fast_check_seconds // 240' "$root/$budget_file" 2>/dev/null || echo 240)
 case "$limit" in '' | *[!0-9]*) limit=240 ;; esac
@@ -69,7 +80,7 @@ else
   [ "$status" -eq 142 ] && status=124
 fi
 if [ "$status" -eq 124 ]; then
-  halt "stop-gate: $label exceeded ${limit}s. A human can raise fast_check_seconds in $budget_file (up to 1700) or narrow the test command"
+  halt "stop-gate: $label exceeded ${limit}s. A human can raise fast_check_seconds in $budget_file (up to 1700) or narrow the test command" "time limit"
 fi
 if [ "$status" -eq 0 ]; then
   echo "$fingerprint" >"$ok_file"
@@ -83,7 +94,11 @@ if [ "$last" = "$fingerprint" ]; then n=$((n + 1)); else n=1; fi
 echo "$fingerprint $n" >"$fail_file"
 total=$(( $(cat "$total_file" 2>/dev/null || echo 0) + 1 ))
 echo "$total" >"$total_file"
-[ "$n" -ge 3 ] && halt "stop-gate: $label failed 3 times in a row with no code change; human review needed"
-[ "$total" -ge 20 ] && halt "stop-gate: $label failed 20 times this session; human review needed"
+failed=$(jq -r '.failed // [] | join(" ")' "$root/.unslop/out/result.json" 2>/dev/null) || failed=""
+for gate in ${failed:-unknown}; do
+  unslop_event stop-gate "$gate" "attempt $total" "$root" "$sid"
+done
+[ "$n" -ge 3 ] && halt "stop-gate: $label failed 3 times in a row with no code change; human review needed" "gave up"
+[ "$total" -ge 20 ] && halt "stop-gate: $label failed 20 times this session; human review needed" "gave up"
 printf '%s failed (%s). Fix the cause; do not weaken tests, types or configs.\n%s\n' "$label" "attempt $total" "$(printf '%s\n' "$out" | tail -n 60)" >&2
 exit 2
