@@ -45,25 +45,119 @@ def test_allowing_comments_skips_the_comment_gate(repo: Path) -> None:
     assert cli.gates(since, Config([Stack("python")], gates=Gates(comments="allow"))) == []
 
 
-def test_dependency_edits_pass_locally_and_need_the_label_in_ci(
+def test_new_dependencies_need_the_label_in_ci(
     repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     write(repo / "pyproject.toml", '[project]\nname = "a"\ndependencies = []\n')
     write(repo / "web/package.json", json.dumps({"name": "w", "dependencies": {}}))
     commit(repo, "root")
     since = head()
-    write(repo / "pyproject.toml", '[project]\nname = "a"\ndependencies = ["httpx"]\n')
-    write(repo / "web/package.json", json.dumps({"name": "w", "dependencies": {"zod": "4"}}))
+    write(repo / "pyproject.toml", '[project]\nname = "a"\ndependencies = ["httpx>=0.28"]\n')
+    write(repo / "web/package.json", json.dumps({"name": "w", "dependencies": {"zod": "^4.1.0"}}))
     stacks = [".", "web"]
     problems, notes = guards.review(since, stacks)
     assert problems == []
-    assert "pyproject.toml, web/package.json" in notes[0]
+    assert "pyproject.toml: adds httpx >=0.28" in notes[0]
     monkeypatch.setenv(guards.IN_CI, "1")
+    summary = repo / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
     problems, _ = guards.review(since, stacks)
-    assert problems == ["dependencies changed: pyproject.toml", "dependencies changed: web/package.json"]
+    assert problems == [
+        "dependency review: pyproject.toml: adds httpx >=0.28",
+        "dependency review: web/package.json: adds zod ^4.1.0",
+    ]
+    assert "adds zod" in summary.read_text()
     monkeypatch.setenv(guards.CONFIG_REVIEWED, "1")
     assert guards.review(since, stacks)[0] == []
     assert capsys.readouterr().out == ""
+
+
+def test_routine_updates_need_no_label(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    write(repo / "package.json", json.dumps({"dependencies": {"react": "^19.1.0", "tiny": "^0.3.1", "gone": "1"}}))
+    write(repo / "pnpm-lock.yaml", "a\n")
+    write(repo / "requirements.txt", "httpx==0.28.1\nrich==14.0.0\n")
+    write(repo / "gradle/libs.versions.toml", '[versions]\nkotlin = "2.4.0"\n')
+    commit(repo, "root")
+    since = head()
+    write(repo / "package.json", json.dumps({"dependencies": {"react": "^19.2.0", "tiny": "^0.3.4"}}))
+    write(repo / "pnpm-lock.yaml", "b\n")
+    write(repo / "requirements.txt", "httpx==0.28.2\nrich==14.1.0\n")
+    write(repo / "gradle/libs.versions.toml", '[versions]\nkotlin = "2.4.21"\n')
+    monkeypatch.setenv(guards.IN_CI, "1")
+    problems, notes = guards.review(since, ["."])
+    assert problems == []
+    routine = "gradle/libs.versions.toml, package.json, pnpm-lock.yaml, requirements.txt"
+    assert notes == [f"routine dependency updates in {routine} need no label"]
+
+
+def test_risky_updates_are_named(repo: Path) -> None:
+    write(repo / "package.json", json.dumps({"dependencies": {"react": "^18.3.0", "tiny": "^0.3.1"}}))
+    write(repo / "requirements.txt", "httpx==0.28.1\n")
+    write(repo / "gradle/libs.versions.toml", '[versions]\nkotlin = "2.4.0"\n')
+    write(repo / "build.gradle.kts", "plugins {}\n")
+    write(repo / "pyproject.toml", '[project]\nname = "a"\n')
+    commit(repo, "root")
+    since = head()
+    package = {"dependencies": {"react": "^19.0.0", "tiny": "^0.4.0"}, "overrides": {"x": "1"}}
+    write(repo / "package.json", json.dumps(package))
+    write(repo / "requirements.txt", "--index-url https://example.test/simple\nhttpx==0.28.1\n")
+    write(repo / "gradle/libs.versions.toml", '[versions]\nkotlin = "2.4.0"\nktor = "3.3.0"\n')
+    write(repo / "build.gradle.kts", 'plugins { id("x") }\n')
+    write(repo / "pyproject.toml", '[project]\nname = "a"\n[tool.uv.sources]\nx = { git = "https://example.test/x" }\n')
+    write(repo / "web/package.json", "{}")
+    assert guards.risks(since, "package.json") == [
+        "package.json: moves react from ^18.3.0 to ^19.0.0",
+        "package.json: moves tiny from ^0.3.1 to ^0.4.0",
+        "package.json: changes overrides or resolutions",
+    ]
+    assert guards.risks(since, "requirements.txt") == ["requirements.txt: changes installer options"]
+    assert guards.risks(since, "gradle/libs.versions.toml") == ['gradle/libs.versions.toml: adds versions.ktor "3.3.0"']
+    assert guards.risks(since, "build.gradle.kts") == [
+        "build.gradle.kts changed; build files can change more than dependencies"
+    ]
+    assert guards.risks(since, "pyproject.toml") == ["pyproject.toml: changes [tool.uv.sources]"]
+    assert guards.risks(since, "web/package.json") == ["web/package.json is new"]
+    write(repo / "package.json", "{not json")
+    assert guards.risks(since, "package.json") == ["package.json could not be parsed"]
+
+
+def test_poetry_and_groups_are_read(repo: Path) -> None:
+    old = '[tool.poetry.dependencies]\npython = "^3.12"\n[tool.poetry.group.dev.dependencies]\npytest = "^8"\n'
+    new = '[tool.poetry.dependencies]\npython = "^3.12"\n[tool.poetry.group.dev.dependencies]\npytest = "^9"\n'
+    assert guards.pyproject_risks(old, new) == ['moves pytest from "^8" to "^9"']
+    grouped = '[dependency-groups]\ndev = ["ruff==0.17.6", {include-group = "x"}]\n'
+    assert guards.pyproject_risks(grouped, grouped.replace("0.17.6", "0.17.7")) == []
+
+
+def test_new_guarded_commits_make_labels_stale(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    write(repo / "ruff.toml", "")
+    write(repo / "tests/test_a.py", "def test_a():\n    assert 1\n")
+    commit(repo, "root")
+    since = head()
+    write(repo / "src/a.py", "x = 1\n")
+    commit(repo, "labelled")
+    labelled = head()
+    write(repo / "ruff.toml", "[lint]\n")
+    write(repo / "tests/test_a.py", "def test_a():\n    assert 2\n")
+    commit(repo, "later")
+    monkeypatch.setenv(guards.CONFIG_REVIEWED, "1")
+    monkeypatch.setenv(guards.TESTS_REVIEWED, "1")
+    monkeypatch.setenv(guards.EVENT, "synchronize")
+    monkeypatch.setenv(guards.PUSH_BEFORE, labelled)
+    monkeypatch.setenv(guards.PUSH_AFTER, head())
+    guards.mark_stale(since, ["."])
+    assert not guards.reviewed()
+    assert not guards.reviewed(guards.TESTS_REVIEWED)
+    assert (repo / ".unslop/out/stale-labels.txt").read_text() == "tests-reviewed\nunslop-reviewed\n"
+    monkeypatch.setenv(guards.PUSH_BEFORE, head())
+    guards.mark_stale(since, ["."])
+    assert guards.reviewed()
+    monkeypatch.setenv(guards.PUSH_BEFORE, "0" * 40)
+    guards.mark_stale(since, ["."])
+    assert not guards.reviewed()
+    monkeypatch.setenv(guards.EVENT, "labeled")
+    guards.mark_stale(since, ["."])
+    assert guards.reviewed()
 
 
 def test_other_manifest_edits_need_review_even_locally(repo: Path) -> None:
@@ -74,7 +168,7 @@ def test_other_manifest_edits_need_review_even_locally(repo: Path) -> None:
     write(repo / "pyproject.toml", '[project]\nname = "a"\n[tool.pytest.ini_options]\naddopts = "-k fast"\n')
     write(repo / "package.json", json.dumps({"scripts": {"test": "true"}}))
     problems, _ = guards.review(since, ["."])
-    assert problems == [
+    assert problems[:2] == [
         "package.json changed outside its dependency sections",
         "pyproject.toml changed outside its dependency sections",
     ]

@@ -77,8 +77,9 @@ def gates(since: str, config: Config) -> list[str]:
         print("suppressions: new skip or suppression found")
         print("\n".join(f"  {problem.detail}" for problem in suppressed))
         failed.append("suppressions")
+    guards.mark_stale(since, [stack.path for stack in config.stacks])
     tampered = diffcheck.tampered_tests(since)
-    if tampered and not enabled(*TESTS_REVIEWED):
+    if tampered and not (guards.reviewed(guards.TESTS_REVIEWED) or enabled("CHECK_DIFF_ALLOW_TEST_CHANGES")):
         print("tests: existing tests were modified or deleted; a human must review (label tests-reviewed)")
         print("\n".join(f"  {problem.kind}: {problem.detail}" for problem in tampered))
         print("  new tests go in new files, or after the last line of an existing one with any new imports")
@@ -355,8 +356,11 @@ def run_doctor(online: bool) -> int:
     return 1 if any(result.level == "fail" for result in results) else 0
 
 
-def run_stats(days: int, *, everywhere: bool) -> int:
+def run_stats(days: int, *, everywhere: bool, labels: int = 0) -> int:
     print(events.summary(days, None if everywhere else str(gitops.toplevel())))
+    if labels:
+        print()
+        print(events.label_summary(labels))
     return 0
 
 
@@ -390,6 +394,9 @@ def parser() -> argparse.ArgumentParser:
     stats = commands.add_parser("stats", help="count how often each guardrail blocked Claude")
     _ = stats.add_argument("--days", type=int, default=14)
     _ = stats.add_argument("--all", action="store_true", help="every repository, not only this one")
+    _ = stats.add_argument(
+        "--labels", type=int, default=0, metavar="N", help="also count review labels on the last N merged pull requests"
+    )
     _ = commands.add_parser("setup", help="install the project's dependencies")
     _ = commands.add_parser("baseline", help="record current findings as the baseline (humans only)")
     rules = commands.add_parser("ruleset", help="print or apply the GitHub branch ruleset")
@@ -413,7 +420,7 @@ def dispatch(arguments: argparse.Namespace) -> int:
     handlers: dict[str, Callable[[], int]] = {
         "init": lambda: run_init(arguments.stack, arguments.skip_setup),
         "check": lambda: run_check(arguments.base, fast=arguments.fast),
-        "stats": lambda: run_stats(arguments.days, everywhere=arguments.all),
+        "stats": lambda: run_stats(arguments.days, everywhere=arguments.all, labels=arguments.labels),
         "setup": run_setup,
         "baseline": record_baseline,
         "ruleset": lambda: run_ruleset(arguments.apply),

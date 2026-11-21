@@ -309,12 +309,17 @@ def pit(plan: Mutation, files: dict[str, frozenset[int] | None]) -> list[Survivo
     )
     result = timed(command)
     found = report / "mutations.xml"
-    if not found.is_file():
+    if not found.is_file() or not found.read_text().strip():
         print(result.stdout[-3000:] + result.stderr[-3000:])
         print("mutation: PIT wrote no report")
         return None
+    mutations = list(ET.parse(found).getroot().iter("mutation"))
+    if mutations and all(mutation.get("status") == "NO_COVERAGE" for mutation in mutations):
+        print(result.stdout[-3000:] + result.stderr[-3000:])
+        print("mutation: PIT ran no tests against the changed classes; check that it can find them")
+        return None
     survivors: list[Survivor] = []
-    for mutation in ET.parse(found).getroot().iter("mutation"):
+    for mutation in mutations:
         if mutation.get("status") not in UNKILLED["pit"]:
             continue
         owner = (mutation.findtext("mutatedClass") or "").split("$", 1)[0]

@@ -123,12 +123,14 @@ def test_upgrade_retires_the_old_claude_folder_rule(adopted: Path) -> None:
 def test_upgrade_reruns_older_workflows_on_labels(adopted: Path) -> None:
     workflow = adopted / ".github/workflows/unslop.yml"
     current = workflow.read_text()
-    write(workflow, current.replace(f"\n    types: {upgrade.LABEL_TYPES}", ""))
+    write(workflow, current.replace(f"\n    types: {upgrade.LABEL_TYPES}", "").replace("\n  pull-requests: write", ""))
     commit(adopted, "old trigger")
     changes = upgrade.upgrade(__version__)
-    assert any("label" in change for change in changes)
+    assert any("rerun when a label" in change for change in changes)
+    assert any("stale" in change for change in changes)
     assert workflow.read_text().replace(f"sha{__version__}", "sha0.0.9") == current
     assert not upgrade.rerun_on_labels()
+    assert not upgrade.allow_label_edits()
 
 
 def test_custom_pull_request_triggers_are_left_alone(adopted: Path) -> None:
