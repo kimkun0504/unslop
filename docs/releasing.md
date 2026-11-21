@@ -8,8 +8,8 @@ A release is a git tag. Repositories pin it in three places: `unslop.toml`, the 
 2. After it merges, tag the merge commit and push the tag:
 
    ```bash
-   git tag v0.4.0 origin/main
-   git push origin v0.4.0
+   git tag v0.5.0 origin/main
+   git push origin v0.5.0
    ```
 
 3. The `release` workflow checks that the tag matches both version files, builds the wheel and source archive, and attaches them to a GitHub release.

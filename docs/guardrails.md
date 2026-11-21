@@ -60,10 +60,13 @@ Switched on by `unslop.toml` in a repository set up with `unslop init`, or by `.
 | A5 | `unslop.toml` and the baseline are read-only for Claude. Changing the configuration or growing the baseline fails the check unless the pull request has the `unslop-reviewed` label | Deny rules, sandbox `denyWrite`, `protect-paths.sh`, and the configuration gate in `unslop check` | Boundary, backed by a gate |
 | A6 | Downloaded tools are pinned by checksum | `unslop fetch` | Gate |
 | A7 | The unslop version is pinned, and the check refuses to run against a different version | `unslop.toml`, the marketplace `ref`, the action SHA | Gate |
-| A8 | Claude may add or update dependencies, and the pull request then needs the `unslop-reviewed` label. In `package.json` and `pyproject.toml`, anything outside the dependency sections fails even locally. In CI, a change to any protected file needs the same label | `guards.py` | Gate |
+| A8 | Claude may add or update dependencies. A new package, a major version, a changed override or source, or a build-file edit needs the `unslop-reviewed` label; minor and patch updates do not. In `package.json` and `pyproject.toml`, anything outside the dependency sections fails even locally. In CI, a change to any protected file needs the same label | `guards.py` | Gate |
 | A9 | No new copy-pasted code: a block of 50 tokens or more, outside tests, that is not on the base branch | jscpd with `--baseline-from-ref` | Gate |
 | A10 | Large changes are flagged: a warning above `diff_warn_lines`, a failure above `diff_max_lines` when it is set | `slop.py` | Gate when a limit is set |
-| A11 | Optional: every mutant on a changed line must be killed, for Python and TypeScript | mutmut or Stryker limited to changed lines, when `mutation = true` | Gate |
+| A11 | Every mutant on a changed line must be killed, within `mutation_seconds` | mutmut, Stryker or PIT limited to changed lines, in CI | Gate |
+| A12 | A change of `review_lines` or more gets a fresh-context design review before Claude finishes: proportion, speculative generality, reinvention, plausible-but-wrong logic, weak tests, hidden changes | `stop-gate.sh` and the `unslop:reviewer` agent | Nudge, once per step |
+| A13 | A review label approves only the commits it saw; new guardrail, dependency or test changes remove it | `guards.mark_stale`, the action's label step | Gate |
+| A14 | Every tool is pinned with its dependencies, and unslop's CI checks that each tool's real output still parses | Package dependencies, `data/tools/node/package-lock.json`, `test_tool_contracts.py`, Dependabot | Supply chain |
 
 ## 3. CI and GitHub layer
 
