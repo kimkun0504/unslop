@@ -85,6 +85,22 @@ fi
 if [ "$status" -eq 0 ]; then
   echo "$fingerprint" >"$ok_file"
   rm -f "$fail_file"
+  result="$root/.unslop/out/result.json"
+  lines=$(jq -r '.changed_lines // 0' "$result" 2>/dev/null) || lines=0
+  wanted=$(jq -r '.review_lines // 0' "$result" 2>/dev/null) || wanted=0
+  base=$(jq -r '.base // empty' "$result" 2>/dev/null) || base=""
+  reviewed=$(cat "$state_dir/$sid.reviewed" 2>/dev/null || echo 0)
+  case "$lines$wanted$reviewed" in *[!0-9]*) exit 0 ;; esac
+  if [ "$wanted" -gt 0 ] && [ "$lines" -ge "$wanted" ] && [ $((lines - reviewed)) -ge "$wanted" ]; then
+    echo "$lines" >"$state_dir/$sid.reviewed"
+    unslop_event stop-gate "design review" "$lines changed lines" "$root" "$sid"
+    {
+      echo "unslop: the checks pass. This change is $lines lines, so it gets a design review before you finish."
+      echo "Run the unslop:reviewer agent with the Agent tool. Give it the task in a sentence or two and the base commit $base."
+      echo "Fix every finding it raises, or say in your final message why one does not apply. Then finish."
+    } >&2
+    exit 2
+  fi
   exit 0
 fi
 last=""

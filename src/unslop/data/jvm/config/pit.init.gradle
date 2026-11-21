@@ -3,25 +3,26 @@ rootProject {
         if (!project.plugins.hasPlugin("java")) {
             return
         }
+        def runtime = project.configurations.getByName("testRuntimeClasspath")
+        def tools = project.configurations.create("unslopPit") {
+            canBeConsumed = false
+            canBeResolved = true
+            extendsFrom(project.configurations.getByName("testImplementation"), project.configurations.getByName("testRuntimeOnly"))
+            attributes { attrs ->
+                runtime.attributes.keySet().each { key -> attrs.attribute(key, runtime.attributes.getAttribute(key)) }
+            }
+        }
+        def pit = project.findProperty("unslopPitVersion")
+        def plugin = project.findProperty("unslopPitJunit5Version")
+        project.dependencies.add("unslopPit", "org.pitest:pitest-command-line:${pit}")
+        project.dependencies.add("unslopPit", "org.pitest:pitest-junit5-plugin:${plugin}")
+        project.dependencies.add("unslopPit", "org.junit.platform:junit-platform-launcher")
         project.tasks.register("unslopPitClasspath") {
             dependsOn "testClasses"
             def target = project.file(".unslop/out/pit/classpath.txt")
-            def pit = project.findProperty("unslopPitVersion")
-            def plugin = project.findProperty("unslopPitJunit5Version")
             doLast {
-                def runtime = project.configurations.getByName("testRuntimeClasspath")
-                def engine = runtime.resolvedConfiguration.resolvedArtifacts.find {
-                    it.moduleVersion.id.group == "org.junit.platform" && it.name == "junit-platform-engine"
-                }
-                def wanted = [
-                    project.dependencies.create("org.pitest:pitest-command-line:${pit}"),
-                    project.dependencies.create("org.pitest:pitest-junit5-plugin:${plugin}"),
-                ]
-                if (engine != null) {
-                    wanted << project.dependencies.create("org.junit.platform:junit-platform-launcher:${engine.moduleVersion.id.version}")
-                }
-                def tools = project.configurations.detachedConfiguration(wanted as Dependency[])
-                def entries = tools.files + project.sourceSets.test.runtimeClasspath.files
+                def sets = project.sourceSets
+                def entries = sets.test.output.files + sets.main.output.files + tools.files
                 target.parentFile.mkdirs()
                 target.text = entries.collect { it.absolutePath }.join(File.pathSeparator)
             }

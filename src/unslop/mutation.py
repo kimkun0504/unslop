@@ -254,6 +254,24 @@ def class_name(path: str) -> str:
     return f"{found.group(1)}.{stem}" if found else stem
 
 
+TOOLS_POM = """<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>unslop</groupId>
+  <artifactId>pit-tools</artifactId>
+  <version>1</version>
+  <dependencies>
+{dependencies}
+  </dependencies>
+</project>
+"""
+
+
+def maven_dependency(coordinate: str) -> str:
+    group, artifact, version = coordinate.split(":")
+    fields = f"<groupId>{group}</groupId><artifactId>{artifact}</artifactId><version>{version}</version>"
+    return f"    <dependency>{fields}</dependency>"
+
+
 def maven_classpath(build: str) -> str | None:
     deps = PIT_OUT / "deps.txt"
     command = (
@@ -264,16 +282,22 @@ def maven_classpath(build: str) -> str | None:
         return None
     entries = ["target/test-classes", "target/classes", *deps.read_text().strip().split(os.pathsep)]
     engine = next((entry for entry in entries if Path(entry).name.startswith("junit-platform-engine-")), None)
-    artifacts = [f"org.pitest:pitest:{PIT}", f"org.pitest:pitest-entry:{PIT}", f"org.pitest:pitest-command-line:{PIT}"]
-    artifacts.append(f"org.pitest:pitest-junit5-plugin:{PIT_JUNIT5}")
+    wanted = [f"org.pitest:pitest-command-line:{PIT}", f"org.pitest:pitest-junit5-plugin:{PIT_JUNIT5}"]
     if engine is not None:
         version = Path(engine).name.removeprefix("junit-platform-engine-").removesuffix(".jar")
-        artifacts.append(f"org.junit.platform:junit-platform-launcher:{version}")
+        wanted.append(f"org.junit.platform:junit-platform-launcher:{version}")
+    tools = PIT_OUT / "tools"
+    tools.mkdir(parents=True, exist_ok=True)
+    _ = (tools / "pom.xml").write_text(
+        TOOLS_POM.format(dependencies="\n".join(maven_dependency(item) for item in wanted))
+    )
     lib = PIT_OUT / "lib"
-    for artifact in artifacts:
-        if timed(f"{build} -B -q dependency:copy -Dartifact={artifact} -DoutputDirectory={lib}").returncode != 0:
-            return None
-    return os.pathsep.join([*(str(jar) for jar in sorted(lib.glob("*.jar"))), *entries])
+    copy = f"{build} -B -q -f {tools}/pom.xml dependency:copy-dependencies -DoutputDirectory={lib.resolve()}"
+    if timed(copy).returncode != 0:
+        return None
+    present = {Path(entry).name for entry in entries}
+    extra = [str(jar) for jar in sorted(lib.glob("*.jar")) if jar.name not in present]
+    return os.pathsep.join([*entries, *extra])
 
 
 def gradle_classpath(build: str) -> str | None:

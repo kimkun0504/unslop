@@ -164,9 +164,12 @@ def repository_checks(config: Config, since: str, touched: ratchet.Touched) -> l
     return results
 
 
-def record_result(failed: list[str]) -> None:
+def record_result(failed: list[str], since: str = "", config: Config | None = None) -> None:
     project.prepare_out()
-    _ = (project.OUT / "result.json").write_text(json.dumps({"failed": failed}) + "\n")
+    result: dict[str, object] = {"failed": failed}
+    if since and config is not None:
+        result |= {"base": since, "changed_lines": slop.diff_lines(since), "review_lines": config.gates.review_lines}
+    _ = (project.OUT / "result.json").write_text(json.dumps(result) + "\n")
 
 
 def run_check(base: str | None, *, fast: bool = False) -> int:
@@ -184,7 +187,7 @@ def run_check(base: str | None, *, fast: bool = False) -> int:
             print(f"== {stack.label}", flush=True)
         results += check_stack(stack, config, since, touched, fast=fast)
     failed = [name for name, passed in results if not passed]
-    record_result(failed)
+    record_result(failed, since, config)
     if failed:
         return 1
     print("unslop: all fast checks pass; tests and coverage run in CI" if fast else "unslop: all checks pass")

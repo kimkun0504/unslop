@@ -46,6 +46,7 @@ class Gates:
     mutation_seconds: int = 900
     sql_dialect: str = "postgres"
     fast_scope_files: int = 2000
+    review_lines: int = 40
 
     def render(self) -> list[str]:
         return [
@@ -60,6 +61,7 @@ class Gates:
             f"mutation_seconds = {self.mutation_seconds}",
             f'sql_dialect = "{self.sql_dialect}"',
             f"fast_scope_files = {self.fast_scope_files}",
+            f"review_lines = {self.review_lines}",
         ]
 
 
@@ -161,6 +163,7 @@ GATE_TYPES: dict[str, type] = {
     "mutation_seconds": int,
     "sql_dialect": str,
     "fast_scope_files": int,
+    "review_lines": int,
 }
 COMMENT_RULES = ("forbid", "allow")
 FULL_COVERAGE = 100
@@ -188,7 +191,13 @@ def read_gates(raw: object) -> Gates:
     if gates.sql_dialect not in SQL_DIALECTS:
         message = f"[gates] sql_dialect must be one of {', '.join(SQL_DIALECTS)}"
         raise fail(message)
-    limits = (gates.diff_warn_lines, gates.diff_max_lines, gates.fast_scope_files, gates.mutation_seconds)
+    limits = (
+        gates.diff_warn_lines,
+        gates.diff_max_lines,
+        gates.fast_scope_files,
+        gates.mutation_seconds,
+        gates.review_lines,
+    )
     if not 0 <= gates.coverage <= FULL_COVERAGE or min(limits) < 0:
         message = "[gates] coverage must be 0 to 100, and the line and file limits 0 or more"
         raise fail(message)
