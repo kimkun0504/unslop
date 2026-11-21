@@ -270,7 +270,10 @@ def test_fast_check_skips_tests(
     assert cli.main(["check", "--fast"]) == 0
     assert "tests and coverage run in CI" in capsys.readouterr().out
     assert cli.main(["check"]) == 1
-    assert json.loads((repo / ".unslop/out/result.json").read_text()) == {"failed": ["tests:python"]}
+    result = json.loads((repo / ".unslop/out/result.json").read_text())
+    assert result["failed"] == ["tests:python"]
+    assert result["review_lines"] == 40
+    assert result["changed_lines"] == 0
 
 
 def test_stats_command(repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
