@@ -25,6 +25,8 @@ rootProject {
                 def entries = sets.test.runtimeClasspath.files + extra
                 target.parentFile.mkdirs()
                 target.text = entries.collect { it.absolutePath }.join(File.pathSeparator)
+                def launcher = project.tasks.named("test").get().javaLauncher.get()
+                project.file(".unslop/out/pit/java.txt").text = launcher.executablePath.asFile.absolutePath
             }
         }
     }

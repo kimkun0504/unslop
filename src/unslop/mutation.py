@@ -2,6 +2,7 @@ import ast
 import json
 import os
 import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -311,6 +312,14 @@ def gradle_classpath(build: str) -> str | None:
     return target.read_text().strip()
 
 
+def java_binary() -> str:
+    recorded = PIT_OUT / "java.txt"
+    if recorded.is_file():
+        return recorded.read_text().strip()
+    home = os.environ.get("JAVA_HOME")
+    return str(Path(home) / "bin" / "java") if home else "java"
+
+
 def pit(plan: Mutation, files: dict[str, frozenset[int] | None]) -> list[Survivor] | None:
     shutil.rmtree(PIT_OUT, ignore_errors=True)
     PIT_OUT.mkdir(parents=True)
@@ -326,7 +335,7 @@ def pit(plan: Mutation, files: dict[str, frozenset[int] | None]) -> list[Survivo
     _ = arguments.write_text(f"-cp\n{classpath}\n")
     report = PIT_OUT / "report"
     command = (
-        f"java @{arguments} org.pitest.mutationtest.commandline.MutationCoverageReport"
+        f"{shlex.quote(java_binary())} @{arguments} org.pitest.mutationtest.commandline.MutationCoverageReport"
         f" --reportDir {report} --targetClasses {','.join(f'{name}*' for name in classes)}"
         f" --targetTests {','.join(packages)} --sourceDirs {','.join(sources)}"
         " --outputFormats XML --timestampedReports=false --verbose"
